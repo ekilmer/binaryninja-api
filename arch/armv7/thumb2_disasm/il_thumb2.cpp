@@ -1142,16 +1142,40 @@ bool GetLowLevelILForThumbInstruction(Architecture* arch, LowLevelILFunction& il
 		int intrinsic_id = ARMV7_INTRIN_MSR;
 
 		/* certain MSR scenarios earn a specialized intrinsic */
-		if (dest_reg == REGS_BASEPRI)
-			intrinsic_id = ARM_M_INTRIN_SET_BASEPRI;
+		// if (dest_reg == REGS_BASEPRI)
+		// 	intrinsic_id = ARM_M_INTRIN_SET_BASEPRI;
+		switch (dest_reg) {
+			case REGS_MSP:
+			case REGS_PSP:
+			case REGS_BASEPRI:
+			case REGS_BASEPRI_MAX:
+			case REGS_PRIMASK:
+			case REGS_FAULTMASK:
+			case REGS_CONTROL:
+			case REGS_IPSR:
+			case REGS_EPSR:
+			case REGS_IEPSR:
+				il.AddInstruction(
+					il.Intrinsic(
+						{}, /* outputs */
+						intrinsic_id,
+						{
+							il.Register(4, dest_reg),
+							ReadILOperand(il, instr, 1)
+						} /* inputs */
+					)
+				);
+				break;
+			default:
+				il.AddInstruction(
+					il.Intrinsic(
+						{RegisterOrFlag::Register(dest_reg)}, /* outputs */
+						intrinsic_id,
+						{ReadILOperand(il, instr, 1)} /* inputs */
+					)
+				);
+		}
 
-		il.AddInstruction(
-			il.Intrinsic(
-				{RegisterOrFlag::Register(dest_reg)}, /* outputs */
-				intrinsic_id,
-				{ReadILOperand(il, instr, 1)} /* inputs */
-			)
-		);
 		break;
 	}
 	case armv7::ARMV7_MUL:

@@ -1219,9 +1219,23 @@ public:
 					else {
 						uint32_t tmp = (decomp.fields[FIELD_write_nzcvq] << 1) | decomp.fields[FIELD_write_g];
 						uint8_t sysm = decomp.fields[FIELD_SYSm];
+						bool xPSR = ((sysm >> 2) & 1) == 1;
 						switch (sysm >> 3) {
 							case 0: /* xPSR access */
-								switch(tmp) {
+								if (xPSR)
+									switch (sysm) {
+									case 5: // '101' == IPSR
+										result.emplace_back(RegisterToken, "ipsr");
+										break;
+									case 6: // '110' == EPSR
+										result.emplace_back(RegisterToken, "epsr");
+										break;
+									case 7: // '111' == IEPSR
+										result.emplace_back(RegisterToken, "iepsr");
+										break;
+									}
+								else
+									switch(tmp) {
 									case 0: // unpredictable
 										break;
 									case 1: // '01' == write_g
