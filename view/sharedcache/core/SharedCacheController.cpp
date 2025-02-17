@@ -233,7 +233,7 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 			if (m_processObjC)
 				objcProcessor.ProcessObjCData();
 			if (m_processCFStrings)
-				objcProcessor.ProcessCFStrings();
+				objcProcessor.ProcessObjCLiterals();
 		}
 		catch (std::exception& e)
 		{

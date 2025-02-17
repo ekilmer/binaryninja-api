@@ -2369,7 +2369,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	if (parseCFStrings)
 	{
 		try {
-			m_objcProcessor->ProcessCFStrings();
+			m_objcProcessor->ProcessObjCLiterals();
 		}
 		catch (std::exception& ex)
 		{

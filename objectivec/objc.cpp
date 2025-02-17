@@ -1535,6 +1535,15 @@ void ObjCProcessor::ProcessObjCData()
 	m_relocationPointerRewrites.clear();
 }
 
+void ObjCProcessor::ProcessObjCLiterals()
+{
+	ProcessCFStrings();
+	ProcessNSConstantArrays();
+	ProcessNSConstantDictionaries();
+	ProcessNSConstantIntegerNumbers();
+	ProcessNSConstantFloatingPointNumbers();
+	ProcessNSConstantDatas();
+}
 
 void ObjCProcessor::ProcessCFStrings()
 {
@@ -1649,6 +1658,274 @@ void ObjCProcessor::ProcessCFStrings()
 		m_data->EndBulkModifySymbols();
 		delete m_symbolQueue;
 	}
+}
+
+void ObjCProcessor::ProcessNSConstantArrays()
+{
+	m_symbolQueue = new SymbolQueue();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	auto idType = Type::NamedType(m_data, m_typeNames.id);
+	StructureBuilder nsConstantArrayBuilder;
+	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantArrayBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
+	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, idType), "objects");
+	auto type = finalizeStructureBuilder(m_data, nsConstantArrayBuilder, "__NSConstantArray");
+	m_typeNames.nsConstantArray = type.first;
+
+	auto reader = GetReader();
+	if (auto arrays = GetSectionWithName("__objc_arrayobj"))
+	{
+		auto start = arrays->GetStart();
+		auto end = arrays->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantArray)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t count = reader->ReadPointer();
+			auto dataLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(
+				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsarray_{:x}_data", i), dataLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantArray),
+				fmt::format("nsarray_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		m_symbolQueue->Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+	delete m_symbolQueue;
+}
+
+void ObjCProcessor::ProcessNSConstantDictionaries()
+{
+	m_symbolQueue = new SymbolQueue();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	auto idType = Type::NamedType(m_data, m_typeNames.id);
+	StructureBuilder nsConstantDictionaryBuilder;
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "options");
+	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, idType), "keys");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, idType), "objects");
+	auto type = finalizeStructureBuilder(m_data, nsConstantDictionaryBuilder, "__NSConstantDictionary");
+	m_typeNames.nsConstantDictionary = type.first;
+
+	auto reader = GetReader();
+	if (auto dicts = GetSectionWithName("__objc_dictobj"))
+	{
+		auto start = dicts->GetStart();
+		auto end = dicts->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDictionary)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + (ptrSize * 2));
+			// TODO: Do we need to do anything with `options`? It appears to always be 1.
+			uint64_t count = reader->ReadPointer();
+			auto keysLoc = ReadPointerAccountingForRelocations(reader.get());
+			auto objectsLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(
+				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsdict_{:x}_keys", i), keysLoc, true);
+			DefineObjCSymbol(
+				DataSymbol, Type::ArrayType(idType, count), fmt::format("nsdict_{:x}_objects", i), objectsLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantDictionary),
+				fmt::format("nsdict_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		m_symbolQueue->Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+	delete m_symbolQueue;
+}
+
+void ObjCProcessor::ProcessNSConstantIntegerNumbers()
+{
+	m_symbolQueue = new SymbolQueue();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantIntegerNumberBuilder;
+	nsConstantIntegerNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantIntegerNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::IntegerType(1, true)), "encoding");
+	nsConstantIntegerNumberBuilder.AddMember(Type::IntegerType(ptrSize, true), "value");
+	auto type = finalizeStructureBuilder(m_data, nsConstantIntegerNumberBuilder, "__NSConstantIntegerNumber");
+	m_typeNames.nsConstantIntegerNumber = type.first;
+
+	auto reader = GetReader();
+	if (auto numbers = GetSectionWithName("__objc_intobj"))
+	{
+		auto start = numbers->GetStart();
+		auto end = numbers->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t encodingLoc = ReadPointerAccountingForRelocations(reader.get());
+			uint64_t value = reader->Read64();
+			reader->Seek(encodingLoc);
+			uint8_t encoding = reader->Read8();
+
+			switch (encoding)
+			{
+			case 'c':
+			case 's':
+			case 'i':
+			case 'l':
+			case 'q':
+				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber),
+					fmt::format("nsint_{:x}_{}", i, (int64_t)value), i, true);
+				break;
+			case 'C':
+			case 'S':
+			case 'I':
+			case 'L':
+			case 'Q':
+				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber),
+					fmt::format("nsint_{:x}_{}", i, value), i, true);
+				break;
+			default:
+				m_logger->LogWarn("Unknown type encoding '%c' in number literal object at %p", encoding, i);
+				continue;
+			}
+		}
+		auto id = m_data->BeginUndoActions();
+		m_symbolQueue->Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+	delete m_symbolQueue;
+}
+
+void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
+{
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantFloatNumberBuilder;
+	nsConstantFloatNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantFloatNumberBuilder.AddMember(Type::FloatType(4), "value");
+	auto type = finalizeStructureBuilder(m_data, nsConstantFloatNumberBuilder, "__NSConstantFloatNumber");
+	m_typeNames.nsConstantFloatNumber = type.first;
+
+	StructureBuilder nsConstantDoubleNumberBuilder;
+	nsConstantDoubleNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDoubleNumberBuilder.AddMember(Type::FloatType(8), "value");
+	type = finalizeStructureBuilder(m_data, nsConstantDoubleNumberBuilder, "__NSConstantDoubleNumber");
+	m_typeNames.nsConstantDoubleNumber = type.first;
+
+	StructureBuilder nsConstantDateBuilder;
+	nsConstantDateBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDateBuilder.AddMember(Type::FloatType(8), "ti");
+	type = finalizeStructureBuilder(m_data, nsConstantDateBuilder, "__NSConstantDate");
+	m_typeNames.nsConstantDate = type.first;
+
+	enum SectionType
+	{
+		Float,
+		Double,
+		Date,
+	};
+
+	constexpr std::pair<std::string_view, SectionType> sections[] = {
+		{"__objc_floatobj", Float},
+		{"__objc_doubleobj", Double},
+		{"__objc_dateobj", Date},
+	};
+
+	auto reader = GetReader();
+	for (auto& [sectionName, sectionType] : sections)
+	{
+		auto numbers = GetSectionWithName(sectionName.data());
+		if (!numbers)
+			continue;
+
+		m_symbolQueue = new SymbolQueue();
+		auto start = numbers->GetStart();
+		auto end = numbers->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDoubleNumber)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+
+			QualifiedName* typeName = nullptr;
+			std::string name;
+
+			switch (sectionType)
+			{
+			case Float:
+			{
+				float value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsfloat_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantFloatNumber;
+				break;
+			}
+			case Double:
+			{
+				double value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsdouble_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantDoubleNumber;
+				break;
+			}
+			case Date:
+			{
+				double value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsdate_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantDate;
+				break;
+			}
+			}
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, *typeName), name, i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		m_symbolQueue->Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+		delete m_symbolQueue;
+	}
+}
+
+void ObjCProcessor::ProcessNSConstantDatas()
+{
+	m_symbolQueue = new SymbolQueue();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantDataBuilder;
+	nsConstantDataBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDataBuilder.AddMember(Type::IntegerType(ptrSize, false), "length");
+	nsConstantDataBuilder.AddMember(Type::PointerType(ptrSize, Type::IntegerType(1, false)), "bytes");
+	auto type = finalizeStructureBuilder(m_data, nsConstantDataBuilder, "__NSConstantData");
+	m_typeNames.nsConstantData = type.first;
+
+	auto reader = GetReader();
+	if (auto datas = GetSectionWithName("__objc_dataobj"))
+	{
+		auto start = datas->GetStart();
+		auto end = datas->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantData)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t length = reader->ReadPointer();
+			auto dataLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(DataSymbol, Type::ArrayType(Type::IntegerType(1, false), length),
+				fmt::format("nsdata_{:x}_data", i), dataLoc, true);
+			DefineObjCSymbol(
+				DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantData), fmt::format("nsdata_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		m_symbolQueue->Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+	delete m_symbolQueue;
 }
 
 void ObjCProcessor::AddRelocatedPointer(uint64_t location, uint64_t rewrite)

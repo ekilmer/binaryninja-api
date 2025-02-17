@@ -274,6 +274,13 @@ namespace BinaryNinja {
 			QualifiedName protocolList;
 			QualifiedName ivar;
 			QualifiedName ivarList;
+			QualifiedName nsConstantArray;
+			QualifiedName nsConstantDictionary;
+			QualifiedName nsConstantDoubleNumber;
+			QualifiedName nsConstantFloatNumber;
+			QualifiedName nsConstantIntegerNumber;
+			QualifiedName nsConstantDate;
+			QualifiedName nsConstantData;
 		} m_typeNames;
 
 		// TODO(WeiN76LQh): this is to avoid a bug with defining a classes protocol list in the DSC plugin. Remove once fixed
@@ -314,6 +321,13 @@ namespace BinaryNinja {
 
 		std::optional<std::string> ClassNameForTargetOfPointerAt(ObjCReader* reader, uint64_t offset);
 
+		void ProcessCFStrings();
+		void ProcessNSConstantArrays();
+		void ProcessNSConstantDictionaries();
+		void ProcessNSConstantIntegerNumbers();
+		void ProcessNSConstantFloatingPointNumbers();
+		void ProcessNSConstantDatas();
+
 		void PostProcessObjCSections(ObjCReader* reader);
 
 	protected:
@@ -333,7 +347,7 @@ namespace BinaryNinja {
 
 		ObjCProcessor(BinaryView* data, const char* loggerName, bool skipClassBaseProtocols = false);
 		void ProcessObjCData();
-		void ProcessCFStrings();
+		void ProcessObjCLiterals();
 		void AddRelocatedPointer(uint64_t location, uint64_t rewrite);
 	};
 }
