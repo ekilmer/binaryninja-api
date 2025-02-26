@@ -7205,6 +7205,14 @@ namespace BinaryNinja {
 
 			\param name Name of the BinaryViewType
 			\param id ID of the platform
+			\param platform The Platform to register
+		*/
+		static void RegisterPlatform(const std::string& name, uint32_t id, Platform* platform);
+
+		/*! Register a Platform for a specific view type (this form is deprecated as of 4.3, please use the form without architecture as an argument instead)
+
+			\param name Name of the BinaryViewType
+			\param id ID of the platform
 			\param arch Architecture to register this platform with
 			\param platform The Platform to register
 		*/
