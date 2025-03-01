@@ -58,12 +58,12 @@ extern "C" {
 		// TODO:	2. Identify if the function is unique to a class, renaming and retyping if true
 		// TODO:	3. Identify functions which address a VFT and are probably a constructor (alloc use), retyping if true
 		// TODO:	4. Identify functions which address a VFT and are probably a deconstructor (free use), retyping if true
-		Ref<Workflow> rttiMetaWorkflow = Workflow::Instance("core.module.metaAnalysis")->Clone("core.module.metaAnalysis");
+		Ref<Workflow> rttiMetaWorkflow = Workflow::Instance("core.module.metaAnalysis")->Clone();
 
 		// Add RTTI analysis.
 		rttiMetaWorkflow->RegisterActivity(R"~({
 			"title": "RTTI Analysis",
-			"name": "plugin.rtti.rttiAnalysis",
+			"name": "analysis.rtti.rttiAnalysis",
 			"role": "action",
 			"description": "This analysis step attempts to parse and symbolize rtti information.",
 			"eligibility": {
@@ -74,7 +74,7 @@ extern "C" {
 		// Add Virtual Function Table analysis.
 		rttiMetaWorkflow->RegisterActivity(R"~({
 			"title": "VFT Analysis",
-			"name": "plugin.rtti.vftAnalysis",
+			"name": "analysis.rtti.vftAnalysis",
 			"role": "action",
 			"description": "This analysis step attempts to parse and symbolize virtual function table information.",
 			"eligibility": {
@@ -84,9 +84,9 @@ extern "C" {
 		})~", &VFTAnalysis);
 
 		// Run rtti before debug info is applied.
-		rttiMetaWorkflow->Insert("core.module.loadDebugInfo", "plugin.rtti.rttiAnalysis");
+		rttiMetaWorkflow->Insert("core.module.loadDebugInfo", "analysis.rtti.rttiAnalysis");
 		// Run vft after functions have analyzed (so that the virtual functions have analyzed)
-		rttiMetaWorkflow->Insert("core.module.notifyCompletion", "plugin.rtti.vftAnalysis");
+		rttiMetaWorkflow->Insert("core.module.deleteUnusedAutoFunctions", "analysis.rtti.vftAnalysis");
 		Workflow::RegisterWorkflow(rttiMetaWorkflow);
 
 		return true;
