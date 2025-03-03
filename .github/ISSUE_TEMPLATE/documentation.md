@@ -2,7 +2,7 @@
 name: Request for documentation
 about: Let us know where we can clarify Binary Ninja's documentation
 title: ''
-labels: ''
+labels: documentation
 assignees: ''
 
 ---
