@@ -4795,11 +4795,13 @@ bool BinaryView::FindAllConstant(uint64_t start, uint64_t end, uint64_t constant
 }
 
 
-bool BinaryView::Search(const string& query, const std::function<bool(uint64_t offset, const DataBuffer& buffer)>& otherCallback)
+bool BinaryView::Search(const string& query, const std::function<bool(size_t current, size_t total)>& progressCallback, const std::function<bool(uint64_t offset, const DataBuffer& buffer)>& matchCallback)
 {
+	ProgressContext fp;
+	fp.callback = progressCallback;
 	MatchCallbackContextForDataBuffer mc;
-	mc.func = otherCallback;
-	return BNSearch(m_object, query.c_str(), &mc, MatchCallbackForDataBuffer);
+	mc.func = matchCallback;
+	return BNSearch(m_object, query.c_str(), &fp, ProgressCallback, &mc, MatchCallbackForDataBuffer);
 }
 
 
