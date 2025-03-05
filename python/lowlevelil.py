@@ -5412,12 +5412,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f== b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_E, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_E, a, b, size=size, source_location=loc)
 
 	def float_compare_not_equal(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5429,12 +5428,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f!= b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_NE, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_NE, a, b, size=size, source_location=loc)
 
 	def float_compare_less_than(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5446,12 +5444,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f< b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_LT, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_LT, a, b, size=size, source_location=loc)
 
 	def float_compare_less_equal(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5463,12 +5460,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f<= b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_LE, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_LE, a, b, size=size, source_location=loc)
 
 	def float_compare_greater_equal(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5480,12 +5476,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f>= b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_GE, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_GE, a, b, size=size, source_location=loc)
 
 	def float_compare_greater_than(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5497,12 +5492,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``a f> b``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_GT, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_GT, a, b, size=size, source_location=loc)
 
 	def float_compare_ordered(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5514,12 +5508,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``is_ordered(a, b)``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_O, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_O, a, b, size=size, source_location=loc)
 
 	def float_compare_unordered(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, loc: Optional['ILSourceLocation'] = None
@@ -5531,12 +5524,11 @@ class LowLevelILFunction:
 		:param int size: the size of the operands in bytes
 		:param ExpressionIndex a: LHS expression
 		:param ExpressionIndex b: RHS expression
-		:param str flags: flags to set
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``is_unordered(a, b)``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FCMP_UO, a, b, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_FCMP_UO, a, b, size=size, source_location=loc)
 
 	def goto(self, label: LowLevelILLabel, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
