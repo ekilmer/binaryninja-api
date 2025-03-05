@@ -4888,6 +4888,7 @@ class BinaryView:
 		``set_function_analysis_update_disabled``, functions would not be put into the analysis queue at all.
 
 		Use with caution -- in most cases, this is NOT what you want, and you should use ``set_analysis_hold`` instead.
+
 		:param disabled:
 		:return:
 		"""
