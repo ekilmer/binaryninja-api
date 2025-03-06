@@ -354,7 +354,7 @@ class Workflow(metaclass=_WorkflowMetaclass):
 		"""
 		``clone`` Clone a new Workflow, copying all Activities and the execution strategy.
 
-		:param str name: the name for the new Workflow
+		:param str name: if specified, name the new Workflow, otherwise the name is copied from the original
 		:param str activity: if specified, perform the clone operation using ``activity`` as the root
 		:return: a new Workflow
 		:rtype: Workflow

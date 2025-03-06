@@ -10098,11 +10098,11 @@ namespace BinaryNinja {
 
 		/*! Clone a workflow, copying all Activities and the execution strategy
 
-			\param name Name for the new Workflow
+			\param name If specified, name the new Workflow, otherwise the name is copied from the original
 			\param activity If specified, perform the clone with `activity` as the root
 			\return A new Workflow
 		*/
-		Ref<Workflow> Clone(const std::string& name, const std::string& activity = "");
+		Ref<Workflow> Clone(const std::string& name = "", const std::string& activity = "");
 
 		/*! Register an Activity with this Workflow
 
