@@ -20,7 +20,8 @@
 
 import ctypes
 import struct
-from typing import Generator, List, Optional, Dict, Union, Tuple, NewType, ClassVar, Set, Callable, Any, Iterator, overload
+from typing import Generator, List, Optional, Dict, Union, Tuple, NewType, ClassVar, Set, \
+	Callable, Any, Iterator, overload, Mapping
 from dataclasses import dataclass
 
 # Binary Ninja components
@@ -510,6 +511,22 @@ class LowLevelILInstruction(BaseILInstruction):
 		assert inst is not None, "core.BNGetLowLevelILByIndex returned None"
 		core_inst = CoreLowLevelILInstruction.from_BNLowLevelILInstruction(inst)
 		return ILInstruction[core_inst.operation](func, expr_index, core_inst, instr_index)  # type: ignore
+
+	def copy_to(
+		self, dest: 'LowLevelILFunction',
+		sub_expr_handler: Optional[Callable[['LowLevelILInstruction'], ExpressionIndex]] = None
+	) -> ExpressionIndex:
+		"""
+		``copy_to`` deep copies an expression into a new IL function.
+		If provided, the function ``sub_expr_handler`` will be called on every copied sub-expression
+
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
+
+		:param LowLevelILFunction dest: Function to copy the expression to
+		:param sub_expr_handler: Optional function to call on every copied sub-expression
+		:return: Index of the copied expression in the target function
+		"""
+		return self.function.copy_expr_to(self, dest, sub_expr_handler)
 
 	def __str__(self):
 		tokens = self.tokens
@@ -3853,6 +3870,8 @@ class LowLevelILFunction:
 		"""
 		``copy_expr`` adds an expression to the function which is equivalent to the given expression
 
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
+
 		:param LowLevelILInstruction original: the original IL Instruction you want to copy
 		:return: The index of the newly copied expression
 		"""
@@ -3871,7 +3890,7 @@ class LowLevelILFunction:
 		"""
 		``replace_expr`` allows modification of expressions but ONLY during lifting.
 
-		.. warning:: This function should ONLY be called as a part of a lifter. It will otherwise not do anything useful as there's no way to trigger re-analysis of IL levels at this time.
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
 
 		:param ExpressionIndex original: the ExpressionIndex to replace (may also be an expression index)
 		:param ExpressionIndex new: the ExpressionIndex to add to the current LowLevelILFunction (may also be an expression index)
@@ -3889,11 +3908,229 @@ class LowLevelILFunction:
 
 		core.BNReplaceLowLevelILExpr(self.handle, original, new)
 
+	def copy_expr_to(
+		self, expr: LowLevelILInstruction, dest: 'LowLevelILFunction',
+		sub_expr_handler: Optional[Callable[[LowLevelILInstruction], ExpressionIndex]] = None
+	) -> ExpressionIndex:
+		"""
+		``copy_expr_to`` deep copies an expression from this function into a target function
+		If provided, the function ``sub_expr_handler`` will be called on every copied sub-expression
+
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
+
+		:param LowLevelILInstruction expr: Expression in this function to copy
+		:param LowLevelILFunction dest: Function to copy the expression to
+		:param sub_expr_handler: Optional function to call on every copied sub-expression
+		:return: Index of the copied expression in the target function
+		"""
+
+		if sub_expr_handler is None:
+			sub_expr_handler = lambda sub_expr: self.copy_expr_to(sub_expr, dest)
+		loc = ILSourceLocation.from_instruction(expr)
+
+		if expr.operation == LowLevelILOperation.LLIL_NOP:
+			expr: LowLevelILNop
+			return dest.nop(loc)
+		if expr.operation == LowLevelILOperation.LLIL_SET_REG:
+			expr: LowLevelILSetReg
+			return dest.set_reg(expr.size, expr.dest, sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_SET_REG_SPLIT:
+			expr: LowLevelILSetRegSplit
+			return dest.set_reg_split(expr.size, expr.hi, expr.lo, sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_SET_REG_STACK_REL:
+			expr: LowLevelILSetRegStackRel
+			return dest.set_reg_stack_top_relative(expr.size, expr.stack, sub_expr_handler(expr.dest), sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_PUSH:
+			expr: LowLevelILRegStackPush
+			return dest.reg_stack_push(expr.size, expr.stack, sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_SET_FLAG:
+			expr: LowLevelILSetFlag
+			return dest.set_flag(expr.dest.name, sub_expr_handler(expr.src), loc)
+		if expr.operation == LowLevelILOperation.LLIL_LOAD:
+			expr: LowLevelILLoad
+			return dest.load(expr.size, sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_STORE:
+			expr: LowLevelILStore
+			return dest.store(expr.size, sub_expr_handler(expr.dest), sub_expr_handler(expr.src), expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG:
+			expr: LowLevelILReg
+			return dest.reg(expr.size, expr.src, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_SPLIT:
+			expr: LowLevelILRegSplit
+			return dest.reg_split(expr.size, expr.hi, expr.lo, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_REL:
+			expr: LowLevelILRegStackRel
+			return dest.reg_stack_top_relative(expr.size, expr.stack, sub_expr_handler(expr.src), loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_POP:
+			expr: LowLevelILRegStackPop
+			return dest.reg_stack_pop(expr.size, expr.stack, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FLAG:
+			expr: LowLevelILFlag
+			return dest.flag(expr.src.name, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FLAG_BIT:
+			expr: LowLevelILFlagBit
+			return dest.flag_bit(expr.size, expr.src.name, expr.bit, loc)
+		if expr.operation == LowLevelILOperation.LLIL_JUMP:
+			expr: LowLevelILJump
+			return dest.jump(sub_expr_handler(expr.dest), loc)
+		if expr.operation == LowLevelILOperation.LLIL_CALL:
+			expr: LowLevelILCall
+			return dest.call(sub_expr_handler(expr.dest), loc)
+		if expr.operation == LowLevelILOperation.LLIL_CALL_STACK_ADJUST:
+			expr: LowLevelILCallStackAdjust
+			return dest.call_stack_adjust(sub_expr_handler(expr.dest), expr.stack_adjustment, loc)
+		if expr.operation == LowLevelILOperation.LLIL_TAILCALL:
+			expr: LowLevelILTailcall
+			return dest.tailcall(sub_expr_handler(expr.dest), loc)
+		if expr.operation == LowLevelILOperation.LLIL_RET:
+			expr: LowLevelILRet
+			return dest.ret(sub_expr_handler(expr.dest), loc)
+		if expr.operation == LowLevelILOperation.LLIL_JUMP_TO:
+			expr: LowLevelILJumpTo
+			label_list = {}
+			for a, b in expr.targets.items():
+				label_a = dest.get_label_for_source_instruction(b)
+				if label_a is None:
+					return dest.jump(sub_expr_handler(expr.dest), loc)
+				label_list[a] = label_a
+			return dest.jump_to(sub_expr_handler(expr.dest), label_list, loc)
+		if expr.operation == LowLevelILOperation.LLIL_GOTO:
+			expr: LowLevelILGoto
+			label_a = dest.get_label_for_source_instruction(expr.dest)
+			if label_a is None:
+				return dest.jump(dest.const_pointer(expr.function.arch.address_size, expr.function[expr.dest].address))
+			return dest.goto(label_a, loc)
+		if expr.operation == LowLevelILOperation.LLIL_IF:
+			expr: LowLevelILIf
+			label_a = dest.get_label_for_source_instruction(expr.true)
+			label_b = dest.get_label_for_source_instruction(expr.false)
+			if label_a is None or label_b is None:
+				return dest.undefined(loc)
+			return dest.if_expr(sub_expr_handler(expr.condition), label_a, label_b, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FLAG_COND:
+			expr: LowLevelILFlagCond
+			return dest.flag_condition(expr.condition, expr.semantic_class, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FLAG_GROUP:
+			expr: LowLevelILFlagGroup
+			return dest.flag_group(expr.semantic_group.name, loc)
+		if expr.operation == LowLevelILOperation.LLIL_TRAP:
+			expr: LowLevelILTrap
+			return dest.trap(expr.vector, loc)
+		if expr.operation == LowLevelILOperation.LLIL_CONST:
+			expr: LowLevelILConst
+			return dest.const(expr.size, expr.constant, loc)
+		if expr.operation == LowLevelILOperation.LLIL_CONST_PTR:
+			expr: LowLevelILConstPtr
+			return dest.const_pointer(expr.size, expr.constant, loc)
+		if expr.operation == LowLevelILOperation.LLIL_EXTERN_PTR:
+			expr: LowLevelILExternPtr
+			return dest.extern_pointer(expr.size, expr.constant, expr.offset, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FLOAT_CONST:
+			expr: LowLevelILFloatConst
+			return dest.float_const_raw(expr.size, expr.constant, loc)
+		if expr.operation in [
+			LowLevelILOperation.LLIL_POP,
+			LowLevelILOperation.LLIL_NORET,
+			LowLevelILOperation.LLIL_SYSCALL,
+			LowLevelILOperation.LLIL_BP,
+			LowLevelILOperation.LLIL_UNDEF,
+			LowLevelILOperation.LLIL_UNIMPL
+		]:
+			expr:Y
+			return dest.expr(expr.operation, size=expr.size, flags=expr.flags, source_location=loc)
+		if expr.operation in [
+			LowLevelILOperation.LLIL_PUSH,
+			LowLevelILOperation.LLIL_NEG,
+			LowLevelILOperation.LLIL_NOT,
+			LowLevelILOperation.LLIL_SX,
+			LowLevelILOperation.LLIL_ZX,
+			LowLevelILOperation.LLIL_LOW_PART,
+			LowLevelILOperation.LLIL_BOOL_TO_INT,
+			LowLevelILOperation.LLIL_UNIMPL_MEM,
+			LowLevelILOperation.LLIL_FSQRT,
+			LowLevelILOperation.LLIL_FNEG,
+			LowLevelILOperation.LLIL_FABS,
+			LowLevelILOperation.LLIL_FLOAT_TO_INT,
+			LowLevelILOperation.LLIL_INT_TO_FLOAT,
+			LowLevelILOperation.LLIL_FLOAT_CONV,
+			LowLevelILOperation.LLIL_ROUND_TO_INT,
+			LowLevelILOperation.LLIL_FLOOR,
+			LowLevelILOperation.LLIL_CEIL,
+			LowLevelILOperation.LLIL_FTRUNC,
+		]:
+			expr: LowLevelILUnaryBase
+			return dest.expr(expr.operation, sub_expr_handler(expr.src), size=expr.size, flags=expr.flags, source_location=loc)
+		if expr.operation in [
+			LowLevelILOperation.LLIL_ADD,
+			LowLevelILOperation.LLIL_SUB,
+			LowLevelILOperation.LLIL_AND,
+			LowLevelILOperation.LLIL_OR,
+			LowLevelILOperation.LLIL_XOR,
+			LowLevelILOperation.LLIL_LSL,
+			LowLevelILOperation.LLIL_LSR,
+			LowLevelILOperation.LLIL_ASR,
+			LowLevelILOperation.LLIL_ROL,
+			LowLevelILOperation.LLIL_ROR,
+			LowLevelILOperation.LLIL_MUL,
+			LowLevelILOperation.LLIL_MULU_DP,
+			LowLevelILOperation.LLIL_MULS_DP,
+			LowLevelILOperation.LLIL_DIVU,
+			LowLevelILOperation.LLIL_DIVS,
+			LowLevelILOperation.LLIL_MODU,
+			LowLevelILOperation.LLIL_MODS,
+			LowLevelILOperation.LLIL_DIVU_DP,
+			LowLevelILOperation.LLIL_DIVS_DP,
+			LowLevelILOperation.LLIL_MODU_DP,
+			LowLevelILOperation.LLIL_MODS_DP,
+			LowLevelILOperation.LLIL_CMP_E,
+			LowLevelILOperation.LLIL_CMP_NE,
+			LowLevelILOperation.LLIL_CMP_SLT,
+			LowLevelILOperation.LLIL_CMP_ULT,
+			LowLevelILOperation.LLIL_CMP_SLE,
+			LowLevelILOperation.LLIL_CMP_ULE,
+			LowLevelILOperation.LLIL_CMP_SGE,
+			LowLevelILOperation.LLIL_CMP_UGE,
+			LowLevelILOperation.LLIL_CMP_SGT,
+			LowLevelILOperation.LLIL_CMP_UGT,
+			LowLevelILOperation.LLIL_TEST_BIT,
+			LowLevelILOperation.LLIL_ADD_OVERFLOW,
+			LowLevelILOperation.LLIL_FADD,
+			LowLevelILOperation.LLIL_FSUB,
+			LowLevelILOperation.LLIL_FMUL,
+			LowLevelILOperation.LLIL_FDIV,
+			LowLevelILOperation.LLIL_FCMP_E,
+			LowLevelILOperation.LLIL_FCMP_NE,
+			LowLevelILOperation.LLIL_FCMP_LT,
+			LowLevelILOperation.LLIL_FCMP_LE,
+			LowLevelILOperation.LLIL_FCMP_GE,
+			LowLevelILOperation.LLIL_FCMP_GT,
+			LowLevelILOperation.LLIL_FCMP_O,
+			LowLevelILOperation.LLIL_FCMP_UO,
+		]:
+			expr: LowLevelILBinaryBase
+			return dest.expr(expr.operation, sub_expr_handler(expr.left), sub_expr_handler(expr.right), size=expr.size, flags=expr.flags, source_location=loc)
+		if expr.operation in [
+			LowLevelILOperation.LLIL_ADC,
+			LowLevelILOperation.LLIL_SBB,
+			LowLevelILOperation.LLIL_RLC,
+			LowLevelILOperation.LLIL_RRC,
+		]:
+			expr: LowLevelILCarryBase
+			return dest.expr(expr.operation, sub_expr_handler(expr.left), sub_expr_handler(expr.right), sub_expr_handler(expr.carry), size=expr.size, flags=expr.flags, source_location=loc)
+		if expr.operation == LowLevelILOperation.LLIL_INTRINSIC:
+			expr: LowLevelILIntrinsic
+			params = []
+			for param in expr.params:
+				params.append(sub_expr_handler(param))
+			return dest.intrinsic(expr.output, expr.intrinsic, params, expr.flags, loc)
+
+		raise NotImplementedError(f"unknown expr operation {expr.operation} in copy_expr_to")
+
 	def set_expr_attributes(self, expr: InstructionOrExpression, value: ILInstructionAttributeSet):
 		"""
 		``set_expr_attributes`` allows modification of instruction attributes but ONLY during lifting.
 
-		.. warning:: This function should ONLY be called as a part of a lifter. It will otherwise not do anything useful as there's no way to trigger re-analysis of IL levels at this time.
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
 
 		:param ExpressionIndex expr: the ExpressionIndex to replace (may also be an expression index)
 		:param set(ILInstructionAttribute) value: the set of attributes to place on the instruction
@@ -4030,17 +4267,21 @@ class LowLevelILFunction:
 		"""
 		return self.expr(LowLevelILOperation.LLIL_SET_FLAG, ExpressionIndex(self.arch.get_flag_by_name(flag)), value, source_location=loc)
 
-	def load(self, size: int, addr: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def load(
+		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagName'] = None,
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
 		"""
 		``load`` Reads ``size`` bytes from the expression ``addr``
 
 		:param int size: number of bytes to read
 		:param ExpressionIndex addr: the expression to read memory from
+		:param FlagName flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``[addr].size``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_LOAD, addr, size=size, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_LOAD, addr, size=size, flags=flags, source_location=loc)
 
 	def store(
 	    self, size: int, addr: ExpressionIndex, value: ExpressionIndex, flags: Optional['architecture.FlagName'] = None,
@@ -4172,17 +4413,18 @@ class LowLevelILFunction:
 		"""
 		return self.expr(LowLevelILOperation.LLIL_CONST_PTR, value, size=size, source_location=loc)
 
-	def reloc_pointer(self, size: int, value: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def extern_pointer(self, size: int, value: int, offset: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
-		``reloc_pointer`` returns an expression for the constant relocated pointer ``value`` with size ``size``
+		``extern_pointer`` returns an expression for the constant external pointer ``value`` with size ``size`` at offset ``offset``
 
 		:param int size: the size of the pointer in bytes
 		:param int value: address referenced by pointer
+		:param int offset: offset into external pointer
 		:param ILSourceLocation loc: location of returned expression
 		:return: A constant expression of given value and size
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_EXTERN_PTR, value, size=size, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_EXTERN_PTR, value, offset, size=size, source_location=loc)
 
 	def float_const_raw(self, size: int, value: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -4791,6 +5033,19 @@ class LowLevelILFunction:
 		:rtype: ExpressionIndex
 		"""
 		return self.expr(LowLevelILOperation.LLIL_JUMP, dest, source_location=loc)
+
+	def jump_to(self, dest: ExpressionIndex, targets: Dict[int, 'LowLevelILLabel'], loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``jump_to`` returns an expression which jumps (branches) various targets in ``targets``
+		choosing the target in ``targets`` based on the value calculated by ``dest``
+
+		:param ExpressionIndex dest: the expression choosing which jump target to use
+		:param Mapping[int, MediumLevelILLabel] targets: the list of targets for jump locations
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``jump(dest)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(LowLevelILOperation.LLIL_JUMP_TO, dest, len(targets) * 2, self.add_label_map(targets), size=0, source_location=loc)
 
 	def call(self, dest: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -5636,6 +5891,37 @@ class LowLevelILFunction:
 		:rtype: None
 		"""
 		core.BNGenerateLowLevelILSSAForm(self.handle)
+
+	def prepare_to_copy_function(self, src: 'LowLevelILFunction'):
+		"""
+		``prepare_to_copy_function`` sets up state in this LLIL function in preparation
+		of copying instructions from ``src``
+
+		:param LowLevelILFunction src: function about to be copied from
+		"""
+		core.BNPrepareToCopyLowLevelILFunction(self.handle, src.handle)
+
+	def prepare_to_copy_block(self, src: 'LowLevelILBasicBlock'):
+		"""
+		``prepare_to_copy_block`` sets up state when copying a function in preparation
+		of copying the instructions from the block ``src``
+
+		:param LowLevelILBasicBlock src: block about to be copied from
+		"""
+		core.BNPrepareToCopyLowLevelILBasicBlock(self.handle, src.handle)
+
+	def get_label_for_source_instruction(self, i: InstructionIndex) -> Optional['LowLevelILLabel']:
+		"""
+		Get the LowLevelILLabel for a given source instruction. The returned label is to an internal object with
+		the same lifetime as the containing LowLevelILFunction.
+
+		:param i: The source instruction index
+		:return: The LowLevelILLabel for the source instruction
+		"""
+		label = core.BNGetLabelForLowLevelILSourceInstruction(self.handle, i)
+		if not label:
+			return None
+		return LowLevelILLabel(handle=label)
 
 	def add_label_for_address(self, arch: 'architecture.Architecture', addr: int) -> None:
 		"""
