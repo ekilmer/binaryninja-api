@@ -80,7 +80,7 @@ bool DSCView::Init()
 	{
 		arch = "aarch64";
 	}
-	else if (std::string(magic) == "dyld_v1  x86_64")
+	else if (std::string(magic) == "dyld_v1  x86_64" || std::string(magic) == "dyld_v1 x86_64h")
 	{
 		arch = "x86_64";
 	}
