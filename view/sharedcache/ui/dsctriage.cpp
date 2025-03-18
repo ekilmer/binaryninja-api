@@ -453,6 +453,9 @@ void SymbolTableModel::updateSymbols() {
 }
 
 const SharedCacheAPI::DSCSymbol& SymbolTableModel::symbolAt(int row) const {
+	if (row < 0 || row >= static_cast<int>(m_symbols.size())) {
+		return m_symbols.at(0);
+	}
 	return m_symbols.at(row);
 }
 
@@ -703,15 +706,6 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 						m_cache->LoadImageWithInstallName(name);
 					});
 			});
-		connect(loadImageTable, &FilterableTableView::doubleClicked, this, [=](const QModelIndex& index)
-			{
-				auto name = loadImageModel->item(index.row(), 0)->text().toStdString();
-				WorkerPriorityEnqueue([this, name]()
-					{
-						m_cache->LoadImageWithInstallName(name);
-					});
-			});
-
 		auto loadImageLayout = new QVBoxLayout;
 		loadImageLayout->addWidget(loadImageFilterEdit);
 		loadImageLayout->addWidget(loadImageTable);
@@ -758,24 +752,28 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		symbolSearch->setSelectionBehavior(QAbstractItemView::SelectRows);
 		symbolSearch->setSelectionMode(QAbstractItemView::SingleSelection);
 
+		std::function<void(uint64_t)> navigateToAddress = [=](uint64_t addr){
+			ExecuteOnMainThread([addr, this](){
+				if (BinaryNinja::Settings::Instance()->Get<bool>("ui.view.graph.preferred"))
+					m_data->Navigate("Graph:DSCView", addr);
+				else
+					m_data->Navigate("Linear:DSCView", addr);
+			});
+		};
+
 		connect(symbolSearch, &SymbolTableView::activated, this, [=](const QModelIndex& index)
 			{
 				auto symbol = symbolSearch->getSymbolAtRow(index.row());
-				auto dialog = new QMessageBox(this);
-				dialog->setText("Load " + QString::fromStdString(symbol.image) + "?");
-				dialog->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-
-				connect(dialog, &QMessageBox::buttonClicked, this, [=](QAbstractButton* button)
+				WorkerPriorityEnqueue([this, symbol, navigateToAddress]()
 				{
-					if (button == dialog->button(QMessageBox::Yes))
+					if (m_data->IsValidOffset(symbol.address))
+						navigateToAddress(symbol.address);
+					else
 					{
-						WorkerPriorityEnqueue([this, symbol]()
-						{
-							m_cache->LoadImageWithInstallName(symbol.image);
-						});
+						m_cache->LoadImageWithInstallName(symbol.image);
+						navigateToAddress(symbol.address);
 					}
 				});
-				dialog->exec();
 			});
 
 		m_triageTabs->addTab(symbolWidget, "Symbol Search");
