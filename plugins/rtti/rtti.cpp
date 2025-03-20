@@ -14,6 +14,27 @@ std::optional<std::string> RTTI::DemangleNameMS(BinaryView* view, bool allowMang
 }
 
 
+std::optional<std::string> RTTI::DemangleNameGNU3(BinaryView* view, bool allowMangled, const std::string &mangledName)
+{
+    QualifiedName demangledName = {};
+    Ref<Type> outType = {};
+
+    // TODO: This is disabled because most of the uses of this were making the problem worse by demangling
+    // TODO: To a very generic string that dozens of classes would then look like. We likely need to add some extra
+    // TODO: sauce to the demangler to pickup strings like:
+    // TODO: REAL: PackageListGui::PackageListGui(Filesystem::Path&&, PackageListGui::UnderSubheader, bool)::$_1[0x0]
+    // TODO: OURS: PackageListGui::PackageListGui
+    // TODO: OURS MANGLED: ZN14PackageListGuiC1EON10Filesystem4PathENS_14UnderSubheaderEbE3$_1
+    // For some reason some of the names that start with ZN are not prefixed by `_`.
+    // if (mangled.find("ZN") == 0)
+    //     mangled = "_" + mangled;
+
+    if (!DemangleGNU3(view->GetDefaultArchitecture(), mangledName, outType, demangledName, true))
+        return allowMangled ? std::optional(mangledName) : std::nullopt;
+    return demangledName.GetString();
+}
+
+
 std::string RemoveItaniumPrefix(std::string &name)
 {
     // Remove numerical prefixes.
@@ -26,7 +47,10 @@ std::string RemoveItaniumPrefix(std::string &name)
 
 std::optional<std::string> RTTI::DemangleNameItanium(BinaryView* view, bool allowMangled, const std::string &mangledName)
 {
-    if (auto demangledName = DemangleNameLLVM(allowMangled, mangledName))
+    // NOTE: Passing false to allowMangled to fallthrough to GNU3 demangler.
+    if (auto demangledName = DemangleNameLLVM(false, mangledName))
+        return RemoveItaniumPrefix(demangledName.value());
+    if (auto demangledName = DemangleNameGNU3(view, allowMangled, mangledName))
         return RemoveItaniumPrefix(demangledName.value());
     return std::nullopt;
 }

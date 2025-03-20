@@ -8,6 +8,8 @@ constexpr int RTTI_CONFIDENCE = 100;
 namespace BinaryNinja::RTTI {
 	std::optional<std::string> DemangleNameMS(BinaryView* view, bool allowMangled, const std::string &mangledName);
 
+	std::optional<std::string> DemangleNameGNU3(BinaryView* view, bool allowMangled, const std::string &mangledName);
+
 	std::optional<std::string> DemangleNameItanium(BinaryView* view, bool allowMangled, const std::string &mangledName);
 
 	std::optional<std::string> DemangleNameLLVM(bool allowMangled, const std::string &mangledName);
