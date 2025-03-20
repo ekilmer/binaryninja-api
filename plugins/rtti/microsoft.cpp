@@ -429,12 +429,12 @@ std::optional<ClassInfo> MicrosoftRTTIProcessor::ProcessRTTI(uint64_t coLocatorA
 
     // Locate the current base class if we are in one.
     std::optional<BaseClassInfo> currentBaseClass;
-    if (coLocator->offset >= 0)
+    if (coLocator->offset > 0)
     {
         for (const auto &baseClassInfo: classInfo.baseClasses)
         {
             if (baseClassInfo.className != classInfo.className
-                || baseClassInfo.offset == coLocator->offset)
+                && baseClassInfo.offset == coLocator->offset)
             {
                 currentBaseClass = baseClassInfo;
                 break;
@@ -570,6 +570,22 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
             vftBuilder.AddMemberAtOffset(
                 Type::PointerType(addrSize, vFuncType, true), vFuncName, vFuncOffset);
             vFuncIdx++;
+        }
+
+        // TODO: Hack, we have a base class at 0 we are defining, meaning we never get the MyClass::VTable
+        // TODO: Only the MyBase::MyClass::VTable, and people who reference this type dont know that the appropriate type is the
+        // TODO: MyBase::MyClass::VTable, we should create a fake vtable for this type to redirect to the correct 0 offset base class type.
+        if (baseClassInfo.has_value() && baseClassInfo->offset == 0)
+        {
+            NamedTypeReferenceBuilder namedTypeRef;
+            namedTypeRef.SetName(vftTypeName);
+            namedTypeRef.SetTypeId(typeId);
+            auto rootRedirectType = Confidence(Type::NamedType(namedTypeRef.Finalize()), RTTI_CONFIDENCE);
+            auto rootRedirectName = fmt::format("{}::VTable", classInfo.className);
+            auto redirectTypeId = Type::GenerateAutoDebugTypeId(rootRedirectName);
+            // This will now create the redirect type MyClass::VTable for uninformed analysis to use.
+            // MyClass -> MyBase::MyClass::VTable (when MyBase offset is 0).
+            m_view->DefineType(redirectTypeId, rootRedirectName, rootRedirectType);
         }
         m_view->DefineType(typeId, vftTypeName,
                            Confidence(TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize(), RTTI_CONFIDENCE));
@@ -724,41 +740,71 @@ void MicrosoftRTTIProcessor::ProcessVFT()
         }
     }
 
-    auto GetCachedVFTInfo = [&](uint64_t vftAddr, ClassInfo& classInfo, const std::optional<BaseClassInfo>& baseClassInfo = std::nullopt) -> std::optional<VirtualFunctionTableInfo> {
+    auto GetCachedVFTInfo = [&](uint64_t vftAddr, ClassInfo& classInfo) -> std::optional<VirtualFunctionTableInfo> {
         // Check in the cache so that we don't process vfts more than once.
         auto cachedVftInfo = vftFinishedMap.find(vftAddr);
         if (cachedVftInfo != vftFinishedMap.end())
             return cachedVftInfo->second;
+
+        // Get the appropriate base class if there is one by reading the colocator.
+        BinaryReader reader = BinaryReader(m_view);
+        reader.Seek(vftAddr - m_view->GetAddressSize());
+        auto coLocatorAddr = reader.ReadPointer();
+        auto coLocator = ReadCompleteObjectorLocator(m_view, coLocatorAddr);
+        // TODO: This should always be valid!
+        if (!coLocator.has_value())
+            return std::nullopt;
+
+        std::optional<BaseClassInfo> baseClassInfo;
+        for (const auto& base: classInfo.baseClasses)
+        {
+            if (base.offset == coLocator->offset && base.className != classInfo.className)
+            {
+                // Take the first to match the offset with a different name from the class.
+                baseClassInfo = base;
+                break;
+            }
+        }
+
         auto vftInfo = ProcessVFT(vftAddr, classInfo, baseClassInfo);
         vftFinishedMap[vftAddr] = vftInfo;
         return vftInfo;
     };
-    
-    for (const auto &[coLocatorAddr, vftAddr]: vftMap)
-    {
-        auto classInfo = m_classInfo.find(coLocatorAddr)->second;
-        for (auto& baseClassInfo : classInfo.baseClasses)
+
+    std::function<void(uint64_t)> ProcessClassAndBases = [&](uint64_t coLocatorAddr) -> void {
+        auto& classInfo = m_classInfo[coLocatorAddr];
+
+        // Process all relevant base classes first.
+        // Otherwise, when we process this class we won't have the base vft available if needed.
+        for (auto& baseInfo : classInfo.baseClasses)
         {
-            // Process base vtable and add it to the class info.
-            for (auto& [baseCoLocAddr, classInfo] : m_classInfo)
+            for (auto& [baseCoLocAddr, baseClassInfo] : m_classInfo)
             {
-                if (classInfo.className == baseClassInfo.className)
+                if (baseClassInfo.className == baseInfo.className)
                 {
                     uint64_t baseVftAddr = vftMap[baseCoLocAddr];
-                    if (auto baseVftInfo = GetCachedVFTInfo(baseVftAddr, classInfo, baseClassInfo))
+                    // Recurse into the bases bases.
+                    ProcessClassAndBases(baseCoLocAddr);
+
+                    // Fetch the VFT info for the base class and store it.
+                    if (auto baseVftInfo = GetCachedVFTInfo(baseVftAddr, baseClassInfo))
                     {
-                        baseClassInfo.vft = baseVftInfo.value();
+                        baseInfo.vft = baseVftInfo.value();
                         break;
                     }
                 }
             }
         }
 
+        // Process the vtable for the current class.
+        // By this point all base classes should already exist, along with their type.
+        uint64_t vftAddr = vftMap[coLocatorAddr];
         if (auto vftInfo = GetCachedVFTInfo(vftAddr, classInfo))
             classInfo.vft = vftInfo.value();
-
-        m_classInfo[coLocatorAddr] = classInfo;
-    }
+    };
+    
+    for (const auto &[coLocatorAddr, _]: vftMap)
+        ProcessClassAndBases(coLocatorAddr);
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_time - start_time;
