@@ -258,20 +258,6 @@ KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent
 					WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
 				}
 			});
-		connect(loadImageTable, &FilterableTableView::doubleClicked, this, [=](const QModelIndex& index)
-			{
-				auto selected = loadImageTable->selectionModel()->selectedRows();
-				if (selected.size() == 0)
-				{
-					return;
-				}
-
-				for (const auto& selection : selected)
-				{
-					auto name = selection.data().toString().toStdString();
-					WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
-				}
-			});
 
 		auto loadImageLayout = new QVBoxLayout;
 		loadImageLayout->addWidget(loadImageFilterEdit);
@@ -318,24 +304,28 @@ KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent
 		symbolSearch->setSelectionBehavior(QAbstractItemView::SelectRows);
 		symbolSearch->setSelectionMode(QAbstractItemView::SingleSelection);
 
+		std::function<void(uint64_t)> navigateToAddress = [=](uint64_t addr){
+			ExecuteOnMainThread([addr, this](){
+				if (BinaryNinja::Settings::Instance()->Get<bool>("ui.view.graph.preferred"))
+					m_data->Navigate("Graph:KCView", addr);
+				else
+					m_data->Navigate("Linear:KCView", addr);
+			});
+		};
+
 		connect(symbolSearch, &SymbolTableView::activated, this, [=](const QModelIndex& index)
 			{
 				auto symbol = symbolSearch->getSymbolAtRow(index.row());
-				auto dialog = new QMessageBox(this);
-				dialog->setText("Load " + QString::fromStdString(symbol.image) + "?");
-				dialog->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-
-				connect(dialog, &QMessageBox::buttonClicked, this, [=](QAbstractButton* button)
-				{
-					if (button == dialog->button(QMessageBox::Yes))
+				WorkerPriorityEnqueue([this, symbol, navigateToAddress]()
 					{
-						WorkerPriorityEnqueue([this, symbol]()
+						if (m_data->IsValidOffset(symbol.address))
+							navigateToAddress(symbol.address);
+						else
 						{
 							m_cache->LoadImageWithInstallName(symbol.image);
-						});
-					}
-				});
-				dialog->exec();
+							navigateToAddress(symbol.address);
+						}
+					});
 			});
 
 		m_triageTabs->addTab(symbolWidget, "Symbol Search");
