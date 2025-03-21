@@ -51,7 +51,7 @@ from . import function
 from . import log
 from .pluginmanager import RepositoryManager
 from .enums import ScriptingProviderExecuteResult, ScriptingProviderInputReadyState
-from binaryninja.settings import Settings
+from .settings import Settings
 from .enums import SettingsScope
 
 _WARNING_REGEX = re.compile(r'^\S+:\d+: \w+Warning: ')
