@@ -1,27 +1,18 @@
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10)
 
 project(bin-info CXX C)
 
 add_executable(${PROJECT_NAME}
     src/bin-info.cpp)
 
-if(NOT BN_API_BUILD_EXAMPLES AND NOT BN_INTERNAL_BUILD)
-    # Out-of-tree build
-    find_path(
-        BN_API_PATH
-        NAMES binaryninjaapi.h
-        HINTS ../.. binaryninjaapi $ENV{BN_API_PATH}
-        REQUIRED
-    )
-    add_subdirectory(${BN_API_PATH} api)
+if(NOT TARGET binaryninjaapi)
+    find_package(BinaryNinjaAPI REQUIRED)
 endif()
 
-target_link_libraries(${PROJECT_NAME}
-    binaryninjaapi)
+target_link_libraries(${PROJECT_NAME} binaryninjaapi)
 
 if (NOT WIN32)
-    target_link_libraries(${PROJECT_NAME}
-    dl)
+    target_link_libraries(${PROJECT_NAME} dl)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

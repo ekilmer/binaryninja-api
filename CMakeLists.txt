@@ -1,12 +1,18 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14)
 
-project(binaryninjaapi CXX C)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+project(BinaryNinjaAPI CXX C)
 
-option(BN_API_BUILD_EXAMPLES "Builds example plugins" OFF)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
 
-option(BN_REF_COUNT_DEBUG "Add extra debugging checks for RefCountObject leaks" OFF)
-mark_as_advanced(BN_REF_COUNT_DEBUG)
+option(BinaryNinjaAPI_HEADLESS "Whether to build only HEADLESS functionality" ON)
+option(BinaryNinjaAPI_BUILD_EXAMPLES "Builds example plugins" OFF)
+option(BinaryNinjaAPI_RUST_API "Build the Rust API" OFF)
+
+option(BinaryNinjaAPI_REF_COUNT_DEBUG "Add extra debugging checks for RefCountObject leaks" OFF)
+mark_as_advanced(BinaryNinjaAPI_REF_COUNT_DEBUG)
+
+# Include plugin helper functions
+include(cmake/BinjaPluginFunctions.cmake)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     if (MSVC)
@@ -16,145 +22,213 @@ if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     endif()
 endif()
 
-file(GLOB BN_API_SOURCES CONFIGURE_DEPENDS *.cpp *.h json/json.h json/json-forwards.h)
-if(NOT DEMO)
-    list(APPEND BN_API_SOURCES json/jsoncpp.cpp)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set_source_files_properties(json/jsoncpp.cpp PROPERTIES COMPILE_FLAGS /w)
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set_source_files_properties(json/jsoncpp.cpp PROPERTIES COMPILE_FLAGS -Wno-everything)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set_source_files_properties(json/jsoncpp.cpp PROPERTIES COMPILE_FLAGS -w)
-    endif()
+add_library(binaryninjaapi)
+target_sources(binaryninjaapi PRIVATE
+    activity.cpp
+    architecture.cpp
+    backgroundtask.cpp
+    basedetection.cpp
+    basicblock.cpp
+    binaryninjaapi.cpp
+    binaryreader.cpp
+    binaryview.cpp
+    binaryviewtype.cpp
+    binarywriter.cpp
+    callingconvention.cpp
+    collaboration.cpp
+    component.cpp
+    database.cpp
+    databuffer.cpp
+    datarenderer.cpp
+    debuginfo.cpp
+    demangle.cpp
+    downloadprovider.cpp
+    enterprise.cpp
+    exceptions.cpp
+    externallibrary.cpp
+    ffi.cpp
+    fileaccessor.cpp
+    filemetadata.cpp
+    firmwareninja.cpp
+    flowgraph.cpp
+    flowgraphlayout.cpp
+    flowgraphnode.cpp
+    function.cpp
+    functionrecognizer.cpp
+    highlevelil.cpp
+    highlevelilinstruction.cpp
+    http.cpp
+    interaction.cpp
+    languagerepresentation.cpp
+    linearviewcursor.cpp
+    linearviewobject.cpp
+    lineformatter.cpp
+    log.cpp
+    lowlevelil.cpp
+    lowlevelilinstruction.cpp
+    mainthread.cpp
+    mediumlevelil.cpp
+    mediumlevelilinstruction.cpp
+    metadata.cpp
+    platform.cpp
+    plugin.cpp
+    pluginmanager.cpp
+    project.cpp
+    relocationhandler.cpp
+    renderlayer.cpp
+    scriptingprovider.cpp
+    secretsprovider.cpp
+    settings.cpp
+    tempfile.cpp
+    transform.cpp
+    type.cpp
+    typearchive.cpp
+    typecontainer.cpp
+    typelibrary.cpp
+    typeparser.cpp
+    typeprinter.cpp
+    undoaction.cpp
+    unicode.cpp
+    update.cpp
+    user.cpp
+    websocketprovider.cpp
+    workflow.cpp
+)
+# JsonCpp sources
+target_sources(binaryninjaapi PRIVATE json/jsoncpp.cpp)
+
+target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>")
+
+if(BinaryNinjaAPI_REF_COUNT_DEBUG)
+    target_compile_definitions(binaryninjaapi PUBLIC BN_REF_COUNT_DEBUG)
 endif()
 
-add_library(binaryninjaapi STATIC ${BN_API_SOURCES})
+set_target_properties(binaryninjaapi PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/out)
 
-target_include_directories(binaryninjaapi
-    PUBLIC ${PROJECT_SOURCE_DIR})
-
-find_package(BinaryNinjaCore)
-if(BinaryNinjaCore_FOUND)
-    target_link_libraries(binaryninjaapi PUBLIC ${BinaryNinjaCore_LIBRARIES})
-    target_link_directories(binaryninjaapi PUBLIC ${BinaryNinjaCore_LIBRARY_DIRS})
-    target_compile_definitions(binaryninjaapi PUBLIC ${BinaryNinjaCore_DEFINITIONS})
+if(TARGET binaryninjacore)
+    target_link_libraries(binaryninjaapi PUBLIC binaryninjacore)
 else()
     if(APPLE)
         target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
     elseif(MSVC)
-        # Generate stubs.cpp with implementations of all the BNAPI functions
-        execute_process(COMMAND python ${PROJECT_SOURCE_DIR}/cmake/generate_stubs.py ${PROJECT_SOURCE_DIR}/binaryninjacore.h ${PROJECT_BINARY_DIR}/stubs)
-        
-        # Compile those stubs into a stub library we can use to fool the linker
-        add_library(binaryninjacore SHARED ${PROJECT_BINARY_DIR}/stubs/stubs.cpp)
-        set_target_properties(binaryninjacore
-            PROPERTIES OUTPUT_NAME binaryninjacore
-            SOVERSION 1
-            ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-        )
-        target_include_directories(binaryninjacore PUBLIC ${PROJECT_SOURCE_DIR})
-        
-        # Be sure to only link against the stubs archive file
-        add_dependencies(binaryninjaapi binaryninjacore)
-        if(${CMAKE_GENERATOR} MATCHES "^Visual Studio")
-            # Visual Studio's generator adds the config to the file path
-            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore,ARCHIVE_OUTPUT_DIRECTORY>/$<CONFIG>/$<TARGET_PROPERTY:binaryninjacore,OUTPUT_NAME>.lib")
-        else()
-            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:binaryninjacore,OUTPUT_NAME>.lib")
-        endif()
+        target_link_options(binaryninjaapi PUBLIC "/FORCE:UNRESOLVED")
     else()
         target_link_options(binaryninjaapi PUBLIC "LINKER:--allow-shlib-undefined")
     endif()
 endif()
 
-if(BN_REF_COUNT_DEBUG)
-    target_compile_definitions(binaryninjaapi PUBLIC BN_REF_COUNT_DEBUG)
+if(NOT BinaryNinjaAPI_HEADLESS)
+    if(NOT TARGET binaryninjaui)
+        find_package(BinaryNinjaUI REQUIRED)
+    endif()
+    # NOTE: Not sure if binaryninjaapi should be linking to binaryninjaui
+    # but we need to add the ui directory to include path
+    target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/ui>")
 endif()
 
-add_subdirectory(vendor/fmt EXCLUDE_FROM_ALL)
+add_subdirectory(vendor/fmt)
 set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(binaryninjaapi PUBLIC fmt::fmt)
 
-if(APPLE)
-    find_library(CORE_SERVICES_LIBRARY NAMES CoreServices)
-    target_link_libraries(binaryninjaapi PRIVATE ${CORE_SERVICES_LIBRARY})
-endif()
-
-set_target_properties(binaryninjaapi PROPERTIES
-    CXX_STANDARD 17
-    CXX_VISIBILITY_PRESET hidden
-    CXX_STANDARD_REQUIRED ON
-    VISIBILITY_INLINES_HIDDEN ON
-    POSITION_INDEPENDENT_CODE ON
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/out)
-
-if(NOT HEADLESS)
-    if(NOT BN_INTERNAL_BUILD)
-        # For backwards compatibility, include binaryninjaui in the api module
-        # If you don't need it, you can safely ignore these warnings
-
-        find_package(BinaryNinjaUI)
-        if(BinaryNinjaUI_FOUND)
-            # Precompiled ui library
-            add_library(binaryninjaui INTERFACE)
-            target_link_libraries(binaryninjaui INTERFACE ${BinaryNinjaUI_LIBRARIES})
-            target_link_directories(binaryninjaui INTERFACE ${BinaryNinjaUI_LIBRARY_DIRS})
-            target_compile_definitions(binaryninjaui INTERFACE ${BinaryNinjaUI_DEFINITIONS})
-
-            # UI headers are in here
-            target_include_directories(binaryninjaui INTERFACE ${PROJECT_SOURCE_DIR}/ui)
-        else()
-            # Add a fake target for binaryninjaui to intentionally break anything that tries to link against it,
-            # since the find script failed and your build would otherwise break in less obvious places.
-            add_custom_target(binaryninjaui
-                COMMAND ${CMAKE_COMMAND} -E false)
-            message(WARNING "Binary Ninja UI not found but -DHEADLESS was not specified. You will not be able to build UI plugins.")
-        endif()
-    else()
-        # Nothing
-    endif()
-endif()
-
-function(bn_install_plugin target)
-    if(NOT BN_INTERNAL_BUILD)
-        # Get API source directory so we can find BinaryNinjaCore
-        get_target_property(BN_API_SOURCE_DIR binaryninjaapi SOURCE_DIR)
-        message(STATUS "${BN_API_SOURCE_DIR}")
-        list(APPEND CMAKE_MODULE_PATH "${BN_API_SOURCE_DIR}/cmake")
-
-        # BinaryNinjaCore has the user plugins dir define that we want
-        find_package(BinaryNinjaCore)
-        if(BinaryNinjaCore_FOUND)
-            if(WIN32)
-                install(TARGETS ${target} RUNTIME
-                    DESTINATION ${BinaryNinjaCore_USER_PLUGINS_DIR})
-
-                install(FILES $<TARGET_PDB_FILE:${target}>
-                    DESTINATION ${BinaryNinjaCore_USER_PLUGINS_DIR} OPTIONAL)
-            else()
-                install(TARGETS ${target} LIBRARY
-                    DESTINATION ${BinaryNinjaCore_USER_PLUGINS_DIR})
-            endif()
-        endif()
-    endif()
-endfunction()
-
-if(RUST_API)
+if(BinaryNinjaAPI_RUST_API)
     add_subdirectory(rust)
 endif()
 
-if(BN_API_BUILD_EXAMPLES)
+if(BinaryNinjaAPI_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-if (DEBUGGER)
-    add_custom_command(TARGET binaryninjaapi PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Copying Debugger Docs"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../public/debugger/docs/guide
-                                            ${CMAKE_CURRENT_SOURCE_DIR}/docs/guide/debugger
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../public/debugger/docs/img
-                                            ${CMAKE_CURRENT_SOURCE_DIR}/docs/img
-            )
+if(NOT CMAKE_SKIP_INSTALL_RULES)
+    if(PROJECT_IS_TOP_LEVEL)
+        set(CMAKE_INSTALL_INCLUDEDIR "include/binaryninjaapi" CACHE STRING "")
+        set_property(CACHE CMAKE_INSTALL_INCLUDEDIR PROPERTY TYPE PATH)
+    endif()
+
+    # find_package(<package>) call for consumers to find this project
+    set(package BinaryNinjaAPI)
+
+    include(GNUInstallDirs)
+
+    set(BN_API_HEADERS
+        .doxygen.h
+        binaryninjaapi.h
+        binaryninjacore.h
+        enterprise.h
+        exceptions.h
+        ffi.h
+        genericrange.h
+        highlevelilinstruction.h
+        http.h
+        lowlevelilinstruction.h
+        mediumlevelilinstruction.h
+        rapidjsonwrapper.h
+    )
+    install(
+        FILES ${BN_API_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(
+        FILES
+            json/json-forwards.h
+            json/json.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
+    )
+    install(
+        DIRECTORY ui
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+    install(
+        DIRECTORY vendor/nlohmann
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/vendor"
+    )
+
+    install(
+        TARGETS binaryninjaapi
+        EXPORT BinaryNinjaAPITargets
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+    target_include_directories(binaryninjaapi INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ui>")
+
+    # cmake --install build --component BinaryNinjaAPIDistrib
+    install(
+        TARGETS binaryninjaapi fmt
+        LIBRARY
+            DESTINATION "api"
+            COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
+        PUBLIC_HEADER
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+            COMPONENT BinaryNinjaAPISuppressWarningAndDoNotInstall EXCLUDE_FROM_ALL
+    )
+
+    # Allow package maintainers to freely override the path for the configs
+    set(
+        BinaryNinjaAPI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${package}"
+        CACHE STRING "CMake package config location relative to the install prefix"
+    )
+    set_property(CACHE BinaryNinjaAPI_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
+    mark_as_advanced(BinaryNinjaAPI_INSTALL_CMAKEDIR)
+
+    install(
+        FILES cmake/install-config.cmake
+        DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+        RENAME "${package}Config.cmake"
+    )
+
+    install(
+        FILES cmake/BinjaPluginFunctions.cmake
+        DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+    )
+    install(
+        DIRECTORY cmake/find
+        DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+    )
+
+    install(
+        EXPORT BinaryNinjaAPITargets
+        DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+    )
 endif()

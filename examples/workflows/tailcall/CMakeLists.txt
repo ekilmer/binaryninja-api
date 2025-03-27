@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10)
 
 project(workflow_tailcall)
 
@@ -9,15 +9,8 @@ file(GLOB SOURCES
 
 add_library(workflow_tailcall SHARED ${SOURCES})
 
-if(NOT BN_API_BUILD_EXAMPLES AND NOT BN_INTERNAL_BUILD)
-    # Out-of-tree build
-    find_path(
-        BN_API_PATH
-        NAMES binaryninjaapi.h
-        HINTS ../../.. binaryninjaapi $ENV{BN_API_PATH}
-        REQUIRED
-    )
-    add_subdirectory(${BN_API_PATH} api)
+if(NOT TARGET binaryninjaapi)
+	find_package(BinaryNinjaAPI REQUIRED)
 endif()
 
 target_link_libraries(workflow_tailcall binaryninjaapi)

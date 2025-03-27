@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.28)
 
 project(uinotification CXX C)
 
@@ -8,18 +8,16 @@ file(GLOB SOURCES
 
 add_library(uinotification SHARED ${SOURCES})
 
-if(NOT BN_API_BUILD_EXAMPLES AND NOT BN_INTERNAL_BUILD)
-    # Out-of-tree build
-    find_path(
-        BN_API_PATH
-        NAMES binaryninjaapi.h
-        HINTS ../.. binaryninjaapi $ENV{BN_API_PATH}
-        REQUIRED
-    )
-    add_subdirectory(${BN_API_PATH} api)
+if(NOT TARGET binaryninjaapi OR NOT TARGET binaryninjaui)
+	find_package(BinaryNinjaAPI COMPONENTS UI REQUIRED)
+	find_package(BinaryNinjaUI)
 endif()
 
-target_link_libraries(uinotification binaryninjaui)
+target_link_libraries(uinotification PRIVATE
+	binaryninjaapi
+	# Use COMPILE_ONLY to avoid macOS rpath issues
+	$<COMPILE_ONLY:binaryninjaui>
+)
 
 set_target_properties(uinotification PROPERTIES
     CXX_STANDARD 17
