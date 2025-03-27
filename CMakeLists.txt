@@ -8,6 +8,9 @@ option(BinaryNinjaAPI_HEADLESS "Whether to build only HEADLESS functionality" ON
 option(BinaryNinjaAPI_BUILD_EXAMPLES "Builds example plugins" OFF)
 option(BinaryNinjaAPI_RUST_API "Build the Rust API" OFF)
 
+option(BinaryNinjaAPI_EXTERNAL_FMT "Use external fmt library" OFF)
+mark_as_advanced(BinaryNinjaAPI_EXTERNAL_FMT)
+
 option(BinaryNinjaAPI_REF_COUNT_DEBUG "Add extra debugging checks for RefCountObject leaks" OFF)
 mark_as_advanced(BinaryNinjaAPI_REF_COUNT_DEBUG)
 
@@ -130,8 +133,12 @@ if(NOT BinaryNinjaAPI_HEADLESS)
     target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/ui>")
 endif()
 
-add_subdirectory(vendor/fmt)
-set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(BinaryNinjaAPI_EXTERNAL_FMT)
+    find_package(fmt)
+else()
+    add_subdirectory(vendor/fmt)
+    set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 target_link_libraries(binaryninjaapi PUBLIC fmt::fmt)
 
 if(BinaryNinjaAPI_RUST_API)
@@ -194,8 +201,12 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     target_include_directories(binaryninjaapi INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ui>")
 
     # cmake --install build --component BinaryNinjaAPIDistrib
+    set(vendor_targets "")
+    if(NOT BinaryNinjaAPI_EXTERNAL_FMT)
+        list(APPEND vendor_targets fmt)
+    endif()
     install(
-        TARGETS binaryninjaapi fmt
+        TARGETS binaryninjaapi ${vendor_targets}
         LIBRARY
             DESTINATION "api"
             COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
