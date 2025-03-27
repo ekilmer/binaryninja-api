@@ -2,14 +2,28 @@ cmake_minimum_required(VERSION 3.14)
 
 project(BinaryNinjaAPI CXX C)
 
+macro(set_default_var var val)
+    if(NOT DEFINED ${var})
+        set(${var} "${val}")
+    endif()
+endmacro()
+# Hide symbols by default
+set_default_var(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+set_default_var(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+set_default_var(CMAKE_C_VISIBILITY_PRESET "hidden")
+# All code will be loaded as a shared library, so we must ensure static libraries are PIC
+set_default_var(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+
+# Allow find_package to use our Find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
+
+# Allow building against external, non-vendored, dependencies
+option(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES "Use external non-vendored dependencies" OFF)
+mark_as_advanced(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
 
 option(BinaryNinjaAPI_HEADLESS "Whether to build only HEADLESS functionality" ON)
 option(BinaryNinjaAPI_BUILD_EXAMPLES "Builds example plugins" OFF)
 option(BinaryNinjaAPI_RUST_API "Build the Rust API" OFF)
-
-option(BinaryNinjaAPI_EXTERNAL_FMT "Use external fmt library" OFF)
-mark_as_advanced(BinaryNinjaAPI_EXTERNAL_FMT)
 
 option(BinaryNinjaAPI_REF_COUNT_DEBUG "Add extra debugging checks for RefCountObject leaks" OFF)
 mark_as_advanced(BinaryNinjaAPI_REF_COUNT_DEBUG)
@@ -106,11 +120,7 @@ if(BinaryNinjaAPI_REF_COUNT_DEBUG)
     target_compile_definitions(binaryninjaapi PUBLIC BN_REF_COUNT_DEBUG)
 endif()
 
-set_target_properties(binaryninjaapi PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED ON
-    POSITION_INDEPENDENT_CODE ON
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/out)
+target_compile_features(binaryninjaapi PUBLIC cxx_std_17)
 
 if(TARGET binaryninjacore)
     target_link_libraries(binaryninjaapi PUBLIC binaryninjacore)
@@ -133,11 +143,10 @@ if(NOT BinaryNinjaAPI_HEADLESS)
     target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/ui>")
 endif()
 
-if(BinaryNinjaAPI_EXTERNAL_FMT)
+if(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
     find_package(fmt)
 else()
     add_subdirectory(vendor/fmt)
-    set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 target_link_libraries(binaryninjaapi PUBLIC fmt::fmt)
 
@@ -185,7 +194,7 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
     )
     install(
-        DIRECTORY ui
+        DIRECTORY ui rapidjson
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     )
     install(
@@ -202,7 +211,7 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
 
     # cmake --install build --component BinaryNinjaAPIDistrib
     set(vendor_targets "")
-    if(NOT BinaryNinjaAPI_EXTERNAL_FMT)
+    if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
         list(APPEND vendor_targets fmt)
     endif()
     install(
