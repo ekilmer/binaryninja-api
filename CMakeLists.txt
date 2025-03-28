@@ -144,11 +144,17 @@ if(NOT BinaryNinjaAPI_HEADLESS)
 endif()
 
 if(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
-    find_package(fmt)
+    find_package(fmt REQUIRED)
+    find_package(nlohmann_json REQUIRED)
+    find_package(RapidJSON REQUIRED)
 else()
-    add_subdirectory(vendor/fmt)
+    add_subdirectory(vendor)
 endif()
-target_link_libraries(binaryninjaapi PUBLIC fmt::fmt)
+target_link_libraries(binaryninjaapi PUBLIC
+    fmt::fmt
+    nlohmann_json::nlohmann_json
+    RapidJSON
+)
 
 if(BinaryNinjaAPI_RUST_API)
     add_subdirectory(rust)
@@ -194,12 +200,8 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
     )
     install(
-        DIRECTORY ui rapidjson
+        DIRECTORY ui
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    )
-    install(
-        DIRECTORY vendor/nlohmann
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/vendor"
     )
 
     install(
@@ -212,10 +214,10 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     # cmake --install build --component BinaryNinjaAPIDistrib
     set(vendor_targets "")
     if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
-        list(APPEND vendor_targets fmt)
+        list(APPEND vendor_targets fmt nlohmann_json RapidJSON)
     endif()
     install(
-        TARGETS binaryninjaapi ${vendor_targets}
+        TARGETS binaryninjaapi # ${vendor_targets}
         LIBRARY
             DESTINATION "api"
             COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL

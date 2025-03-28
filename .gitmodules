@@ -16,3 +16,9 @@
 [submodule "arch/x86/mbuild"]
 	path = arch/x86/mbuild
 	url = https://github.com/intelxed/mbuild.git
+[submodule "vendor/nlohmann"]
+	path = vendor/nlohmann
+	url = https://github.com/nlohmann/json
+[submodule "vendor/rapidjson"]
+	path = vendor/rapidjson
+	url = https://github.com/ekilmer/rapidjson.git

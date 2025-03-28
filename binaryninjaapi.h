@@ -48,7 +48,7 @@
 #include "binaryninjacore.h"
 #include "exceptions.h"
 #include "json/json.h"
-#include "vendor/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <fmt/core.h>

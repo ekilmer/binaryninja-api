@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(rust_api)
 
+if(NOT DEFINED BN_INSTALL_BIN_DIR)
+	find_package(BinaryNinjaCore REQUIRED)
+endif()
+
 set(CARGO_API_VERSION 1.83.0)
 
 file(GLOB RUST_API_SOURCES CONFIGURE_DEPENDS
