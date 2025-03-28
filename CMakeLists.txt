@@ -7,12 +7,14 @@ macro(set_default_var var val)
         set(${var} "${val}")
     endif()
 endmacro()
-# Hide symbols by default
-set_default_var(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-set_default_var(CMAKE_CXX_VISIBILITY_PRESET "hidden")
-set_default_var(CMAKE_C_VISIBILITY_PRESET "hidden")
 # All code will be loaded as a shared library, so we must ensure static libraries are PIC
 set_default_var(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+if(NOT BUILD_SHARED_LIBS)
+    # Hide symbols by default
+    set_default_var(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    set_default_var(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+    set_default_var(CMAKE_C_VISIBILITY_PRESET "hidden")
+endif()
 
 # Allow find_package to use our Find modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
@@ -211,13 +213,13 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     )
     target_include_directories(binaryninjaapi INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ui>")
 
-    # cmake --install build --component BinaryNinjaAPIDistrib
+    # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
     set(vendor_targets "")
     if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
         list(APPEND vendor_targets fmt nlohmann_json RapidJSON)
     endif()
     install(
-        TARGETS binaryninjaapi # ${vendor_targets}
+        TARGETS binaryninjaapi ${vendor_targets}
         LIBRARY
             DESTINATION "api"
             COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
