@@ -231,6 +231,7 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     set_property(CACHE BinaryNinjaAPI_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
     mark_as_advanced(BinaryNinjaAPI_INSTALL_CMAKEDIR)
 
+    include(CMakePackageConfigHelpers)
     configure_package_config_file(
         cmake/install-config.cmake.in
         install-config.cmake
