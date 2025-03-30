@@ -42,7 +42,7 @@ add_dependencies(rust_docs binaryninjaapi rust_api)
 
 # Get API source directory so we can find BinaryNinjaCore
 get_target_property(BN_API_SOURCE_DIR binaryninjaapi SOURCE_DIR)
-message(STATUS "${BN_API_SOURCE_DIR}")
+message(STATUS "BN_API_SOURCE_DIR: ${BN_API_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${BN_API_SOURCE_DIR}/cmake")
 
 find_program(RUSTUP_PATH rustup REQUIRED HINTS ~/.cargo/bin)
@@ -57,7 +57,6 @@ add_custom_command(
 		"DEP_BINARYNINJACORE_PATH=${BN_INSTALL_BIN_DIR}"
 			${RUSTUP_CHECK_COMMAND} ${CARGO_CHECK_OPTS}
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-	DEPENDS ${RUST_API_SOURCES}
 )
 
 add_custom_command(

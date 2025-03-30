@@ -9,14 +9,12 @@ file(GLOB SOURCES
 add_library(uinotification SHARED ${SOURCES})
 
 if(NOT TARGET binaryninjaapi OR NOT TARGET binaryninjaui)
-	find_package(BinaryNinjaAPI COMPONENTS UI REQUIRED)
+	find_package(BinaryNinjaAPI)
 	find_package(BinaryNinjaUI)
 endif()
 
 target_link_libraries(uinotification PRIVATE
-	binaryninjaapi
-	# Use COMPILE_ONLY to avoid macOS rpath issues
-	$<COMPILE_ONLY:binaryninjaui>
+	binaryninjaui
 )
 
 set_target_properties(uinotification PROPERTIES

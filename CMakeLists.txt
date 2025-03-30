@@ -2,23 +2,6 @@ cmake_minimum_required(VERSION 3.14)
 
 project(BinaryNinjaAPI CXX C)
 
-macro(set_default_var var val)
-    if(NOT DEFINED ${var})
-        set(${var} "${val}")
-    endif()
-endmacro()
-# All code will be loaded as a shared library, so we must ensure static libraries are PIC
-set_default_var(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
-if(NOT BUILD_SHARED_LIBS)
-    # Hide symbols by default
-    set_default_var(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-    set_default_var(CMAKE_CXX_VISIBILITY_PRESET "hidden")
-    set_default_var(CMAKE_C_VISIBILITY_PRESET "hidden")
-endif()
-
-# Allow find_package to use our Find modules
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
-
 # Allow building against external, non-vendored, dependencies
 option(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES "Use external non-vendored dependencies" OFF)
 mark_as_advanced(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
@@ -30,9 +13,6 @@ option(BinaryNinjaAPI_RUST_API "Build the Rust API" OFF)
 option(BinaryNinjaAPI_REF_COUNT_DEBUG "Add extra debugging checks for RefCountObject leaks" OFF)
 mark_as_advanced(BinaryNinjaAPI_REF_COUNT_DEBUG)
 
-# Include plugin helper functions
-include(cmake/BinjaPluginFunctions.cmake)
-
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     if (MSVC)
         message(FATAL_ERROR "Binary Ninja is 64-bit only (try -G \"${CMAKE_GENERATOR} Win64\")")
@@ -40,6 +20,29 @@ if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
         message(FATAL_ERROR "Binary Ninja is 64-bit only")
     endif()
 endif()
+
+# Helper macro to set variables only if they haven't been defined yet
+macro(set_default_var var val)
+    if(NOT DEFINED ${var})
+        set(${var} "${val}")
+    endif()
+endmacro()
+
+# All code will be loaded as a shared library, so we must ensure static libraries are PIC
+set_default_var(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+
+if(NOT BUILD_SHARED_LIBS)
+    # Hide symbols by default for static library targets
+    set_default_var(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    set_default_var(CMAKE_CXX_VISIBILITY_PRESET "hidden")
+    set_default_var(CMAKE_C_VISIBILITY_PRESET "hidden")
+endif()
+
+# Allow find_package to use our Find modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
+
+# Include plugin helper functions
+include(cmake/BinjaPluginFunctions.cmake)
 
 add_library(binaryninjaapi)
 target_sources(binaryninjaapi PRIVATE
@@ -113,7 +116,7 @@ target_sources(binaryninjaapi PRIVATE
     websocketprovider.cpp
     workflow.cpp
 )
-# JsonCpp sources
+# Vendored (and modified) JsonCpp source
 target_sources(binaryninjaapi PRIVATE json/jsoncpp.cpp)
 
 target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>")
@@ -124,25 +127,18 @@ endif()
 
 target_compile_features(binaryninjaapi PUBLIC cxx_std_17)
 
-if(TARGET binaryninjacore)
-    target_link_libraries(binaryninjaapi PUBLIC binaryninjacore)
-else()
-    if(APPLE)
-        target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
-    elseif(MSVC)
-        target_link_options(binaryninjaapi PUBLIC "/FORCE:UNRESOLVED")
-    else()
-        target_link_options(binaryninjaapi PUBLIC "LINKER:--allow-shlib-undefined")
-    endif()
+if(NOT TARGET binaryninjacore)
+    find_package(BinaryNinjaCore)
 endif()
+target_link_libraries(binaryninjaapi PUBLIC binaryninjacore)
 
 if(NOT BinaryNinjaAPI_HEADLESS)
+    set_target_properties(binaryninjaapi
+        PROPERTIES BinaryNinjaUI_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/ui"
+    )
     if(NOT TARGET binaryninjaui)
         find_package(BinaryNinjaUI REQUIRED)
     endif()
-    # NOTE: Not sure if binaryninjaapi should be linking to binaryninjaui
-    # but we need to add the ui directory to include path
-    target_include_directories(binaryninjaapi PUBLIC "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/ui>")
 endif()
 
 if(BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
@@ -211,7 +207,6 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
         EXPORT BinaryNinjaAPITargets
         INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     )
-    target_include_directories(binaryninjaapi INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ui>")
 
     # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
     set(vendor_targets "")
@@ -236,8 +231,14 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
     set_property(CACHE BinaryNinjaAPI_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
     mark_as_advanced(BinaryNinjaAPI_INSTALL_CMAKEDIR)
 
+    configure_package_config_file(
+        cmake/install-config.cmake.in
+        install-config.cmake
+        INSTALL_DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+        PATH_VARS CMAKE_INSTALL_INCLUDEDIR
+    )
     install(
-        FILES cmake/install-config.cmake
+        FILES ${PROJECT_BINARY_DIR}/install-config.cmake
         DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
         RENAME "${package}Config.cmake"
     )

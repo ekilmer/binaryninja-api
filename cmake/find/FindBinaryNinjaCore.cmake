@@ -43,24 +43,39 @@ find_library(BinaryNinjaCore_LIBRARY
     HINTS ${PATH_HINTS}
 )
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(
-    BinaryNinjaCore DEFAULT_MSG BinaryNinjaCore_LIBRARY
-)
+if(BinaryNinjaCore_LIBRARY)
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(
+        BinaryNinjaCore DEFAULT_MSG BinaryNinjaCore_LIBRARY
+    )
+else()
+    set(BinaryNinjaCore_FOUND True)
+    message(STATUS "Found BinaryNinjaCore: INTERFACE library binaryninjacore")
+endif()
 
-# Create a library target only if the above checks passed
 if(BinaryNinjaCore_FOUND AND NOT TARGET binaryninjacore)
     add_library(binaryninjacore UNKNOWN IMPORTED)
 
     if(EXISTS "${BinaryNinjaCore_LIBRARY}")
+        get_filename_component(BinaryNinjaCore_LIBRARY_DIR "${BinaryNinjaCore_LIBRARY}" DIRECTORY)
         set_property(
             TARGET binaryninjacore PROPERTY
             IMPORTED_LOCATION "${BinaryNinjaCore_LIBRARY}"
         )
-        get_filename_component(BinaryNinjaCore_LIBRARY_DIR "${BinaryNinjaCore_LIBRARY}" DIRECTORY)
+
+        # TODO: Figure out if this variable should be removed
         if(NOT DEFINED BN_INSTALL_BIN_DIR)
             set(BN_INSTALL_BIN_DIR "${BinaryNinjaCore_LIBRARY_DIR}" CACHE PATH "Binary Ninja Core Library Directory")
         endif()
         message(STATUS "Binary Ninja Core Library Directory: ${BN_INSTALL_BIN_DIR}")
+    else()
+        # Allow building of plugins without an installation of Binary Ninja
+        if(APPLE)
+            target_link_options(binaryninjacore INTERFACE -undefined dynamic_lookup)
+        elseif(MSVC)
+            target_link_options(binaryninjacore INTERFACE "/FORCE:UNRESOLVED")
+        else()
+            target_link_options(binaryninjacore INTERFACE "LINKER:--allow-shlib-undefined")
+        endif()
     endif()
 endif()
