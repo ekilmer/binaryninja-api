@@ -11,7 +11,7 @@ include(CMakeFindDependencyMacro)
 if(NOT TARGET binaryninjaapi)
     find_dependency(BinaryNinjaAPI
         # Assume default installation options
-        HINTS ${CMAKE_CURRENT_LIST_DIR}/../..
+        HINTS ${CMAKE_CURRENT_LIST_DIR}/../../..
     )
 endif()
 

@@ -247,13 +247,33 @@ if(NOT CMAKE_SKIP_INSTALL_RULES)
         FILES cmake/BinjaPluginFunctions.cmake
         DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
     )
-    install(
-        DIRECTORY cmake/find
-        DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
-    )
 
     install(
         EXPORT BinaryNinjaAPITargets
         DESTINATION "${BinaryNinjaAPI_INSTALL_CMAKEDIR}"
+    )
+
+    set(
+        BinaryNinjaCore_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/cmake/BinaryNinjaCore"
+        CACHE STRING "CMake package config location relative to the install prefix"
+    )
+    set_property(CACHE BinaryNinjaCore_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
+    mark_as_advanced(BinaryNinjaCore_INSTALL_CMAKEDIR)
+    install(
+        FILES cmake/find/FindBinaryNinjaCore.cmake
+        DESTINATION "${BinaryNinjaCore_INSTALL_CMAKEDIR}"
+        RENAME BinaryNinjaCoreConfig.cmake
+    )
+
+    set(
+        BinaryNinjaUI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/cmake/BinaryNinjaUI"
+        CACHE STRING "CMake package config location relative to the install prefix"
+    )
+    set_property(CACHE BinaryNinjaUI_INSTALL_CMAKEDIR PROPERTY TYPE PATH)
+    mark_as_advanced(BinaryNinjaUI_INSTALL_CMAKEDIR)
+    install(
+        FILES cmake/find/FindBinaryNinjaUI.cmake
+        DESTINATION "${BinaryNinjaUI_INSTALL_CMAKEDIR}"
+        RENAME BinaryNinjaUIConfig.cmake
     )
 endif()

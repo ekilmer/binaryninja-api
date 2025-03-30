@@ -6,14 +6,15 @@ find_dependency(fmt)
 find_dependency(nlohmann_json)
 find_dependency(RapidJSON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/find")
-
-find_dependency(BinaryNinjaCore)
+find_dependency(BinaryNinjaCore
+    HINTS ${CMAKE_CURRENT_LIST_DIR}/../../..
+)
 
 include("${CMAKE_CURRENT_LIST_DIR}/BinjaPluginFunctions.cmake")
 
 include("${CMAKE_CURRENT_LIST_DIR}/BinaryNinjaAPITargets.cmake")
 
+# Set this so that the UI API can pull it onto its own target
 set_and_check(ui_includedir "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/ui")
 set_target_properties(binaryninjaapi
     PROPERTIES BinaryNinjaUI_INCLUDE_DIR "${ui_includedir}"
