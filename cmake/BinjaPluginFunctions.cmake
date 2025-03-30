@@ -19,13 +19,6 @@ function(bn_install_plugin target)
 
     if(WIN32)
         install(
-            TARGETS ${target}
-            RUNTIME
-                DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
-                COMPONENT BinaryNinjaUserPlugin
-        )
-
-        install(
             FILES $<TARGET_PDB_FILE:${target}>
             DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
             COMPONENT BinaryNinjaUserPlugin
@@ -41,13 +34,14 @@ function(bn_install_plugin target)
             set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/api")
             #install(CODE "execute_process(COMMAND /usr/bin/install_name_tool -add_rpath \"$ORIGIN/api\" \"\$ENV{DESTDIR}$<TARGET_FILE:${target}>\")")
         endif()
-        install(
-            TARGETS ${target}
-            LIBRARY
-                DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
-                COMPONENT BinaryNinjaUserPlugin
-        )
     endif()
+
+    install(
+        TARGETS ${target}
+        LIBRARY
+            DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
+            COMPONENT BinaryNinjaUserPlugin
+    )
 endfunction()
 
 
