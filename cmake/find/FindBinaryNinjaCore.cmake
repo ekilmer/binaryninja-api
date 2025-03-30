@@ -54,9 +54,9 @@ else()
 endif()
 
 if(BinaryNinjaCore_FOUND AND NOT TARGET binaryninjacore)
-    add_library(binaryninjacore UNKNOWN IMPORTED)
-
     if(EXISTS "${BinaryNinjaCore_LIBRARY}")
+        add_library(binaryninjacore UNKNOWN IMPORTED)
+
         get_filename_component(BinaryNinjaCore_LIBRARY_DIR "${BinaryNinjaCore_LIBRARY}" DIRECTORY)
         set_property(
             TARGET binaryninjacore PROPERTY
@@ -69,6 +69,8 @@ if(BinaryNinjaCore_FOUND AND NOT TARGET binaryninjacore)
         endif()
         message(STATUS "Binary Ninja Core Library Directory: ${BN_INSTALL_BIN_DIR}")
     else()
+        add_library(binaryninjacore INTERFACE IMPORTED)
+
         # Allow building of plugins without an installation of Binary Ninja
         if(APPLE)
             target_link_options(binaryninjacore INTERFACE -undefined dynamic_lookup)
