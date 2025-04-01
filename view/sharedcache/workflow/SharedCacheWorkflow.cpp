@@ -368,25 +368,25 @@ void FixupOffImageCalls(Ref<AnalysisContext> ctx)
 							}
 						}
 					}
-					else if (destExpr.operation == MLIL_CONST_PTR)
+				}
+				else if (destExpr.operation == MLIL_CONST_PTR)
+				{
+					// 4 @ 18aa08208  (MLIL_JUMP jump((MLIL_CONST_PTR.q 0x18c1369f0)))
+					auto targetAddr = destExpr.GetConstant();
+					if (!view->IsValidOffset(targetAddr))
 					{
-						// 4 @ 18aa08208  (MLIL_JUMP jump((MLIL_CONST_PTR.q 0x18c1369f0)))
-						auto targetAddr = destExpr.GetConstant();
+						tryAddRegion(targetAddr);
+					}
+				}
+				else if (destExpr.operation == MLIL_LOAD_SSA)
+				{
+					auto ptrExpr = destExpr.GetSourceExpr<MLIL_LOAD_SSA>();
+					if (ptrExpr.operation == MLIL_CONST_PTR)
+					{
+						auto targetAddr = ptrExpr.GetConstant();
 						if (!view->IsValidOffset(targetAddr))
 						{
 							tryAddRegion(targetAddr);
-						}
-					}
-					else if (destExpr.operation == MLIL_LOAD_SSA)
-					{
-						auto ptrExpr = destExpr.GetSourceExpr<MLIL_LOAD_SSA>();
-						if (ptrExpr.operation == MLIL_CONST_PTR)
-						{
-							auto targetAddr = ptrExpr.GetConstant();
-							if (!view->IsValidOffset(targetAddr))
-							{
-								tryAddRegion(targetAddr);
-							}
 						}
 					}
 				}
