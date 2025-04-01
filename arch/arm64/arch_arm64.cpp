@@ -1650,7 +1650,7 @@ class Arm64Architecture : public Architecture
 
 	virtual vector<uint32_t> GetFullWidthRegisters() override
 	{
-		return vector<uint32_t>{
+		static vector<uint32_t> r = {
 			REG_X0,   REG_X1,  REG_X2,  REG_X3,   REG_X4,  REG_X5,  REG_X6,  REG_X7,
 			REG_X8,   REG_X9,  REG_X10, REG_X11,  REG_X12, REG_X13, REG_X14, REG_X15,
 			REG_X16,  REG_X17, REG_X18, REG_X19,  REG_X20, REG_X21, REG_X22, REG_X23,
@@ -1666,12 +1666,13 @@ class Arm64Architecture : public Architecture
 			REG_P16,   REG_P17,  REG_P18,  REG_P19,   REG_P20,  REG_P21,  REG_P22,  REG_P23,
 			REG_P24,   REG_P25,  REG_P26,  REG_P27,   REG_P29,  REG_P29,  REG_P30,  REG_P31,
 		};
+		return r;
 	}
 
 
 	virtual vector<uint32_t> GetAllRegisters() override
 	{
-		vector<uint32_t> r = {
+		const static vector<uint32_t> r = {
 			/* regular registers */
 			REG_W0,  REG_W1,  REG_W2,  REG_W3,  REG_W4,  REG_W5,  REG_W6,  REG_W7,
 			REG_W8,  REG_W9,  REG_W10, REG_W11, REG_W12, REG_W13, REG_W14, REG_W15,
@@ -1846,8 +1847,6 @@ class Arm64Architecture : public Architecture
 										has no name (is implementation specific) */
 			FAKEREG_SYSCALL_INFO
 		};
-		// auto sysregs = get_system_registers();
-		// r.insert(r.end(), sysregs.begin(), sysregs.end());
 		return r;
 	}
 
@@ -2230,16 +2229,8 @@ class Arm64Architecture : public Architecture
 		if (reg == FAKEREG_SYSCALL_INFO)
 			return RegisterInfo(reg, 0, 4);
 
-		if (reg > SYSREG_NONE && reg < SYSREG_END)
-		// constexpr auto sysregs = []() {
-		// 	auto sysregs = get_system_registers();
-		// 	auto sysreg_set = std::unordered_set<uint32_t>(sysregs.begin(), sysregs.end());
-		// 	return sysreg_set;
-		// };
-		// auto sysreg_set = sysregs();
-		// if (sysreg_set.find(reg) != sysreg_set.end())
-			// return RegisterInfo(reg, 0, 8);
-				LogWarn("GetRegisterInfo called on sysreg %#x/%d", reg, reg);
+		if (has_system_register_name((SystemReg)reg))
+			LogDebug("GetRegisterInfo called on sysreg %#x/%d", reg, reg);
 
 		return RegisterInfo(0, 0, 0);
 	}
@@ -2255,18 +2246,11 @@ class Arm64Architecture : public Architecture
 
 	virtual vector<uint32_t> GetSystemRegisters() override
 	{
-		// vector<uint32_t> system_regs = {};
-		//
-		// for (uint32_t ii = SYSREG_NONE + 1; ii < SYSREG_END; ++ii)
-		// {
-		// 	system_regs.push_back(ii);
-		// }
-		//
-		// system_regs.push_back(FAKEREG_SYSREG_UNKNOWN);
-		//
-		// return system_regs;
-		vector<uint32_t> system_regs = get_system_registers();
-		system_regs.push_back(FAKEREG_SYSREG_UNKNOWN);
+		static vector<uint32_t> system_regs(get_system_registers());
+		static std::once_flag once;
+		std::call_once(once, []() {
+			system_regs.push_back(FAKEREG_SYSREG_UNKNOWN);
+		});
 		return system_regs;
 	}
 };

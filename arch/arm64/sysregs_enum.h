@@ -1,3 +1,6 @@
+/* GENERATED FILE - DO NOT MODIFY - SUBMIT GITHUB ISSUE IF PROBLEM FOUND */
+#pragma once
+
 #include <stddef.h>
 
 #include "binaryninjaapi.h"
@@ -10,5 +13,5 @@ using namespace std;
 Ref<Enumeration> get_system_register_enum();
 Ref<Type> get_system_register_enum_type(Ref<BinaryView> view);
 QualifiedName get_system_register_enum_type_name(Ref<BinaryView> view);
-vector<uint32_t> get_system_registers();
+const vector<uint32_t>& get_system_registers();
 

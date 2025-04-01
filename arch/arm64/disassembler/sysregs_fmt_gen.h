@@ -1,3 +1,4 @@
+/* GENERATED FILE - DO NOT MODIFY - SUBMIT GITHUB ISSUE IF PROBLEM FOUND */
 #pragma once
 
 #include "sysregs_gen.h"
