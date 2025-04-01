@@ -34,7 +34,7 @@ endif()
 
 # TODO : RUSTDOCFLAGS="--theme binja-dark.css --default-theme=binja-dark"
 
-add_custom_target(rust_api ALL DEPENDS)
+add_custom_target(rust_api ALL DEPENDS ${RUST_API_SOURCES})
 add_dependencies(rust_api binaryninjaapi)
 
 add_custom_target(rust_docs ALL DEPENDS ${PROJECT_BINARY_DIR}/target/doc)
