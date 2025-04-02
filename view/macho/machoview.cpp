@@ -1093,6 +1093,7 @@ bool MachoView::Init()
 
 	SetOriginalImageBase(initialImageBase);
 	uint64_t preferredImageBase = initialImageBase;
+	bool platformSetByUser = false;
 	if (settings)
 	{
 		if (settings->Contains("loader.imageBase"))
@@ -1100,11 +1101,13 @@ bool MachoView::Init()
 
 		if (settings->Contains("loader.platform"))
 		{
-			Ref<Platform> platform = Platform::GetByName(settings->Get<string>("loader.platform", this));
+			BNSettingsScope scope = SettingsAutoScope;
+			Ref<Platform> platform = Platform::GetByName(settings->Get<string>("loader.platform", this, &scope));
 			if (platform)
 			{
 				m_plat = platform;
 				m_arch = platform->GetArchitecture();
+				platformSetByUser = (scope == SettingsResourceScope);
 			}
 		}
 	}
@@ -1528,12 +1531,12 @@ bool MachoView::Init()
 	Ref<Type> filesetEntryCommandType = Type::StructureType(filesetEntryCommandStruct);
 	m_typeNames.filesetEntryCommandQualName = DefineType(filesetEntryCommandTypeId, filesetEntryCommandName, filesetEntryCommandType);
 
-	if (!InitializeHeader(m_header, true, preferredImageBase, preferredImageBaseDesc))
+	if (!InitializeHeader(m_header, true, preferredImageBase, preferredImageBaseDesc, platformSetByUser))
 		return false;
 
 	for (auto& it : m_subHeaders)
 	{
-		if (!InitializeHeader(it.second, false, it.first, ""))
+		if (!InitializeHeader(it.second, false, it.first, "", platformSetByUser))
 			return false;
 	}
 
@@ -1544,7 +1547,8 @@ bool MachoView::Init()
 }
 
 
-bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_t preferredImageBase, std::string preferredImageBaseDesc)
+bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_t preferredImageBase,
+	std::string preferredImageBaseDesc, bool platformSetByUser)
 {
 	Ref<Settings> settings = GetLoadSettings(GetTypeName());
 
@@ -1814,7 +1818,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		if (!platform)
 			platform = m_arch->GetStandalonePlatform();
 
-		if (header.m_entryPoints.size() > 0)
+		if (header.m_entryPoints.size() > 0 && !platformSetByUser)
 			platform = platform->GetAssociatedPlatformByAddress(header.m_entryPoints[0]);
 
 		SetDefaultPlatform(platform);
