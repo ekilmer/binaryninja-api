@@ -9,7 +9,6 @@
 #include <QMessageBox>
 #include <QHeaderView>
 #include "dsctriage.h"
-#include <QTableWidgetItem>
 #include "symboltable.h"
 
 using namespace BinaryNinja;
@@ -279,7 +278,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 		auto cacheInfoSubwidget = new QWidget;
 
-		auto mappingTable = new QTableView(cacheInfoSubwidget);
+		auto mappingTable = new FilterableTableView(cacheInfoSubwidget);
 		m_mappingModel = new QStandardItemModel(0, 4, mappingTable);
 		m_mappingModel->setHorizontalHeaderLabels({"Address", "Size", "File Address", "File Path"});
 
@@ -320,6 +319,18 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		regionTable->verticalHeader()->setVisible(false);
 
 		auto mappingLabel = new QLabel("Mappings");
+		auto mappingFilterEdit = new FilterEdit(mappingTable);
+		{
+			connect(mappingFilterEdit, &FilterEdit::textChanged, [mappingTable](const QString& filter) {
+				mappingTable->setFilter(filter.toStdString());
+			});
+		}
+
+		auto mappingHeaderLayout = new QHBoxLayout;
+		mappingHeaderLayout->addWidget(mappingLabel);
+		mappingHeaderLayout->addWidget(mappingFilterEdit);
+		mappingHeaderLayout->setAlignment(Qt::AlignJustify);
+		mappingHeaderLayout->setSpacing(30);
 
 		auto regionLabel = new QLabel("Regions");
 		auto regionFilterEdit = new FilterEdit(regionTable);
@@ -336,7 +347,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 		regionHeaderLayout->setSpacing(30);
 
 		auto mappingLayout = new QVBoxLayout;
-		mappingLayout->addWidget(mappingLabel);
+		mappingLayout->addLayout(mappingHeaderLayout);
 		mappingLayout->addWidget(mappingTable);
 
 		auto regionLayout = new QVBoxLayout;
