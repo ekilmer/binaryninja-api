@@ -16,12 +16,6 @@ void ApplySlideInfoV5(VirtualMemory& vm, const SlideMappingInfo& mapping)
 	uint64_t pageStartCount = mapping.slideInfoV5.page_starts_count;
 	uint64_t pageSize = mapping.slideInfoV5.page_size;
 
-	uint64_t offset;
-	// Retrieve this once so we don't need to keep querying the region through the VM.
-	auto region = vm.GetRegionAtAddress(mapping.address, offset);
-	if (!region.has_value())
-		throw UnmappedRegionException(mapping.address);
-
 	auto cursor = pageStartsOffset;
 	for (size_t i = 0; i < pageStartCount; i++)
 	{
@@ -197,6 +191,10 @@ std::vector<SlideMappingInfo> SlideInfoProcessor::ReadEntryInfo(VirtualMemory& v
 			vm.Read(&singleMapping.slideInfoV2, *slideInfoAddress, sizeof(dyld_cache_slide_info_v2));
 		else if (singleMapping.slideInfoVersion == 3)
 			vm.Read(&singleMapping.slideInfoV3, *slideInfoAddress, sizeof(dyld_cache_slide_info_v3));
+
+		// Adjust the file offset to mapped, we are expecting the consumer to just take it in as mapped.
+		// if we did not make it mapped, then we would need to do all this weirdness in every consumer (each slide info version)
+		singleMapping.mappingInfo.fileOffset = *entry.GetMappedAddress(singleMapping.mappingInfo.fileOffset);
 
 		return {singleMapping};
 	}
