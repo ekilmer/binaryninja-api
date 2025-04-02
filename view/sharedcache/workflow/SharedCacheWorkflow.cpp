@@ -156,12 +156,11 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 				// set the variables value.
 				auto def = mlil->GetSSAVarDefinition(var);
 				auto defInstr = mlil->GetInstruction(def);
-				// TODO: This is 100% not OK, you need to verify the expr operation!
-				// targetOffset should be the address from where we load the jump address (i.e. the stub island).
-				const auto islandPtr = defInstr.GetSourceExpr().GetSourceExpr().GetConstant();
-				loadTarget(islandPtr);
+				if (defInstr.operation != MLIL_SET_VAR_SSA)
+					return;
+				expr = defInstr.GetSourceExpr<MLIL_SET_VAR_SSA>();
+				// Fallthrough to load ptr.
 			}
-			break;
 		case MLIL_LOAD_SSA:
 			expr = expr.GetSourceExpr<MLIL_LOAD_SSA>();
 			if (expr.operation != MLIL_CONST_PTR)
@@ -330,10 +329,8 @@ void SharedCacheWorkflow::Register()
 
 	// Register and insert activities here.
 	ObjCActivity::Register(*workflow);
-	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.processStubFunction", &AnalyzeFunction));
-	std::vector<std::string> inserted = {
-		"core.analysis.sharedCache.processStubFunction"
-	};
+	workflow->RegisterActivity(new Activity("core.analysis.sharedCache.analysis", &AnalyzeFunction));
+	std::vector<std::string> inserted = { "core.analysis.sharedCache.analysis" };
 	workflow->Insert("core.function.analyzeTailCalls", inserted);
 
 	static constexpr auto WORKFLOW_DESCRIPTION = R"({
