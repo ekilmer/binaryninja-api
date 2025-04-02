@@ -83,6 +83,11 @@ DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view
 			dscView->m_regionFilter = std::regex(settings->Get<std::string>("loader.dsc.regionFilter", &view));
 	}
 
+	// TODO: Support old shared cache metadata
+	// TODO: Not strictly necessary as the user has already loaded the information into the database, this would just
+	// TODO: prevent incidental extra work from being done when loading a region or image.
+	// const uint64_t oldStateCount = view.GetUIntMetadata(OLD_METADATA_KEY_COUNT);
+
 	// Check the view auto metadata for shared cache information.
 	// This effectively restores the state of the opened database to when it was last saved.
 	// NOTE: We store on the parent view because hilariously, the metadata is not present until after view init.

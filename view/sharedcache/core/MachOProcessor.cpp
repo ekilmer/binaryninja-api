@@ -193,6 +193,8 @@ uint64_t SharedCacheMachOProcessor::ApplyHeaderSections(SharedCacheMachOHeader& 
 		if (strncmp(section.segname, "__DATA_CONST", sizeof(section.segname)) == 0)
 			semantics = ReadOnlyDataSectionSemantics;
 
+		// Typically a view would add auto sections but those won't persist when loading the BNDB.
+		// if we want to use an auto section here we would need to allow the core to apply auto sections from the database.
 		m_view->AddUserSection(sectionName, section.addr, section.size, semantics, type, section.align);
 
 		return true;

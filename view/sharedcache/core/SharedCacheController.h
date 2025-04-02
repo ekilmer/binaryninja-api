@@ -12,6 +12,8 @@ void RegisterSharedCacheControllerDestructor();
 
 namespace BinaryNinja::DSC {
 	static const char* METADATA_KEY = "shared_cache";
+	static const char* OLD_METADATA_KEY_COUNT = "SHAREDCACHE-ModifiedState-Count";
+	static const char* OLD_METADATA_KEY_PREFIX = "SHAREDCACHE-ModifiedState-";
 
 	// Represents the view state for a given `DSCache`
 	class SharedCacheController : public DSCRefCountObject

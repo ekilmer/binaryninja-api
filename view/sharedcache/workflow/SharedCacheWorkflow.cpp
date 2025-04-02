@@ -126,7 +126,7 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 
 	// We allow the user to automatically load the directly referenced objc images as having the calls inlined is extremely useful for objc.
 	auto loadTargetImage = [&](uint64_t imageAddr) {
-		auto image = controller.GetImageContaining(imageAddr);
+		const auto image = controller.GetImageContaining(imageAddr);
 		if (!image.has_value())
 			return false;
 		return controller.ApplyImage(*view, *image);

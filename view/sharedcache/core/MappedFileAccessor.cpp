@@ -14,6 +14,8 @@ std::shared_ptr<MappedFileAccessor> MappedFileAccessor::Open(const std::string& 
 // TODO: Will obviously not work on 32bit binaries, need to make WritePointer64 and 32 equiv.
 void MappedFileAccessor::WritePointer(size_t address, size_t pointer)
 {
+	if (address + sizeof(size_t*) > Length())
+		throw UnmappedAccessException(address + sizeof(size_t*), Length());
 	m_dirty = true;
 	*reinterpret_cast<size_t*>(&m_file._mmap[address]) = pointer;
 }

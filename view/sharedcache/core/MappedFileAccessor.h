@@ -19,7 +19,7 @@ public:
 	{
 		thread_local std::string message;
 		message =
-			fmt::format("Tried to access unmapped address {0:x} for file with length of {0:x}", m_address, m_fileLen);
+			fmt::format("Tried to access unmapped address {0:x} for file with length of {01:x}", m_address, m_fileLen);
 		return message.c_str();
 	}
 };
