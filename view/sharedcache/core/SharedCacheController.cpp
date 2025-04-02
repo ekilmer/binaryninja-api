@@ -85,9 +85,9 @@ DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view
 
 	// Check the view auto metadata for shared cache information.
 	// This effectively restores the state of the opened database to when it was last saved.
-	auto metadata = view.GetAutoMetadata()->GetKeyValueStore();
-	if (metadata.find(METADATA_KEY) != metadata.end())
-		dscView->LoadMetadata(*metadata[METADATA_KEY]);
+	// NOTE: We store on the parent view because hilariously, the metadata is not present until after view init.
+	if (const auto metadata = view.GetParentView()->QueryMetadata(METADATA_KEY))
+		dscView->LoadMetadata(*metadata);
 
 	GlobalControllers().insert({id, dscView});
 	return dscView;
@@ -219,7 +219,8 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 	m_logger->LogInfoF("Loaded image: '{}'", image.path);
 
 	// TODO: This needs to be done in a "database save" callback.
-	view.StoreMetadata(METADATA_KEY, GetMetadata());
+	// NOTE: We store on the parent view because hilariously, the view metadata is not available in view init.
+	view.GetParentView()->StoreMetadata(METADATA_KEY, GetMetadata());
 
 	// TODO: Partial failure state (i.e. 2 regions loaded, one failed)
 	return true;
