@@ -31,6 +31,7 @@ public:
 		initStyleOption(&opt, index);
 
 		opt.palette.setColor(QPalette::Text, getThemeColor(BNThemeColor::AddressColor));
+		opt.displayAlignment = Qt::AlignCenter | Qt::AlignVCenter;
 
 		QStyledItemDelegate::paint(painter, opt, index);
 	}
@@ -142,6 +143,7 @@ public:
 	QFont getFont() override;
 	bool navigate(uint64_t offset) override;
 	uint64_t getCurrentOffset() override;
+	SelectionInfoForXref getSelectionForXref() override;
 
 	void OnAfterOpenFile(UIContext* context, FileContext* file, ViewFrame* frame) override;
 	void RefreshData();

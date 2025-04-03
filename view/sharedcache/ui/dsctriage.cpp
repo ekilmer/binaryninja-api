@@ -335,8 +335,8 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 		mappingTable->setModel(m_mappingModel);
 
-		mappingTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-		mappingTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+		mappingTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+		mappingTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
 		mappingTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 		mappingTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
 
@@ -358,8 +358,8 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 		regionTable->setModel(m_regionModel);
 
-		regionTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-		regionTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+		regionTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+		regionTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
 		regionTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Interactive);
 		regionTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
 
@@ -451,6 +451,14 @@ bool DSCTriageView::navigate(uint64_t offset)
 uint64_t DSCTriageView::getCurrentOffset()
 {
 	return 0;
+}
+
+SelectionInfoForXref DSCTriageView::getSelectionForXref()
+{
+	// TODO: If we are in the symbols view we _can_ actually show a useful xref to the selected symbols.
+	SelectionInfoForXref selection = {};
+	selection.addrValid = false;
+	return selection;
 }
 
 void DSCTriageView::OnAfterOpenFile(UIContext *context, FileContext *file, ViewFrame *frame)

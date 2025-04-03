@@ -118,11 +118,13 @@ SymbolTableView::SymbolTableView(QWidget* parent)
 	setModel(m_model);
 
 	// Configure view settings
-	horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-	horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+	horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+	horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
 	horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+	setEditTriggers(QAbstractItemView::NoEditTriggers);
 	setSelectionBehavior(QAbstractItemView::SelectRows);
 	setSelectionMode(QAbstractItemView::SingleSelection);
+	verticalHeader()->setVisible(false);
 
 	setSortingEnabled(true);
 }
