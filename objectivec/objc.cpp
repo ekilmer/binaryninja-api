@@ -598,8 +598,8 @@ void ObjCProcessor::LoadCategories(ObjCReader* reader, Ref<Section> classPtrSect
 		}
 		if (categoryBaseClassName.empty())
 		{
-			m_logger->LogWarn(
-				"Failed to determine base classname for category at 0x%llx. Using base address as stand-in classname",
+			m_logger->LogInfo(
+				"[SharedCache.ObjC] Using base address as stand-in classname for category at 0x%llx",
 				catLocation);
 			categoryBaseClassName = std::to_string(catLocation);
 		}
