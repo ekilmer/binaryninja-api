@@ -53,7 +53,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 
 	QWidget* defaultWidget = nullptr;
 
-	auto loadImagesWithAddr = [this](const std::vector<uint64_t>& addresses) {
+	auto loadImagesWithAddr = [this](const std::vector<uint64_t>& addresses, bool includeDependencies = false) {
 		auto controller = SharedCacheController::GetController(*this->m_data);
 		if (!controller)
 			return;
@@ -64,7 +64,24 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 			auto image = controller->GetImageContaining(addr);
 			// Only try to load if we have not already.
 			if (image.has_value() && !controller->IsImageLoaded(*image))
+			{
 				images.insert({image->headerAddress, *image});
+
+				// TODO: We currently only add direct dependencies, may want to make the depth configurable?
+				if (includeDependencies)
+				{
+					auto dependencies = controller->GetImageDependencies(*image);
+					for (const auto& depName : dependencies)
+					{
+						auto depImage = controller->GetImageWithName(depName);
+						if (depImage.has_value() && !controller->IsImageLoaded(*depImage))
+						{
+							images.insert({depImage->headerAddress, *depImage});
+						}
+					}
+				}
+			}
+
 		}
 
 		// Don't create a worker action if we don't have any images.
@@ -94,14 +111,62 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 	};
 
 	// Tab: Images
-	auto loadImageTable = new FilterableTableView;
+	auto loadImageTable = new FilterableTableView(this);
 	{
 		m_imageModel = new QStandardItemModel(0, 3, loadImageTable);
 		m_imageModel->setHorizontalHeaderLabels({"Address", "Loaded", "Name"});
 
 		// Apply custom column styling
 		loadImageTable->setItemDelegateForColumn(0, new AddressColorDelegate(loadImageTable));
-		loadImageTable->setItemDelegateForColumn(1, new LoadedDelegate());
+		loadImageTable->setItemDelegateForColumn(1, new LoadedDelegate(loadImageTable));
+
+		// Context menu
+		loadImageTable->setContextMenuPolicy(Qt::CustomContextMenu);
+		connect(loadImageTable, &QWidget::customContextMenuRequested, [loadImageTable, loadImagesWithAddr](const QPoint &pos) {
+			QMenu contextMenu(tr("Load Image Actions"), loadImageTable);
+
+			// Get number of selected images
+			auto selected = loadImageTable->selectionModel()->selectedRows();
+			int selectedCount = 0;
+			std::vector<uint64_t> addresses;
+			for (const auto& idx : selected)
+			{
+				// Skip rows hidden by the filter
+				if (loadImageTable->isRowHidden(idx.row()))
+					continue;
+				addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));
+				selectedCount++;
+			}
+
+			QAction noSelectionAction("No Images Selected", loadImageTable);
+			QAction loadImagesAction("", loadImageTable);
+			QAction loadImagesWithDepsAction("", loadImageTable);
+			if (selectedCount == 0)
+			{
+				noSelectionAction.setEnabled(false);
+				contextMenu.addAction(&noSelectionAction);
+			}
+			else
+			{
+				// Format action text for loading selected images
+				QString loadActionText = (selectedCount == 1) ? "Load Selected Image" : QString("Load %1 Selected Images").arg(selectedCount);
+				loadImagesAction.setText(loadActionText);
+				connect(&loadImagesAction, &QAction::triggered, [loadImagesWithAddr, addresses]() {
+					loadImagesWithAddr(addresses, false);
+				});
+				contextMenu.addAction(&loadImagesAction);
+
+				// Format action text for loading selected images with dependencies
+				QString loadWithDepsActionText = (selectedCount == 1) ? "Load Selected Image and Dependencies" : QString("Load %1 Selected Images and Dependencies").arg(selectedCount);
+				loadImagesWithDepsAction.setText(loadWithDepsActionText);
+				connect(&loadImagesWithDepsAction, &QAction::triggered, [loadImagesWithAddr, addresses]() {
+					loadImagesWithAddr(addresses, true);
+				});
+				contextMenu.addAction(&loadImagesWithDepsAction);
+			}
+
+			contextMenu.exec(loadImageTable->viewport()->mapToGlobal(pos));
+		});
 
 		auto loadImageButton = new QPushButton();
 		connect(loadImageButton, &QPushButton::clicked,
@@ -110,7 +175,7 @@ DSCTriageView::DSCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(pare
 				std::vector<uint64_t> addresses;
 				for (const auto& idx : selected)
 				{
-					// Skip rows hidden by the filter.
+					// Skip rows hidden by the filter
 					if (loadImageTable->isRowHidden(idx.row()))
 						continue;
 					addresses.push_back(idx.data().toString().toULongLong(nullptr, 16));

@@ -23,7 +23,7 @@ class AddressColorDelegate : public QStyledItemDelegate
 {
 
 public:
-	AddressColorDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
+	explicit AddressColorDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
 
 	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
 	{
@@ -101,7 +101,7 @@ public:
 
 	bool eventFilter(QObject* obj, QEvent* event) override {
 		if (event->type() == QEvent::KeyPress) {
-			QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+			auto* keyEvent = dynamic_cast<QKeyEvent*>(event);
 			if (keyEvent->key() == Qt::Key_Escape) {
 				clearSelection();
 				return true;
@@ -161,7 +161,10 @@ public:
 class LoadedDelegate : public QItemDelegate
 {
 	Q_OBJECT
+
 public:
+	explicit LoadedDelegate(QObject* parent = nullptr) : QItemDelegate(parent) {}
+
 	void paint(QPainter *painter, const QStyleOptionViewItem &option,
 			   const QModelIndex &index) const override
 	{
@@ -202,7 +205,7 @@ public:
 	{
 		Q_UNUSED(option);
 		Q_UNUSED(index);
-		return QSize(50, 24);
+		return {50, 24};
 	}
 
 	void setEditorData(QWidget *editor, const QModelIndex &index) const override
