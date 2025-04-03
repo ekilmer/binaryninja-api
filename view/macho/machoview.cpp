@@ -3207,7 +3207,6 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 			// case DYLD_CHAINED_PTR_ARM64E_FIRMWARE: Unsupported.
 			case DYLD_CHAINED_PTR_64:
 			case DYLD_CHAINED_PTR_64_OFFSET:
-			case DYLD_CHAINED_PTR_64_KERNEL_CACHE:
 				strideSize = 4;
 				format = Generic64FixupFormat;
 				break;
@@ -3220,9 +3219,13 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 				strideSize = 4;
 				format = Firmware32FixupFormat;
 				break;
+			case DYLD_CHAINED_PTR_64_KERNEL_CACHE:
+				strideSize = 4;
+				format = Kernel64Format;
+				break;
 			case DYLD_CHAINED_PTR_X86_64_KERNEL_CACHE:
 				strideSize = 1;
-				format = Generic64FixupFormat;
+				format = Kernel64Format;
 				break;
 			default:
 			{
@@ -3317,6 +3320,10 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 							nextEntryStrideCount = pointer.firmware32.next;
 							bind = false;
 							break;
+						case Kernel64Format:
+							nextEntryStrideCount = pointer.kernel64.next;
+							bind = false;
+							break;
 						}
 
 						m_logger->LogTrace("Chained Fixups: @ 0x%llx ( 0x%llx ) - %d 0x%llx", chainEntryAddress,
@@ -3347,6 +3354,8 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 							case DYLD_CHAINED_PTR_32:
 								ordinal = pointer.generic32.bind.ordinal;
 								break;
+							case DYLD_CHAINED_PTR_64_KERNEL_CACHE: // no binding
+							case DYLD_CHAINED_PTR_X86_64_KERNEL_CACHE: // ''
 							default:
 								m_logger->LogWarn("Chained Fixups: Unknown Bind Pointer Format at %llx",
 									GetStart() + (chainEntryAddress - m_universalImageOffset));
@@ -3577,6 +3586,9 @@ void MachoView::ParseChainedStarts(MachOHeader& header, section_64 chainedStarts
 					nextEntryStrideCount = pointer.firmware32.next;
 					bind = false;
 					break;
+				case Kernel64Format:
+					nextEntryStrideCount = pointer.kernel64.next;
+					bind = false;
 				}
 
 				m_logger->LogTrace("Chained Starts: @ 0x%llx ( 0x%llx ) - %d 0x%llx", chainEntryAddress,
