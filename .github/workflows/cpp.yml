@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  push:
+    branches: ["cmake-refactor"]
+
+jobs:
+  build:
+    runs-on: ${{matrix.config.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: windows-2022,
+             name: windows}
+          - {os: macos-15,
+             name: macos}
+          - {os: ubuntu-24.04,
+             name: ubuntu}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - uses: seanmiddleditch/gha-setup-ninja@master
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure binaryninjaapi
+        run: cmake -B build -S .
+              -G Ninja
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo
+              -DCMAKE_INSTALL_PREFIX=install
+
+      - name: Build binaryninjaapi
+        run: cmake --build build
+              --config RelWithDebInfo
+              -j 4
+
+      - name: Install binaryninjaapi
+        run: cmake --build build
+          --config RelWithDebInfo
+          --target install
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.config.name}}-binaryninjaapi
+          path: install/
+
+      - name: Configure Everything Else
+        run: cmake -B build -S .
+          -DBinaryNinjaAPI_BUILD_EXAMPLES=ON
+
+      - name: Build Everything Else
+        run: cmake --build build
+              --config RelWithDebInfo
+              -j 4
