@@ -17,6 +17,9 @@ jobs:
              name: macos}
           - {os: ubuntu-24.04,
              name: ubuntu}
+        headless:
+          - "ON"
+          - "OFF"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +34,7 @@ jobs:
               -G Ninja
               -DCMAKE_BUILD_TYPE=RelWithDebInfo
               -DCMAKE_INSTALL_PREFIX=install
+              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless}}
 
       - name: Build binaryninjaapi
         run: cmake --build build
