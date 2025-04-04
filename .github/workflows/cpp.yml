@@ -32,12 +32,50 @@ jobs:
 
       - uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install Vector 35 Qt6
+        if: ${{ matrix.headless == 'OFF' }}
+        shell: bash
+        run: |
+          QT_VER=6.8.2
+          QT_INSTALL="$GITHUB_WORKSPACE"
+
+          if [ "${{ matrix.config.name }}" == "windows" ]; then
+            echo "Installing Qt6 for Windows"
+            curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-win64.zip"
+            7z x qt6.zip -o"$QT_INSTALL"
+            QT_INSTALL="$QT_INSTALL/Qt/$QT_VER/msvc2022_64"
+          elif [ "${{ matrix.config.name }}" == "macos" ]; then
+            echo "Installing Qt6 for macOS"
+            curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-macosx.zip"
+            unzip qt6.zip -d "$QT_INSTALL"
+            QT_INSTALL="$QT_INSTALL/Qt/$QT_VER/clang_64"
+          elif [ "${{ matrix.config.name }}" == "ubuntu" ]; then
+            sudo apt-get update -y
+            # Need to install qt6-base-dev to get dependencies
+            sudo apt-get install -y qt6-base-dev
+            echo "Installing Qt6 for Ubuntu"
+            curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-linux.zip"
+            unzip qt6.zip -d "$QT_INSTALL"
+            QT_INSTALL="$QT_INSTALL/Qt/$QT_VER/gcc_64"
+          else
+            echo "Unsupported OS: ${{ matrix.config.name }}"
+            exit 1
+          fi
+          echo "Qt6 extracted to $QT_INSTALL"
+          rm qt6.zip
+          
+          QT_CMAKE="$QT_INSTALL/lib/cmake/Qt6"
+          ls -la "$QT_CMAKE"
+
+          echo "QT_CMAKE=-DQt6_DIR=$QT_CMAKE" >> "$GITHUB_ENV"
+
       - name: Configure binaryninjaapi
         run: cmake -B build -S .
               -G Ninja
               -DCMAKE_BUILD_TYPE=RelWithDebInfo
               -DCMAKE_INSTALL_PREFIX=install
               -DBinaryNinjaAPI_HEADLESS=${{matrix.headless}}
+              "${{ env.QT_CMAKE }}"
 
       - name: Build binaryninjaapi
         run: cmake --build build
