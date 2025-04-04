@@ -22,7 +22,9 @@ if(NOT TARGET binaryninjaapi)
     )
 endif()
 
-find_dependency(Qt6 COMPONENTS Core Gui Widgets)
+# Use find_package(... REQUIRED) here because it doesn't ever make sense to
+# use the UI API without Qt
+find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
 
 find_library(BinaryNinjaUI_LIBRARY
     NAMES binaryninjaui libbinaryninjaui.so.1
