@@ -87,7 +87,9 @@ jobs:
           --config RelWithDebInfo
           --target install
 
-      - name: Upload artifact
+      - name: Upload binaryninjaapi artifact
+        # Installed binaryninjaapi works regardless of headless mode
+        if: ${{ matrix.headless == 'ON' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.config.name}}-${{env.UI_TYPE}}-binaryninjaapi
@@ -96,8 +98,20 @@ jobs:
       - name: Configure Everything Else
         run: cmake -B build -S .
           -DBinaryNinjaAPI_BUILD_EXAMPLES=ON
+          -DBinaryNinjaAPI_USER_PLUGINS_DIR=install-user-plugins
 
       - name: Build Everything Else
         run: cmake --build build
               --config RelWithDebInfo
               -j 4
+
+      - name: Install Everything Else
+        run: cmake --install build
+          --config RelWithDebInfo
+          --component BinaryNinjaUserPlugin
+
+      - name: Upload binaryninjaapi artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.config.name}}-${{env.UI_TYPE}}-user-plugins
+          path: install-user-plugins/
