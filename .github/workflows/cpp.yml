@@ -6,10 +6,10 @@ on:
 
 jobs:
   build:
-    name: build (${{matrix.config.os}}, ${{ matrix.headless == 'ON' && 'headless' || 'ui' }})
+    name: build (${{matrix.config.os}}, ${{ matrix.headless.val == 'ON' && 'headless' || 'ui' }})
     runs-on: ${{matrix.config.os}}
     env:
-      UI_TYPE: ${{ matrix.headless == 'ON' && 'headless' || 'ui' }}
+      UI_TYPE: ${{ matrix.headless.val == 'ON' && 'headless' || 'ui' }}
     strategy:
       fail-fast: false
       matrix:
@@ -21,19 +21,26 @@ jobs:
           - {os: ubuntu-24.04,
              name: ubuntu}
         headless:
-          - "ON"
-          - "OFF"
+          - {val: "ON",
+             cmakeVersion: "~3.14.0"}
+          - {val: "OFF",
+             # Qt 6.8.2 requires CMake 3.16.0
+             cmakeVersion: "~3.16.0"}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
 
-      - uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Get latest CMake and Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ matrix.headless.cmakeVersion }}
+          ninjaVersion: latest
 
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Vector 35 Qt6
-        if: ${{ matrix.headless == 'OFF' }}
+        if: ${{ matrix.headless.val == 'OFF' }}
         shell: bash
         run: |
           QT_VER=6.8.2
@@ -74,7 +81,7 @@ jobs:
               -G Ninja
               -DCMAKE_BUILD_TYPE=RelWithDebInfo
               -DCMAKE_INSTALL_PREFIX=install
-              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless}}
+              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless.val}}
               "${{ env.QT_CMAKE }}"
 
       - name: Build binaryninjaapi
@@ -89,7 +96,7 @@ jobs:
 
       - name: Upload binaryninjaapi artifact
         # Installed binaryninjaapi works regardless of headless mode
-        if: ${{ matrix.headless == 'ON' }}
+        if: ${{ matrix.headless.val == 'ON' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.config.name}}-${{env.UI_TYPE}}-binaryninjaapi
