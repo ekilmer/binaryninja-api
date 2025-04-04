@@ -67,7 +67,7 @@ if(NOT BinaryNinjaAPI_HEADLESS)
         PROPERTIES BinaryNinjaUI_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/ui"
     )
     if(NOT TARGET binaryninjaui)
-        find_package(BinaryNinjaUI REQUIRED)
+        find_package(BinaryNinjaUI)
     endif()
 endif()
 

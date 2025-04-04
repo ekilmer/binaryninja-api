@@ -1,15 +1,5 @@
-# Try to find a Binary Ninja installation
-# Once done this will define
-#  BinaryNinjaCore_FOUND - If Binary Ninja Core is found
-#  BinaryNinjaCore_ROOT_DIR - The installation path of Binary Ninja
-#  BinaryNinjaCore_USER_PLUGINS_DIR - The path for user plugins
-#  BinaryNinjaCore_INCLUDE_DIRS - The directories to include for compiling core plugins
-#  BinaryNinjaCore_LIBRARY - The library for linking core plugins
-#  BinaryNinjaCore_LIBRARY_DIRS - The link paths required for core plugins
-#  BinaryNinjaCore_DEFINITIONS - Compiler switches required for core plugins
-#
-# According to Good CMake Hygiene, we should use BinaryNinjaCore_<VAR> named variables.
-# Existing plugins likely use BN_<VAR> names already, so both are provided.
+# NOTE: Do not use find_package(... REQUIRED) unless you _require_ linking
+# against actual Core library (like for testing)
 
 set(PATH_HINTS "")
 if(DEFINED ENV{BN_INSTALL_DIR})
@@ -43,18 +33,20 @@ find_library(BinaryNinjaCore_LIBRARY
     HINTS ${PATH_HINTS}
 )
 
+# Allow missing binaryninjacore library file, so we can build without an
+# installation of Binary Ninja
 if(BinaryNinjaCore_LIBRARY)
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(
         BinaryNinjaCore DEFAULT_MSG BinaryNinjaCore_LIBRARY
     )
 else()
-    set(BinaryNinjaCore_FOUND True)
-    message(STATUS "Found BinaryNinjaCore: INTERFACE library binaryninjacore")
+    set(BinaryNinjaCore_FOUND False)
+    message(WARNING "Could NOT find BinaryNinjaCore: using INTERFACE library")
 endif()
 
-if(BinaryNinjaCore_FOUND AND NOT TARGET binaryninjacore)
-    if(EXISTS "${BinaryNinjaCore_LIBRARY}")
+if(NOT TARGET binaryninjacore)
+    if(BinaryNinjaCore_FOUND AND EXISTS "${BinaryNinjaCore_LIBRARY}")
         add_library(binaryninjacore UNKNOWN IMPORTED)
 
         get_filename_component(BinaryNinjaCore_LIBRARY_DIR "${BinaryNinjaCore_LIBRARY}" DIRECTORY)
@@ -63,7 +55,7 @@ if(BinaryNinjaCore_FOUND AND NOT TARGET binaryninjacore)
             IMPORTED_LOCATION "${BinaryNinjaCore_LIBRARY}"
         )
 
-        # TODO: Figure out if this variable should be removed
+        # TODO: Figure out if this variable should be removed or attached to the target?
         if(NOT DEFINED BN_INSTALL_BIN_DIR)
             set(BN_INSTALL_BIN_DIR "${BinaryNinjaCore_LIBRARY_DIR}" CACHE PATH "Binary Ninja Core Library Directory")
         endif()

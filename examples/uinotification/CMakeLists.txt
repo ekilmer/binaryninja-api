@@ -9,7 +9,6 @@ file(GLOB SOURCES
 add_library(uinotification SHARED ${SOURCES})
 
 if(NOT TARGET binaryninjaapi OR NOT TARGET binaryninjaui)
-	find_package(BinaryNinjaAPI)
 	find_package(BinaryNinjaUI)
 endif()
 
