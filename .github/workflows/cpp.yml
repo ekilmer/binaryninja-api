@@ -6,7 +6,10 @@ on:
 
 jobs:
   build:
+    name: build (${{matrix.config.os}}, ${{ matrix.headless == 'ON' && 'headless' || 'ui' }})
     runs-on: ${{matrix.config.os}}
+    env:
+      UI_TYPE: ${{ matrix.headless == 'ON' && 'headless' || 'ui' }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,7 +52,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{matrix.config.name}}-binaryninjaapi
+          name: ${{matrix.config.name}}-${{env.UI_TYPE}}-binaryninjaapi
           path: install/
 
       - name: Configure Everything Else
