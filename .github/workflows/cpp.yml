@@ -6,10 +6,10 @@ on:
 
 jobs:
   build:
-    name: build (${{matrix.config.os}}, ${{ matrix.headless.val == 'ON' && 'headless' || 'ui' }})
+    name: build (${{matrix.config.os}}, ${{ matrix.headless == 'ON' && 'headless' || 'ui' }})
     runs-on: ${{matrix.config.os}}
     env:
-      UI_TYPE: ${{ matrix.headless.val == 'ON' && 'headless' || 'ui' }}
+      UI_TYPE: ${{ matrix.headless == 'ON' && 'headless' || 'ui' }}
     strategy:
       fail-fast: false
       matrix:
@@ -21,26 +21,33 @@ jobs:
           - {os: ubuntu-24.04,
              name: ubuntu}
         headless:
-          - {val: "ON",
-             cmakeVersion: "~3.14.0"}
-          - {val: "OFF",
-             # Qt 6.8.2 requires CMake 3.16.0
-             cmakeVersion: "~3.16.0"}
+          - "ON"
+          - "OFF"
+        include:
+          - config: {name: macos}
+            cmakeVersion: latest
+          - config: {name: ubuntu}
+            headless: "ON"
+            cmakeVersion: ~3.14.0
+          - config: {name: ubuntu}
+            headless: "OFF"
+            # Qt requires at least CMake 3.16.0
+            cmakeVersion: ~3.16.0
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
 
-      - name: Get latest CMake and Ninja
+      - name: Get CMake
+        if: ${{ matrix.config.name != 'windows' }}
         uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: ${{ matrix.headless.cmakeVersion }}
-          ninjaVersion: latest
+          cmakeVersion: ${{ matrix.cmakeVersion }}
 
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Vector 35 Qt6
-        if: ${{ matrix.headless.val == 'OFF' }}
+        if: ${{ matrix.headless == 'OFF' }}
         shell: bash
         run: |
           QT_VER=6.8.2
@@ -78,11 +85,10 @@ jobs:
 
       - name: Configure binaryninjaapi
         run: cmake -B build -S .
-              -G Ninja
               -DCMAKE_BUILD_TYPE=RelWithDebInfo
               -DCMAKE_INSTALL_PREFIX=install
-              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless.val}}
-              "${{ env.QT_CMAKE }}"
+              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless}}
+              ${{ env.QT_CMAKE }}
 
       - name: Build binaryninjaapi
         run: cmake --build build
@@ -91,12 +97,12 @@ jobs:
 
       - name: Install binaryninjaapi
         run: cmake --build build
-          --config RelWithDebInfo
-          --target install
+              --config RelWithDebInfo
+              --target install
 
       - name: Upload binaryninjaapi artifact
         # Installed binaryninjaapi works regardless of headless mode
-        if: ${{ matrix.headless.val == 'ON' }}
+        if: ${{ matrix.headless == 'ON' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.config.name}}-${{env.UI_TYPE}}-binaryninjaapi
@@ -104,18 +110,23 @@ jobs:
 
       - name: Configure Everything Else
         run: cmake -B build -S .
-          -DBinaryNinjaAPI_BUILD_EXAMPLES=ON
-          -DBinaryNinjaAPI_USER_PLUGINS_DIR=install-user-plugins
+              -DBinaryNinjaAPI_BUILD_EXAMPLES=ON
+              -DBinaryNinjaAPI_USER_PLUGINS_DIR=install-user-plugins
 
       - name: Build Everything Else
         run: cmake --build build
               --config RelWithDebInfo
               -j 4
 
-      - name: Install Everything Else
+      - name: Install Everything Else (CMake 3.15.0+)
+        if: ${{ matrix.cmakeVersion != '~3.14.0' }}
         run: cmake --install build
-          --config RelWithDebInfo
-          --component BinaryNinjaUserPlugin
+              --config RelWithDebInfo
+              --component BinaryNinjaUserPlugin
+      - name: Install Everything Else (CMake 3.14)
+        if: ${{ matrix.cmakeVersion == '~3.14.0' }}
+        run: cmake -DCOMPONENT=BinaryNinjaUserPlugin
+              -P build/cmake_install.cmake
 
       - name: Upload binaryninjaapi artifact
         uses: actions/upload-artifact@v4
