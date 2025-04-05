@@ -102,7 +102,8 @@ install(
 )
 
 # Install our stubs for binaryninjacore
-if(WIN32)
+get_target_property(_core_imported binaryninjacore IMPORTED)
+if(WIN32 AND NOT _core_imported)
     install(
         TARGETS binaryninjacore
         EXPORT BinaryNinjaCoreStubTargets
