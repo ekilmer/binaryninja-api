@@ -159,7 +159,15 @@ bool SharedCacheController::ApplyRegion(BinaryView& view, const CacheRegion& reg
 	// If we are not associated with an image we can create a section here to set the semantics.
 	// This is important for stub regions, as they will deref non image data that we want to retrieve the value of.
 	if (region.type != CacheRegionType::Image)
+	{
+		// Adding a user section will mark all functions for updates unless we disable this.
+		// Because images are known separate compilation units, we have a real reason to make sure we don't mark all previously
+		// analyzed functions as updated.
+		auto prevDisabledState = view.GetFunctionAnalysisUpdateDisabled();
+		view.SetFunctionAnalysisUpdateDisabled(true);
 		view.AddUserSection(memoryRegionName, region.start, region.size, region.SectionSemanticsForRegion());
+		view.SetFunctionAnalysisUpdateDisabled(prevDisabledState);
+	}
 
 	m_loadedRegions.insert(region.start);
 
@@ -198,7 +206,14 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 	{
 		// Header information is applied to the view here, such as sections.
 		auto machoProcessor = SharedCacheMachOProcessor(&view, m_cache.GetVirtualMemory());
+
+		// Adding a user section will mark all functions for updates unless we disable this.
+		// Because images are known separate compilation units, we have a real reason to make sure we don't mark all previously
+		// analyzed functions as updated.
+		auto prevDisabledState = view.GetFunctionAnalysisUpdateDisabled();
+		view.SetFunctionAnalysisUpdateDisabled(true);
 		machoProcessor.ApplyHeader(*image.header);
+		view.SetFunctionAnalysisUpdateDisabled(prevDisabledState);
 
 		// TODO: Passing in an image name here is weird considering this is shared with the MACHO view.
 		// TODO: We should abstract out the "image" into an objc image type that represents what is required, which ig is the name?
