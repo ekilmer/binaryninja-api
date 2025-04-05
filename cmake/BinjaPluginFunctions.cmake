@@ -24,15 +24,18 @@ function(bn_install_plugin target)
             COMPONENT BinaryNinjaUserPlugin
             OPTIONAL
         )
-    else()
-        # Adjust rpath for case when API is built as shared library
-        # TODO: Check if API is shared library
-        if(APPLE)
-            set_property(TARGET ${target} PROPERTY INSTALL_RPATH "@executable_path/api")
-            #install(CODE "execute_process(COMMAND /usr/bin/install_name_tool -add_rpath \"@executable_path/api\" \"\$ENV{DESTDIR}$<TARGET_FILE:${target}>\")")
-        elseif(UNIX)
-            set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/api")
-            #install(CODE "execute_process(COMMAND /usr/bin/install_name_tool -add_rpath \"$ORIGIN/api\" \"\$ENV{DESTDIR}$<TARGET_FILE:${target}>\")")
+    endif()
+
+    # Adjust rpath for case when API is built as shared library and is
+    # installed at $BN_BINARY_DIR/api/libbinaryninjaapi.{dll,so,dylib}
+    if(TARGET binaryninjaapi)
+        get_target_property(binaryninjaapi_type binaryninjaapi TYPE)
+        if(binaryninjaapi_type STREQUAL SHARED_LIBRARY)
+            if(APPLE)
+                set_property(TARGET ${target} PROPERTY INSTALL_RPATH "@executable_path/api")
+            elseif(UNIX)
+                set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/api")
+            endif()
         endif()
     endif()
 
