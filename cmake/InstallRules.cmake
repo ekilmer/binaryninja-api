@@ -42,6 +42,9 @@ install(
     EXPORT BinaryNinjaAPITargets
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
+if(WIN32)
+    install(FILES $<TARGET_PDB_FILE:binaryninjaapi> OPTIONAL)
+endif()
 
 # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
 set(vendor_targets "")
@@ -49,13 +52,15 @@ if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
     list(APPEND vendor_targets fmt nlohmann_json RapidJSON)
 endif()
 install(
-    TARGETS binaryninjaapi ${vendor_targets}
+    TARGETS
+        binaryninjaapi ${vendor_targets}
+        COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
     LIBRARY
-    DESTINATION "api"
-    COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
+        DESTINATION "api"
+        COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
     PUBLIC_HEADER
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT BinaryNinjaAPISuppressWarningAndDoNotInstall EXCLUDE_FROM_ALL
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        COMPONENT BinaryNinjaAPISuppressWarningAndDoNotInstall EXCLUDE_FROM_ALL
 )
 
 # Allow package maintainers to freely override the path for the configs
