@@ -9,8 +9,6 @@ file(GLOB SOURCES
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
-
 if(DEMO)
 	add_library(triage STATIC ${SOURCES} ${MOCS})
 else()
@@ -21,7 +19,7 @@ if(NOT TARGET binaryninjaapi)
 	find_package(BinaryNinjaAPI REQUIRED)
 endif()
 
-target_link_libraries(triage binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets)
+target_link_libraries(triage binaryninjaui)
 
 set_target_properties(triage PROPERTIES
     CXX_STANDARD 17
@@ -35,4 +33,6 @@ if(BN_INTERNAL_BUILD)
 	set_target_properties(triage PROPERTIES
 		LIBRARY_OUTPUT_DIRECTORY ${BN_CORE_PLUGIN_DIR}
 		RUNTIME_OUTPUT_DIRECTORY ${BN_CORE_PLUGIN_DIR})
+else()
+	bn_install_plugin(triage)
 endif()

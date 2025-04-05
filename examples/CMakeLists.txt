@@ -1,3 +1,7 @@
+cmake_minimum_required(VERSION 3.14)
+
+project(binaryninjaapi_examples)
+
 add_subdirectory(background_task)
 add_subdirectory(bin-info)
 add_subdirectory(breakpoint)
