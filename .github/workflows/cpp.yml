@@ -18,7 +18,7 @@ jobs:
         config:
           - {os: windows-2022,
              name: windows,
-             cmake_j: "-- /p:CL_MPcount=4"}
+             cmake_j: "-- /m:4"}
           - {os: macos-15,
              name: macos,
              cmake_j: "-j 4"}
