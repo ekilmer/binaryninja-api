@@ -43,11 +43,6 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-# Install our stubs for binaryninjacore
-if(WIN32)
-    install(TARGETS binaryninjacore)
-endif()
-
 # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
 set(vendor_targets "")
 if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
@@ -105,6 +100,19 @@ install(
     DESTINATION "${BinaryNinjaCore_INSTALL_CMAKEDIR}"
     RENAME BinaryNinjaCoreConfig.cmake
 )
+
+# Install our stubs for binaryninjacore
+if(WIN32)
+    install(
+        TARGETS binaryninjacore
+        EXPORT BinaryNinjaCoreStubTargets
+    )
+    # This doesn't actually get included anywhere
+    install(
+        EXPORT BinaryNinjaCoreStubTargets
+        DESTINATION "${BinaryNinjaCore_INSTALL_CMAKEDIR}"
+    )
+endif()
 
 set(
     BinaryNinjaUI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/cmake/BinaryNinjaUI"

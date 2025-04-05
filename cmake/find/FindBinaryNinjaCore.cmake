@@ -40,13 +40,20 @@ find_library(BinaryNinjaCore_LIBRARY
 
 # Allow missing binaryninjacore library file, so we can build without an
 # installation of Binary Ninja
-if(WIN32 OR BinaryNinjaCore_LIBRARY)
+if(BinaryNinjaCore_LIBRARY)
     include(FindPackageHandleStandardArgs)
     find_package_handle_standard_args(
         BinaryNinjaCore DEFAULT_MSG BinaryNinjaCore_LIBRARY
     )
 else()
-    set(BinaryNinjaCore_FOUND False)
+    # Windows installs a stub library for linking
+    set(_stub_target_file "${CMAKE_CURRENT_LIST_DIR}/BinaryNinjaCoreStubTargets.cmake")
+    if(EXISTS "${_stub_target_file}")
+        include("${_stub_target_file}")
+        set(BinaryNinjaCore_FOUND True)
+    else()
+        set(BinaryNinjaCore_FOUND False)
+    endif()
 endif()
 
 if(NOT TARGET binaryninjacore)
