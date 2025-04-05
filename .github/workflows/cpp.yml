@@ -133,3 +133,19 @@ jobs:
         with:
           name: ${{matrix.config.name}}-${{env.UI_TYPE}}-user-plugins
           path: install-user-plugins/
+
+      - name: Cleanup build directory
+        shell: bash
+        run: rm -rf build
+
+      - name: Configure examples against installed API
+        run: cmake -B build-installed -S examples
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo
+              -DCMAKE_INSTALL_PREFIX=install
+              -DBinaryNinjaAPI_HEADLESS=${{matrix.headless}}
+              ${{ env.QT_CMAKE }}
+
+      - name: Build examples against installed API
+        run: cmake --build build-installed
+              --config RelWithDebInfo
+              -j 4
