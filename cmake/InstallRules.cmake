@@ -43,6 +43,11 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
+# Install our stubs for binaryninjacore
+if(WIN32)
+    install(TARGETS binaryninjacore)
+endif()
+
 # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
 set(vendor_targets "")
 if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
