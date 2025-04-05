@@ -57,6 +57,30 @@ target_compile_features(binaryninjaapi PUBLIC cxx_std_17)
 
 if(NOT TARGET binaryninjacore)
     find_package(BinaryNinjaCore)
+    if(WIN32 AND NOT BinaryNinjaCore_FOUND)
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+        # Generate stubs.cpp with implementations of all the BNAPI functions
+        add_custom_command(
+            OUTPUT ${PROJECT_BINARY_DIR}/stubs/stubs.cpp
+            COMMAND ${Python3_EXECUTABLE}
+                ${PROJECT_SOURCE_DIR}/cmake/generate_stubs.py
+                ${PROJECT_SOURCE_DIR}/binaryninjacore.h
+                ${PROJECT_BINARY_DIR}/stubs
+            DEPENDS
+                ${PROJECT_SOURCE_DIR}/cmake/generate_stubs.py
+                ${PROJECT_SOURCE_DIR}/binaryninjacore.h
+        )
+        # Compile those stubs into a stub library we can use to fool the linker
+        add_library(binaryninjacore SHARED ${PROJECT_BINARY_DIR}/stubs/stubs.cpp)
+        set_target_properties(binaryninjacore
+            PROPERTIES OUTPUT_NAME binaryninjacore
+            SOVERSION 1
+            ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stubs
+            LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stubs
+            RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/stubs
+        )
+        target_include_directories(binaryninjacore PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+    endif()
 endif()
 target_link_libraries(binaryninjaapi PUBLIC binaryninjacore)
 

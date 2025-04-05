@@ -15,6 +15,11 @@ if(WIN32)
     list(APPEND PATH_HINTS "C:\\Program Files\\Vector35\\BinaryNinja")
     # User install
     list(APPEND PATH_HINTS "$ENV{LocalAppData}\\Vector35\\BinaryNinja")
+    if(TARGET binaryninjaapi)
+        # Assume the installed library lives next to the API
+        get_target_property(_api_lib_loc binaryninjaapi IMPORTED_LOCATION)
+        list(APPEND PATH_HINTS "${api_lib_loc}")
+    endif()
 elseif(APPLE)
     if(DEFINED ENV{BN_INSTALL_DIR})
         list(APPEND PATH_HINTS "$ENV{BN_INSTALL_DIR}/Contents/MacOS")
@@ -41,8 +46,14 @@ if(BinaryNinjaCore_LIBRARY)
         BinaryNinjaCore DEFAULT_MSG BinaryNinjaCore_LIBRARY
     )
 else()
-    set(BinaryNinjaCore_FOUND False)
-    message(WARNING "Could NOT find BinaryNinjaCore: using INTERFACE library")
+    # Windows installs a stub library for linking
+    set(_stub_target_file "${CMAKE_CURRENT_LIST_DIR}/BinaryNinjaCoreStubTargets.cmake")
+    if(EXISTS "${_stub_target_file}")
+        include("${_stub_target_file}")
+        set(BinaryNinjaCore_FOUND True)
+    else()
+        set(BinaryNinjaCore_FOUND False)
+    endif()
 endif()
 
 if(NOT TARGET binaryninjacore)
@@ -60,14 +71,16 @@ if(NOT TARGET binaryninjacore)
             set(BN_INSTALL_BIN_DIR "${BinaryNinjaCore_LIBRARY_DIR}" CACHE PATH "Binary Ninja Core Library Directory")
         endif()
         message(STATUS "Binary Ninja Core Library Directory: ${BN_INSTALL_BIN_DIR}")
-    else()
+
+    # Do not create a target for WIN32. Creation of the target will be taken
+    # care of in binaryninja-api CMakeLists.txt with stubs. This shouldn't
+    # happen when this file is installed
+    elseif(NOT WIN32)
+        message(WARNING "Could NOT find BinaryNinjaCore: using INTERFACE library. BinaryNinjaCore allows undefined symbols during linking. This could cause issues at runtime")
         add_library(binaryninjacore INTERFACE IMPORTED)
 
-        message(WARNING "BinaryNinjaCore allows undefined symbols during linking. This could cause issues at runtime")
         if(APPLE)
             target_link_options(binaryninjacore INTERFACE -undefined dynamic_lookup)
-        elseif(MSVC)
-            target_link_options(binaryninjacore INTERFACE "/FORCE:UNRESOLVED")
         else()
             target_link_options(binaryninjacore INTERFACE "LINKER:--unresolved-symbols=ignore-all")
         endif()

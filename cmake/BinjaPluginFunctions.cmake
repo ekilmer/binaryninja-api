@@ -44,17 +44,8 @@ function(bn_install_plugin target)
         LIBRARY
             DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
             COMPONENT BinaryNinjaUserPlugin
+        RUNTIME
+            DESTINATION ${BinaryNinjaAPI_USER_PLUGINS_DIR}
+            COMPONENT BinaryNinjaUserPlugin
     )
-endfunction()
-
-
-# Ignore missing/undefined symbols when linking a target
-function(bn_ignore_missing_symbols target)
-    if(APPLE)
-        target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
-    elseif(MSVC)
-        target_link_options(binaryninjaapi PUBLIC "/FORCE:UNRESOLVED")
-    else()
-        target_link_options(binaryninjaapi PUBLIC "LINKER:--allow-shlib-undefined")
-    endif()
 endfunction()

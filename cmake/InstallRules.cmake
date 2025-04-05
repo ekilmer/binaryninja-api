@@ -49,13 +49,15 @@ if(NOT BinaryNinjaAPI_EXTERNAL_DEPENDENCIES)
     list(APPEND vendor_targets fmt nlohmann_json RapidJSON)
 endif()
 install(
-    TARGETS binaryninjaapi ${vendor_targets}
+    TARGETS
+        binaryninjaapi ${vendor_targets}
+        COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
     LIBRARY
-    DESTINATION "api"
-    COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
+        DESTINATION "api"
+        COMPONENT BinaryNinjaAPIDistrib EXCLUDE_FROM_ALL
     PUBLIC_HEADER
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT BinaryNinjaAPISuppressWarningAndDoNotInstall EXCLUDE_FROM_ALL
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        COMPONENT BinaryNinjaAPISuppressWarningAndDoNotInstall EXCLUDE_FROM_ALL
 )
 
 # Allow package maintainers to freely override the path for the configs
@@ -100,6 +102,20 @@ install(
     DESTINATION "${BinaryNinjaCore_INSTALL_CMAKEDIR}"
     RENAME BinaryNinjaCoreConfig.cmake
 )
+
+# Install our stubs for binaryninjacore
+get_target_property(_core_imported binaryninjacore IMPORTED)
+if(WIN32 AND NOT _core_imported)
+    install(
+        TARGETS binaryninjacore
+        EXPORT BinaryNinjaCoreStubTargets
+    )
+    # This doesn't actually get included anywhere
+    install(
+        EXPORT BinaryNinjaCoreStubTargets
+        DESTINATION "${BinaryNinjaCore_INSTALL_CMAKEDIR}"
+    )
+endif()
 
 set(
     BinaryNinjaUI_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/cmake/BinaryNinjaUI"
