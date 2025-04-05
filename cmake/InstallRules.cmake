@@ -42,13 +42,6 @@ install(
     EXPORT BinaryNinjaAPITargets
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
-if(WIN32)
-    install(
-        FILES $<TARGET_PDB_FILE:binaryninjaapi>
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        OPTIONAL
-    )
-endif()
 
 # cmake --install build --component BinaryNinjaAPIDistrib --prefix /Applications/Binary\ Ninja.app/Contents/MacOS
 set(vendor_targets "")
