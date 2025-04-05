@@ -17,11 +17,14 @@ jobs:
       matrix:
         config:
           - {os: windows-2022,
-             name: windows}
+             name: windows,
+             cmake_j: "-- /p:CL_MPcount=4"}
           - {os: macos-15,
-             name: macos}
+             name: macos,
+             cmake_j: "-j 4"}
           - {os: ubuntu-24.04,
-             name: ubuntu}
+             name: ubuntu,
+             cmake_j: "-j 4"}
         headless:
           - "ON"
           - "OFF"
@@ -95,7 +98,7 @@ jobs:
       - name: Build binaryninjaapi
         run: cmake --build build
               --config RelWithDebInfo
-              -j 4
+              ${{ matrix.config.cmake_j }}
 
       - name: Install binaryninjaapi
         run: cmake --build build
@@ -118,7 +121,7 @@ jobs:
       - name: Build Everything Else
         run: cmake --build build
               --config RelWithDebInfo
-              -j 4
+              ${{ matrix.config.cmake_j }}
 
       - name: Install Everything Else (CMake 3.15.0+)
         if: ${{ matrix.cmakeVersion != '~3.14.0' }}
@@ -150,4 +153,4 @@ jobs:
       - name: Build examples against installed API
         run: cmake --build build-installed
               --config RelWithDebInfo
-              -j 4
+              ${{ matrix.config.cmake_j }}
