@@ -18,7 +18,9 @@ jobs:
         config:
           - {os: windows-2022,
              name: windows,
-             cmake_j: "-- /m:4"}
+             # https://gitlab.kitware.com/cmake/cmake/-/issues/20564
+             # https://discourse.cmake.org/t/parallel-does-not-really-enable-parallel-compiles-with-msbuild/964/10
+             cmake_j: "-- /m"}
           - {os: macos-15,
              name: macos,
              cmake_j: "-j 4"}
