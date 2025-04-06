@@ -1815,7 +1815,7 @@ class Function:
 		"""
 		``get_llil_at`` gets the LowLevelILInstruction corresponding to the given virtual address
 
-		:param int addr: virtual address of the function to be queried
+		:param int addr: virtual address of the instruction to be queried
 		:param Architecture arch: (optional) Architecture for the given function
 		:rtype: LowLevelILInstruction
 		:Example:
@@ -1830,8 +1830,9 @@ class Function:
 	                 arch: Optional['architecture.Architecture'] = None) -> List['lowlevelil.LowLevelILInstruction']:
 		"""
 		``get_llils_at`` gets the LowLevelILInstruction(s) corresponding to the given virtual address
+		See the developer docs <https://dev-docs.binary.ninja/dev/concepts.html#mapping-between-ils>`_ for more information.
 
-		:param int addr: virtual address of the function to be queried
+		:param int addr: virtual address of the instruction to be queried
 		:param Architecture arch: (optional) Architecture for the given function
 		:rtype: list(LowLevelILInstruction)
 		:Example:
