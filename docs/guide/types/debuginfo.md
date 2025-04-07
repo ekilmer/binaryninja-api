@@ -45,6 +45,7 @@ Our [DWARF Export plugin](https://github.com/Vector35/binaryninja-api/tree/dev/p
 #### Special Note for `.dSYM` Files
 
 Binary Ninja will automatically load `.dSYM` files given the following:
+
 - The `.dSYM` file is adjacent on the filesystem to the binary being analyzed
 - The `.dSYM` file is named `X.dSYM`, where `X` is the name of the binary being analyzed
 - `analysis.debugInfo.loadSiblingDebugFiles` is enabled
