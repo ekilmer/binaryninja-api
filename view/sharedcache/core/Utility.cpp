@@ -65,9 +65,8 @@ uint64_t readValidULEB128(const uint8_t*& current, const uint8_t* end)
 	return value;
 }
 
-void ApplySymbol(Ref<BinaryView> view, Ref<TypeLibrary> typeLib, Ref<Symbol> symbol)
+void ApplySymbol(Ref<BinaryView> view, Ref<TypeLibrary> typeLib, Ref<Symbol> symbol, Ref<Type> type)
 {
-	Ref<Function> func = nullptr;
 	auto symbolAddress = symbol->GetAddress();
 	auto symbolName = symbol->GetFullName();
 
@@ -78,24 +77,26 @@ void ApplySymbol(Ref<BinaryView> view, Ref<TypeLibrary> typeLib, Ref<Symbol> sym
 	// Define the symbol!
 	view->DefineAutoSymbol(symbol);
 
-	// Try and pull a type to apply at the symbol location.
-	Ref<Type> type = nullptr;
+	// Try and pull a type from a type library to apply at the symbol location.
+	// The type library type will take precedence over the passed in type.
+	Ref<Type> selectedType = type;
 	if (typeLib)
-		type = view->ImportTypeLibraryObject(typeLib, {symbolName});
+		selectedType = view->ImportTypeLibraryObject(typeLib, {symbolName});
 
+	Ref<Function> func = nullptr;
 	if (symbol->GetType() == FunctionSymbol)
 	{
 		Ref<Platform> targetPlatform = view->GetDefaultPlatform();
 		// Make sure to check for already added function from the function table.
 		// Unless we have retrieved a type here we don't need to make a new function.
 		func = view->GetAnalysisFunction(targetPlatform, symbolAddress);
-		if (!func || type)
-			func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress, false, type);
+		if (!func || selectedType)
+			func = view->AddFunctionForAnalysis(targetPlatform, symbolAddress, false, selectedType);
 	}
 	else
 	{
 		// Other symbol types can just use this, they don't need to worry about linear sweep removing them.
-		view->DefineAutoSymbolAndVariableOrFunction(view->GetDefaultPlatform(), symbol, type);
+		view->DefineAutoSymbolAndVariableOrFunction(view->GetDefaultPlatform(), symbol, selectedType);
 	}
 
 	if (func)

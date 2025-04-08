@@ -31,8 +31,10 @@ struct CacheSymbol
 
 	CacheSymbol& operator=(CacheSymbol&& other) noexcept = default;
 
+	std::pair<std::string, BinaryNinja::Ref<BinaryNinja::Type>> DemangledName(BinaryNinja::BinaryView& view) const;
+
 	// NOTE: you should really only call this when adding the symbol to the view.
-	BinaryNinja::Ref<BinaryNinja::Symbol> ToBNSymbol(BinaryNinja::BinaryView& view) const;
+	std::pair<BinaryNinja::Ref<BinaryNinja::Symbol>, BinaryNinja::Ref<BinaryNinja::Type>> GetBNSymbolAndType(BinaryNinja::BinaryView& view) const;
 };
 
 enum class CacheRegionType
@@ -151,10 +153,7 @@ public:
 	CacheEntry& operator=(CacheEntry&&) = default;
 
 	// Construct a cache entry from the file on disk.
-	// TODO: Seperate this out a bit more.
 	static std::optional<CacheEntry> FromFile(const std::string& filePath, const std::string& fileName, CacheEntryType type);
-
-	// TODO: From Project file?
 
 	WeakFileAccessor GetAccessor() const;
 

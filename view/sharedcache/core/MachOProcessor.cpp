@@ -62,7 +62,10 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			// NOTE: This table is read relative to the link edit segment file base.
 			const auto symbols = header.ReadSymbolTable(*m_view, *m_vm);
 			for (const auto& sym : symbols)
-				ApplySymbol(m_view, typeLib, sym.ToBNSymbol(*m_view));
+			{
+				auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
+				ApplySymbol(m_view, typeLib, symbol, symbolType);
+			}
 		}
 
 		// Apply symbols from export trie.
@@ -72,7 +75,10 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			// TODO: Remove this and use the m_symbols in the cache?
 			const auto exportSymbols = header.ReadExportSymbolTrie(*m_vm);
 			for (const auto& sym : exportSymbols)
-				ApplySymbol(m_view, typeLib, sym.ToBNSymbol(*m_view));
+			{
+				auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
+				ApplySymbol(m_view, typeLib, symbol, symbolType);
+			}
 		}
 		m_view->EndBulkModifySymbols();
 	}

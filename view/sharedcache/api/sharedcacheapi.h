@@ -288,6 +288,7 @@ namespace SharedCacheAPI {
 		uint64_t address;
 		std::string name;
 
+		std::pair<std::string, BinaryNinja::Ref<BinaryNinja::Type>> DemangledName(BinaryNinja::BinaryView &view) const;
 		BinaryNinja::Ref<BinaryNinja::Symbol> GetBNSymbol(BinaryNinja::BinaryView& view) const;
 	};
 

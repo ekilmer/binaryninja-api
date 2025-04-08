@@ -125,13 +125,19 @@ std::string SharedCacheAPI::GetRegionTypeAsString(const BNSharedCacheRegionType 
 	}
 }
 
-Ref<Symbol> CacheSymbol::GetBNSymbol(BinaryView &view) const
+std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) const
 {
 	QualifiedName qname;
-	Ref<Type> outType;
+	Ref<Type> outType = nullptr;
 	std::string shortName = name;
 	if (DemangleGeneric(view.GetDefaultArchitecture(), name, outType, qname, &view, true))
 		shortName = qname.GetString();
+	return {shortName, outType};
+}
+
+Ref<Symbol> CacheSymbol::GetBNSymbol(BinaryView &view) const
+{
+	auto [shortName, _] = DemangledName(view);
 	return new Symbol(type, shortName, shortName, name, address, nullptr);
 }
 

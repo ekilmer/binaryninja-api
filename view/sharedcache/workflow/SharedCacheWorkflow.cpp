@@ -87,22 +87,28 @@ void IdentifyStub(BinaryView& view, const SharedCacheController& controller, uin
 	if (!symbol.has_value())
 		return;
 
+	// Demangle if possible, the type pulled will be used, however type library will take precedence.
+	auto [demangledName, demangledType] = symbol->DemangledName(view);
+	auto rawName = STUB_PREFIX + symbol->name;
+	auto shortName = STUB_PREFIX + demangledName;
+
 	// Try and retrieve a type for the stub function using type libraries.
 	if (const auto targetFunc = view.GetAnalysisFunction(view.GetDefaultPlatform(), stubFuncAddr))
 	{
 		// NOTE: The type library name is expected to be the image name currently.
 		// Try and pull the type from the associated type library (if there is one)
-		Ref<Type> type = nullptr;
+		Ref<Type> selectedType = demangledType;
 		if (const auto image = controller.GetImageContaining(symbolAddr))
 			if (auto typeLib = TypeLibraryFromName(view, image->name))
-				type = view.ImportTypeLibraryObject(typeLib, {symbol->name});
+				selectedType = view.ImportTypeLibraryObject(typeLib, {symbol->name});
 
-		if (type)
-			targetFunc->SetAutoType(type);
+		if (selectedType)
+			targetFunc->SetAutoType(selectedType);
 	}
 
 	// Define the new symbol!
-	view.DefineAutoSymbol(new Symbol(symbol->type, STUB_PREFIX + symbol->name, stubFuncAddr));
+	auto bnSymbol = new Symbol(symbol->type, shortName, shortName, rawName, stubFuncAddr, nullptr);
+	view.DefineAutoSymbol(bnSymbol);
 }
 
 void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, SharedCacheController& controller, bool loadImage)

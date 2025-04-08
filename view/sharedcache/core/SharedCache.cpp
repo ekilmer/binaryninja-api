@@ -11,14 +11,21 @@ using namespace BinaryNinja;
 // The next id to use when calling Cache::AddEntry
 static CacheEntryId nextId = 1;
 
-Ref<Symbol> CacheSymbol::ToBNSymbol(BinaryView& view) const
+std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) const
 {
 	QualifiedName qname;
 	Ref<Type> outType;
 	std::string shortName = name;
 	if (DemangleGeneric(view.GetDefaultArchitecture(), name, outType, qname, &view, true))
 		shortName = qname.GetString();
-	return new Symbol(type, shortName, shortName, name, address, nullptr);
+	return { shortName, outType };
+}
+
+std::pair<Ref<Symbol>, Ref<Type>> CacheSymbol::GetBNSymbolAndType(BinaryView& view) const
+{
+	auto [shortName, demangledType] = DemangledName(view);
+	auto symbol = new Symbol(type, shortName, shortName, name, address, nullptr);
+	return {symbol, demangledType};
 }
 
 std::vector<std::string> CacheImage::GetDependencies() const
