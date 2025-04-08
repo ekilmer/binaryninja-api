@@ -3743,6 +3743,15 @@ bool MachoViewType::IsTypeValidForData(BinaryView* data)
 	if ((magic == FAT_MAGIC) || (magic == FAT_MAGIC_64))
 		return true;
 
+	// If it's an MH_FILESET, return false, these are now handled by the KernelCache plugin by default
+	DataBuffer header = data->ReadBuffer(data->GetStart(), sizeof(mach_header_64));
+	if (header.GetLength() < sizeof(mach_header_64))
+		return false;
+	const mach_header_64* mh = (const mach_header_64*)header.GetData();
+	uint32_t filetype = mh->magic == MH_MAGIC_64 || mh->magic == MH_MAGIC ? mh->filetype : ToBE32(mh->filetype);
+	if (filetype == MH_FILESET)
+		return false;
+
 	return data->GetLoadSettings(GetName()) ? true : false;
 }
 
