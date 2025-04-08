@@ -777,6 +777,16 @@ bool SharedCacheView::Init()
 	DefineAutoSymbolAndVariableOrFunction(
 		GetDefaultPlatform(), new Symbol(DataSymbol, "primary_cache_header", primaryBase), headerType.type);
 
+	if (GetFile()->GetFilename().empty())
+	{
+		// We have initialized the view with no backing file.
+		// We are going to forgo initialization of shared cache controller, as there is no way to populate entries.
+		// This can occur when downloading shared cache files from a remote project. In the collaboration core it will
+		// call view init to push metadata about the remote IIRC.
+		LogInfo("No backing file, skipping shared cache controller initialization...");
+		return true;
+	}
+
 	auto sharedCache = SharedCache(GetAddressSize());
 
 	{
