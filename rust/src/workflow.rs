@@ -168,7 +168,7 @@ impl Activity {
     pub(crate) unsafe fn from_raw(handle: NonNull<BNActivity>) -> Self {
         Self { handle }
     }
-    
+
     pub(crate) unsafe fn ref_from_raw(handle: NonNull<BNActivity>) -> Ref<Self> {
         Ref::new(Self { handle })
     }
