@@ -133,11 +133,10 @@ bool SharedCacheController::ApplyRegion(BinaryView& view, const CacheRegion& reg
 	}
 
 	auto vm = m_cache.GetVirtualMemory();
-	auto reader = VirtualMemoryReader(vm);
 	DataBuffer buffer = {};
 	try
 	{
-		buffer = reader.ReadBuffer(region.start, region.size);
+		buffer = vm->ReadBuffer(region.start, region.size);
 	}
 	catch (std::exception& e)
 	{
