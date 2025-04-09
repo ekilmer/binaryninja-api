@@ -5068,6 +5068,7 @@ extern "C"
 	BINARYNINJACOREAPI BNAnalysisInfo* BNGetAnalysisInfo(BNBinaryView* view);
 	BINARYNINJACOREAPI void BNFreeAnalysisInfo(BNAnalysisInfo* info);
 	BINARYNINJACOREAPI BNAnalysisProgress BNGetAnalysisProgress(BNBinaryView* view);
+	BINARYNINJACOREAPI BNAnalysisState BNGetAnalysisState(BNBinaryView* view);
 	BINARYNINJACOREAPI BNBackgroundTask* BNGetBackgroundAnalysisTask(BNBinaryView* view);
 
 	BINARYNINJACOREAPI uint64_t BNGetNextFunctionStartAfterAddress(BNBinaryView* view, uint64_t addr);

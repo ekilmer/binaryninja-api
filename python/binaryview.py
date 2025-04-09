@@ -3372,6 +3372,11 @@ class BinaryView:
 		return AnalysisProgress(result.state, result.count, result.total)
 
 	@property
+	def analysis_state(self) -> AnalysisState:
+		"""State of current analysis (read-only)"""
+		return core.BNGetAnalysisState(self.handle)
+
+	@property
 	def linear_disassembly(self) -> Iterator['lineardisassembly.LinearDisassemblyLine']:
 		"""Iterator for all lines in the linear disassembly of the view"""
 		return self.get_linear_disassembly(None)

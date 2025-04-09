@@ -6109,6 +6109,7 @@ namespace BinaryNinja {
 
 		AnalysisInfo GetAnalysisInfo();
 		BNAnalysisProgress GetAnalysisProgress();
+		BNAnalysisState GetAnalysisState();
 		Ref<BackgroundTask> GetBackgroundAnalysisTask();
 
 		/*! Returns the virtual address of the Function that occurs after the virtual address `addr`

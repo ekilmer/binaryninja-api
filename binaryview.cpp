@@ -3823,6 +3823,12 @@ BNAnalysisProgress BinaryView::GetAnalysisProgress()
 }
 
 
+BNAnalysisState BinaryView::GetAnalysisState()
+{
+	return BNGetAnalysisState(m_object);
+}
+
+
 Ref<BackgroundTask> BinaryView::GetBackgroundAnalysisTask()
 {
 	BNBackgroundTask* task = BNGetBackgroundAnalysisTask(m_object);
