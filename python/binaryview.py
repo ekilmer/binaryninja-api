@@ -9714,9 +9714,8 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 	def debug_info(self) -> "debuginfo.DebugInfo":
 		"""The current debug info object for this binary view"""
 		debug_handle = core.BNGetDebugInfo(self.handle)
-		debug_ref = core.BNNewDebugInfoReference(debug_handle)
-		assert debug_ref is not None, "core.BNNewDebugInfoReference returned None"
-		return debuginfo.DebugInfo(debug_ref)
+		assert debug_handle is not None, "core.BNGetDebugInfo returned None"
+		return debuginfo.DebugInfo(debug_handle)
 
 	@debug_info.setter
 	def debug_info(self, value: "debuginfo.DebugInfo") -> None:
