@@ -1015,7 +1015,10 @@ extern "C"
 		ILPreventAliasAnalysis = 0x20,
 
 		// Set on and instruction that has been re-written to clarify ControlFlowGuard constructs
-		ILIsCFGProtected = 0x40
+		ILIsCFGProtected = 0x40,
+
+		// MLIL instruction appears to be an otherwise unused intermediate
+		MLILPossiblyUnusedIntermediate = 0x80,
 	} BNILInstructionAttribute;
 
 	typedef enum BNIntrinsicClass
