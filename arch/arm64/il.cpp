@@ -3776,8 +3776,6 @@ bool GetLowLevelILForInstruction(
 	case ARM64_HINT:
 		if ((IMM_O(operand1) & ~0b110) == 0b100000)
 			il.AddInstruction(il.Intrinsic({}, ARM64_INTRIN_HINT_BTI, {}));
-		else
-			LogWarn("unknown hint operand: 0x%" PRIx64 "\n", IMM_O(operand1));
 		break;
 	case ARM64_HLT:
 		il.AddInstruction(il.Trap(IMM_O(operand1)));
