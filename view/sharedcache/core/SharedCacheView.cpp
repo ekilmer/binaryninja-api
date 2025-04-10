@@ -851,7 +851,7 @@ bool SharedCacheView::InitController()
 	if (!primaryFileInfo.has_value())
 		return false;
 	auto [primaryFilePath, primaryFileName] = primaryFileInfo.value();
-	auto primaryFileDir = std::filesystem::path(primaryFilePath).parent_path();
+	std::string primaryFileDir = std::filesystem::path(primaryFilePath).parent_path().string();
 
 	// OK, we have the primary shared cache file, now let's add the entries.
 	auto sharedCacheBuilder = SharedCacheBuilder(this);
