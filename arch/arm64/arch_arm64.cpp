@@ -348,6 +348,7 @@ class Arm64Architecture : public Architecture
 				result.AddBranch(CallDestination, instr.operands[0].immediate);
 			break;
 
+		case ARM64_B_AL:
 		case ARM64_B:
 			if (instr.operands[0].operandClass == LABEL)
 				result.AddBranch(UnconditionalBranch, instr.operands[0].immediate);
@@ -369,9 +370,8 @@ class Arm64Architecture : public Architecture
 		case ARM64_B_LT:
 		case ARM64_B_GT:
 		case ARM64_B_LE:
-		case ARM64_B_AL:
-		case ARM64_B_NV:
 			result.AddBranch(TrueBranch, instr.operands[0].immediate);
+		case ARM64_B_NV:
 			result.AddBranch(FalseBranch, addr + 4);
 			break;
 		case ARM64_TBZ:
@@ -1232,7 +1232,7 @@ class Arm64Architecture : public Architecture
 		uint32_t* value = (uint32_t*)data;
 		// Combine the immediate in the first operand with the unconditional branch opcode to form
 		// an unconditional branch instruction
-		*value = (5 << 26) | (uint32_t)((instr.operands[0].immediate - addr) >> 2);
+		*value = (5 << 26) | (((uint32_t)((instr.operands[0].immediate - addr) >> 2)) & 0x03ffffff);
 		return true;
 	}
 

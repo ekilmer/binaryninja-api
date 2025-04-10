@@ -1422,6 +1422,10 @@ bool GetLowLevelILForInstruction(
 	case ARM64_BTI:
 		il.AddInstruction(il.Intrinsic({}, ARM64_INTRIN_HINT_BTI, {}));
 		break;
+
+	case ARM64_B_NV:
+		il.AddInstruction(DirectJump(arch, il, addr + 4, addrSize));
+		break;
 	case ARM64_B:
 	case ARM64_B_AL:
 		il.AddInstruction(DirectJump(arch, il, IMM_O(operand1), addrSize));
