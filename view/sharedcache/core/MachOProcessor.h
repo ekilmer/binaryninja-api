@@ -1,5 +1,6 @@
 #pragma once
 #include "MachO.h"
+#include "SharedCache.h"
 
 // Process `SharedCacheMachOHeader`.
 class SharedCacheMachOProcessor
@@ -15,7 +16,7 @@ public:
 		BinaryNinja::Ref<BinaryNinja::BinaryView> view, std::shared_ptr<VirtualMemory> vm);
 
 	// Initialize header information such as sections and symbols.
-	void ApplyHeader(SharedCacheMachOHeader& header);
+	void ApplyHeader(const SharedCache& cache, SharedCacheMachOHeader& header);
 
 	uint64_t ApplyHeaderSections(SharedCacheMachOHeader& header);
 

@@ -1,10 +1,6 @@
 #include "SharedCacheController.h"
-
-#include <utility>
-
 #include "MachOProcessor.h"
 #include "ObjC.h"
-#include "SlideInfo.h"
 
 using namespace BinaryNinja;
 using namespace BinaryNinja::DSC;
@@ -211,7 +207,7 @@ bool SharedCacheController::ApplyImage(BinaryView& view, const CacheImage& image
 		// analyzed functions as updated.
 		auto prevDisabledState = view.GetFunctionAnalysisUpdateDisabled();
 		view.SetFunctionAnalysisUpdateDisabled(true);
-		machoProcessor.ApplyHeader(*image.header);
+		machoProcessor.ApplyHeader(GetCache(), *image.header);
 		view.SetFunctionAnalysisUpdateDisabled(prevDisabledState);
 
 		// Load objective-c information.

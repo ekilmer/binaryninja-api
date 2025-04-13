@@ -173,7 +173,7 @@ typedef uint32_t CacheEntryId;
 // once every time the database is open.
 class SharedCache
 {
-	uint64_t m_addressSize = 8;
+	// Calculated within `AddEntry`, this indicates where the shared cache image is based at.
 	uint64_t m_baseAddress = 0;
 	// TODO: Figure out when to lock the mutex on this shit lmfao
 	// The shared cache can own the virtual memory, this is fine...

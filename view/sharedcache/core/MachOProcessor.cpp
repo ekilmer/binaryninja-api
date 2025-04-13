@@ -17,7 +17,7 @@ SharedCacheMachOProcessor::SharedCacheMachOProcessor(Ref<BinaryView> view, std::
 	}
 }
 
-void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
+void SharedCacheMachOProcessor::ApplyHeader(const SharedCache& cache, SharedCacheMachOHeader& header)
 {
 	auto typeLibraryFromName = [&](const std::string& name) -> Ref<TypeLibrary> {
 		// Check to see if we have already loaded the type library.
@@ -32,12 +32,15 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 
 	// Add a section for the header itself.
 	std::string headerSection = fmt::format("{}::__macho_header", header.identifierPrefix);
-	// TODO: Support mach_header (non 64bit)
-	uint64_t headerSectionSize = sizeof(mach_header_64) + header.ident.sizeofcmds;
+	uint64_t machHeaderSize = m_vm->GetAddressSize() == 8 ? sizeof(mach_header_64) : sizeof(mach_header);
+	uint64_t headerSectionSize = machHeaderSize + header.ident.sizeofcmds;
 	m_view->AddUserSection(headerSection, header.textBase, headerSectionSize, ReadOnlyDataSectionSemantics);
 
 	ApplyHeaderSections(header);
 	ApplyHeaderDataVariables(header);
+
+	// Pull the available type library for the image we are loading, so we can apply known types.
+	auto typeLib = typeLibraryFromName(header.installName);
 
 	if (header.linkeditPresent && m_vm->IsAddressMapped(header.linkeditSegment.vmaddr))
 	{
@@ -49,18 +52,16 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 				m_view->AddFunctionForAnalysis(targetPlatform, func, false);
 		}
 
-		// Pull the available type library for the image we are loading, so we can apply known types.
-		auto typeLib = typeLibraryFromName(header.installName);
 		m_view->BeginBulkModifySymbols();
 
-		// TODO: Why does this need to only happen in linkeditSegment?
 		// Apply symbols from symbol table.
 		if (header.symtab.symoff != 0)
 		{
-			// Mach-O View symtab processing with
-			// a ton of stuff cut out so it can work
 			// NOTE: This table is read relative to the link edit segment file base.
-			const auto symbols = header.ReadSymbolTable(*m_view, *m_vm);
+			// NOTE: This does not handle the shared .symbols cache entry symbols, that is the responsibility of the caller.
+			TableInfo symbolInfo = { header.GetLinkEditFileBase() + header.symtab.symoff, header.symtab.nsyms };
+			TableInfo stringInfo = { header.GetLinkEditFileBase() + header.symtab.stroff, header.symtab.strsize };
+			const auto symbols = header.ReadSymbolTable(*m_vm, symbolInfo, stringInfo);
 			for (const auto& sym : symbols)
 			{
 				auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
@@ -72,7 +73,6 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 		if (header.exportTriePresent)
 		{
 			// NOTE: This table is read relative to the link edit segment file base.
-			// TODO: Remove this and use the m_symbols in the cache?
 			const auto exportSymbols = header.ReadExportSymbolTrie(*m_vm);
 			for (const auto& sym : exportSymbols)
 			{
@@ -81,6 +81,53 @@ void SharedCacheMachOProcessor::ApplyHeader(SharedCacheMachOHeader& header)
 			}
 		}
 		m_view->EndBulkModifySymbols();
+	}
+
+	// Apply symbols from the .symbols cache files.
+	for (const auto &entry: cache.GetEntries())
+	{
+		// NOTE: We check addr size as we only support 64bit .symbols files currently.
+		if (entry.GetType() != CacheEntryType::Symbols && m_vm->GetAddressSize() == 8)
+			continue;
+		const auto& entryHeader = entry.GetHeader();
+
+		// This is where we get the symbol and string table information from in the .symbols file.
+		dyld_cache_local_symbols_info localSymbolsInfo = {};
+		auto localSymbolsInfoAddr = entry.GetMappedAddress(entryHeader.localSymbolsOffset);
+		if (!localSymbolsInfoAddr.has_value())
+			continue;
+		m_vm->Read(&localSymbolsInfo, *localSymbolsInfoAddr, sizeof(dyld_cache_local_symbols_info));
+
+		// Read each symbols entry, looking for the current image entry.
+		uint64_t localEntriesAddr = *localSymbolsInfoAddr + localSymbolsInfo.entriesOffset;
+		uint64_t localSymbolsAddr = *localSymbolsInfoAddr + localSymbolsInfo.nlistOffset;
+		uint64_t localStringsAddr = *localSymbolsInfoAddr + localSymbolsInfo.stringsOffset;
+
+		dyld_cache_local_symbols_entry_64 localSymbolsEntry = {};
+		for (uint32_t i = 0; i < localSymbolsInfo.entriesCount; i++)
+		{
+			m_vm->Read(&localSymbolsEntry, localEntriesAddr + i * sizeof(dyld_cache_local_symbols_entry_64),
+			           sizeof(dyld_cache_local_symbols_entry_64));
+			// The dylibOffset is the offset from the cache base address to the image header.
+			const auto imageAddr = cache.GetBaseAddress() + localSymbolsEntry.dylibOffset;
+			if (imageAddr == header.textBase)
+			{
+				// We have found the entry to read!
+				// TODO: Support 32bit nlist
+				uint64_t symbolTableStart = localSymbolsAddr + (localSymbolsEntry.nlistStartIndex * sizeof(nlist_64));
+				TableInfo symbolInfo = {symbolTableStart, localSymbolsEntry.nlistCount};
+				TableInfo stringInfo = {localStringsAddr, localSymbolsInfo.stringsSize};
+				m_view->BeginBulkModifySymbols();
+				const auto symbols = header.ReadSymbolTable(*m_vm, symbolInfo, stringInfo);
+				for (const auto &sym: symbols)
+				{
+					auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
+					ApplySymbol(m_view, typeLib, symbol, symbolType);
+				}
+				m_view->EndBulkModifySymbols();
+				break;
+			}
+		}
 	}
 }
 
