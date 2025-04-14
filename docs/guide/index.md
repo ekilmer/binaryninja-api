@@ -1026,6 +1026,19 @@ The PDB loader comes with a couple configuration options which enable and disabl
 * **Load Global Module Symbols (default on)**: The global module in a PDB contains a list of all the functions with no type information beyond a C++ mangled name. Generally, this information is less accurate than a full symbol type, but stripped PDBs from Microsoft's official PDB server (and ones created via the `/PDBSTRIPPED` link.exe flag) will only have information in this module. In the event that a symbol has both a defined type and a global module mangled name, the defined type will be used.
 * **Cache Downloaded PDBs in Local Store (default on)**: When a PDB is downloaded from a PDB server, or loaded from a file, a copy of it will be saved in the local symbol store (as defined by #4 [above](#loading-pdbs)). This is useful when working with large PDBs that you want to save, but will use extra disk space.
 
+## Launching Binary Ninja from the command line (CLI)
+
+While it has always been possible to launch Binary Ninja from the command line (shell), passing file paths or URLs to open, as of 5.0, it is now possible to have some control over whether it will open in an already running instance of Binary Ninja, or in a new instance. (Previously, this would always start a new Binary Ninja application instance, unless a `binaryninja:` URL was found on the command line.)
+
+As of version 5.0:
+* Running Binary Ninja from the command line will try to find a running instance in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
+* For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
+* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
+  1. Try to activate existing tabs for those files in a running instance, or failing that,   
+  2. Try to open those files in new tabs in a running instance, or failing that,
+  3. Open those files in a new instance of Binary Ninja.
+* Passing the `-n` or `--new-instance` command line argument will cause a new Binary Ninja application to be launched, and any files or URLs on the command line will be opened in the new instance.
+
 ## Debugger
 
 Binary Ninja now comes with a debugger plugin that can debug executables on Windows, Linux, and macOS.
