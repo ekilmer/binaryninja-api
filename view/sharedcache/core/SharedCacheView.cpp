@@ -861,16 +861,23 @@ bool SharedCacheView::InitController()
 			LogSecondaryFileName(entry.GetFileName());
 			// Set the number of sub-caches so we can verify it later.
 			if (entry.GetType() == CacheEntryType::Primary)
-				expectedFileCount += entry.GetHeader().subCacheArrayCount;
+			{
+				const auto& entryHeader = entry.GetHeader();
+				// TODO: Some caches seem to have less sub caches than what we report having.
+				expectedFileCount += entryHeader.subCacheArrayCount;
+				// On older caches we don't have any sub-caches, so we want to skip alerting the user to that fact.
+				if (entryHeader.subCacheArrayOffset == 0)
+					expectedFileCount = 0;
+			}
 		}
 		for (const auto& missingFileName: missingCacheEntries)
 			m_logger->LogErrorF("Secondary cache file '{}' is missing!", missingFileName);
 
 		// Verify that we have the required amount of sub-caches, if not alert the user.
 		if (expectedFileCount == 1)
-			m_logger->LogAlertF("Primary cache file '{}' has no sub-caches! You are likely opening a secondary cache file instead of a primary one.", m_primaryFileName);
+			m_logger->LogWarnF("Primary cache file '{}' has no sub-caches! You are likely opening a secondary cache file instead of a primary one.", m_primaryFileName);
 		else if (totalEntries < expectedFileCount)
-			m_logger->LogAlertF("Insufficient cache files in dyld header ({}/{}), loading as partial shared cache...", totalEntries, expectedFileCount);
+			m_logger->LogWarnF("Insufficient cache files in dyld header ({}/{}), loading as partial shared cache...", totalEntries, expectedFileCount);
 	}
 
 	auto sharedCache = sharedCacheBuilder.Finalize();

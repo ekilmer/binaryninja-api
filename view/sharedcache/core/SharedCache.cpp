@@ -59,12 +59,10 @@ CacheEntry CacheEntry::FromFile(const std::string& filePath, const std::string& 
 
 	// Read the header, this _should_ be compatible with all known DSC formats.
 	// Mason: the above is not true! https://github.com/Vector35/binaryninja-api/issues/6073
+	// The mappingOffset should point right after the header. We use this to constrain the read size so unsupported fields are zeroed.
+	auto headerSize = file->ReadUInt32(0x10);
 	dyld_cache_header header = {};
-	file->Read(&header, 0, sizeof(header));
-
-	// Adjust the array count to actually be the "real" number for comparisons with what we load.
-	// This is required so we can check if we loaded the required number of caches, in view init.
-	header.subCacheArrayCount += header.cacheSubType;
+	file->Read(&header, 0, headerSize);
 
 	// Read the mappings using the headers `mappingCount` and `mappingOffset`.
 	dyld_cache_mapping_info currentMapping = {};
