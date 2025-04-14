@@ -158,7 +158,7 @@ void ApplySlideInfoV2(MappedFileAccessor& accessor, const SlideMappingInfo& mapp
 
 std::vector<SlideMappingInfo> SlideInfoProcessor::ReadEntryInfo(const MappedFileAccessor& accessor, const CacheEntry& entry) const
 {
-	auto& baseHeader = entry.GetHeader();
+	const auto& baseHeader = entry.GetHeader();
 
 	// Handle legacy, single mapping slide info.
 	if (baseHeader.slideInfoOffsetUnused)

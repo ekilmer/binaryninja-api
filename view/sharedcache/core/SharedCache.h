@@ -106,7 +106,6 @@ enum class CacheEntryType
 	Primary,
 	Secondary,
 	// A special entry that holds symbols for other cache entries.
-	// TODO: We dont need this i think.
 	Symbols,
 	// If the type is marked as this then all mappings will be marked as such.
 	DyldData,
@@ -164,8 +163,6 @@ public:
 // The ID for a given CacheEntry, use this instead of passing a pointer around to avoid complexity :V
 typedef uint32_t CacheEntryId;
 
-// TODO: Add a "ViewCache" that keeps track of what has been added to the view.
-
 // The C in DSC.
 // This represents the entire cache, all regions and images are visible from here.
 // This is the dump for all the information, and what the workflow activities and the UI want.
@@ -175,10 +172,9 @@ class SharedCache
 {
 	// Calculated within `AddEntry`, this indicates where the shared cache image is based at.
 	uint64_t m_baseAddress = 0;
-	// TODO: Figure out when to lock the mutex on this shit lmfao
 	// The shared cache can own the virtual memory, this is fine...
 	std::shared_ptr<VirtualMemory> m_vm;
-	std::unordered_map<CacheEntryId, CacheEntry> m_entries {};
+	std::vector<CacheEntry> m_entries {};
 	// This information is used in tandem with the cache images to load memory regions into the binary view.
 	AddressRangeMap<CacheRegion> m_regions {};
 	// Describes the images of the cache.
@@ -210,7 +206,7 @@ public:
 
 	uint64_t GetBaseAddress() const { return m_baseAddress; }
 	std::shared_ptr<VirtualMemory> GetVirtualMemory() const { return m_vm; }
-	const std::unordered_map<CacheEntryId, CacheEntry>& GetEntries() const { return m_entries; }
+	const std::vector<CacheEntry>& GetEntries() const { return m_entries; }
 	const AddressRangeMap<CacheRegion>& GetRegions() const { return m_regions; }
 	const std::unordered_map<uint64_t, CacheImage>& GetImages() const { return m_images; }
 	const std::unordered_map<uint64_t, CacheSymbol>& GetSymbols() const { return m_symbols; }
@@ -226,7 +222,7 @@ public:
 
 	// Adds the cache entry and populates the virtual memory using the mapping information.
 	// After being added the entry is read only, there is nothing that can modify it.
-	CacheEntryId AddEntry(CacheEntry entry);
+	void AddEntry(CacheEntry entry);
 
 	void ProcessEntryImages(const CacheEntry& entry);
 

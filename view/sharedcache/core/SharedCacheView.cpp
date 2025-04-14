@@ -912,7 +912,7 @@ bool SharedCacheView::InitController()
 		// Write all the slide info pointers to the virtual memory.
 		// This should be done before any other work begins, as the backing data will be altered by this process.
 		auto startTime = std::chrono::high_resolution_clock::now();
-		for (const auto& [_, entry] : sharedCache.GetEntries())
+		for (const auto& entry : sharedCache.GetEntries())
 			sharedCache.ProcessEntrySlideInfo(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;
@@ -923,7 +923,7 @@ bool SharedCacheView::InitController()
 		// Load up all images into the cache before adding extra regions.
 		// Currently, it is expected that a primary entry contain all relevant images, so we only check that one.
 		auto startTime = std::chrono::high_resolution_clock::now();
-		for (const auto& [_, entry] : sharedCache.GetEntries())
+		for (const auto& entry : sharedCache.GetEntries())
 			if (entry.GetType() == CacheEntryType::Primary)
 				sharedCache.ProcessEntryImages(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
@@ -936,10 +936,9 @@ bool SharedCacheView::InitController()
 	}
 
 	{
-		// TODO: Run this up on a separate thread maybe and have callback notifications?
 		// Load up all the regions into the cache.
 		auto startTime = std::chrono::high_resolution_clock::now();
-		for (const auto& [_, entry] : sharedCache.GetEntries())
+		for (const auto& entry : sharedCache.GetEntries())
 			sharedCache.ProcessEntryRegions(entry);
 		auto endTime = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = endTime - startTime;

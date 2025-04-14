@@ -8,9 +8,6 @@
 
 using namespace BinaryNinja;
 
-// The next id to use when calling Cache::AddEntry
-static CacheEntryId nextId = 1;
-
 std::pair<std::string, Ref<Type>> CacheSymbol::DemangledName(BinaryView &view) const
 {
 	QualifiedName qname;
@@ -230,13 +227,8 @@ void SharedCache::AddSymbols(std::vector<CacheSymbol>&& symbols)
 		m_symbols.insert({symbol.address, std::move(symbol)});
 }
 
-CacheEntryId SharedCache::AddEntry(CacheEntry entry)
+void SharedCache::AddEntry(CacheEntry entry)
 {
-	// TODO: Maybe check to see if we already added the file?
-	// TODO: I doubt we will ever accidentally call this for the same entry...
-	// This is monotonically increasing so you can tell how many times we have called this function :)
-	CacheEntryId id = nextId++;
-
 	// Get the file accessor to associate with the virtual memory region.
 	auto fileAccessor = FileAccessorCache::Global().Open(entry.GetFilePath());
 
@@ -253,8 +245,7 @@ CacheEntryId SharedCache::AddEntry(CacheEntry entry)
 	}
 
 	// We are done and can make the entry visible to the entire cache.
-	m_entries.insert({id, std::move(entry)});
-	return id;
+	m_entries.push_back(std::move(entry));
 }
 
 bool SharedCache::ProcessEntryImage(const std::string& path, const dyld_cache_image_info& info)
@@ -330,7 +321,7 @@ void SharedCache::ProcessEntryImages(const CacheEntry& entry)
 // At this point all relevant mapping should be loaded in the virtual memory.
 void SharedCache::ProcessEntryRegions(const CacheEntry& entry)
 {
-	auto entryHeader = entry.GetHeader();
+	const auto& entryHeader = entry.GetHeader();
 
 	// Collect pool addresses as non image memory regions.
 	for (size_t i = 0; i < entryHeader.branchPoolsCount; i++)
@@ -468,7 +459,7 @@ void SharedCache::ProcessSymbols()
 
 std::optional<CacheEntry> SharedCache::GetEntryContaining(const uint64_t address) const
 {
-	for (const auto& [_, entry] : m_entries)
+	for (const auto& entry : m_entries)
 	{
 		for (const auto& mapping : entry.GetMappings())
 		{
@@ -482,7 +473,7 @@ std::optional<CacheEntry> SharedCache::GetEntryContaining(const uint64_t address
 
 std::optional<CacheEntry> SharedCache::GetEntryWithImage(const CacheImage& image) const
 {
-	for (const auto& [_, entry] : m_entries)
+	for (const auto& entry : m_entries)
 	{
 		for (const auto& [_, currentImage] : entry.GetImages())
 		{

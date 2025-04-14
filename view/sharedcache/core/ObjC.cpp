@@ -111,7 +111,7 @@ std::optional<ObjCOptimizationHeader> GetObjCOptimizationHeader(SharedCache& cac
 	// Find the first primary entry and use that header to read the obj opt header.
 	// Don't ask me why this is done like this...
 	std::optional<dyld_cache_header> primaryCacheHeader = std::nullopt;
-	for (const auto& [_, entry] : cache.GetEntries())
+	for (const auto& entry : cache.GetEntries())
 	{
 		if (entry.GetType() == CacheEntryType::Primary)
 		{

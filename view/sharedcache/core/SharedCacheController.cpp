@@ -66,17 +66,17 @@ DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view
 	auto id = GetViewIdFromView(view);
 	std::unique_lock<std::shared_mutex> lock(GlobalControllersMutex);
 	auto logger = new Logger("SharedCache.Controller", view.GetFile()->GetSessionId());
-	DSCRef<SharedCacheController> dscView = new SharedCacheController(std::move(cache), logger);
+	DSCRef<SharedCacheController> controller = new SharedCacheController(std::move(cache), logger);
 
 	// Pull the settings from the view.
 	if (Ref<Settings> settings = view.GetLoadSettings(VIEW_NAME))
 	{
 		if (settings->Contains("loader.dsc.processObjC"))
-			dscView->m_processObjC = settings->Get<bool>("loader.dsc.processObjC", &view);
+			controller->m_processObjC = settings->Get<bool>("loader.dsc.processObjC", &view);
 		if (settings->Contains("loader.dsc.processCFStrings"))
-			dscView->m_processCFStrings = settings->Get<bool>("loader.dsc.processCFStrings", &view);
+			controller->m_processCFStrings = settings->Get<bool>("loader.dsc.processCFStrings", &view);
 		if (settings->Contains("loader.dsc.regionFilter"))
-			dscView->m_regionFilter = std::regex(settings->Get<std::string>("loader.dsc.regionFilter", &view));
+			controller->m_regionFilter = std::regex(settings->Get<std::string>("loader.dsc.regionFilter", &view));
 	}
 
 	// TODO: Support old shared cache metadata
@@ -88,10 +88,10 @@ DSCRef<SharedCacheController> SharedCacheController::Initialize(BinaryView& view
 	// This effectively restores the state of the opened database to when it was last saved.
 	// NOTE: We store on the parent view because hilariously, the metadata is not present until after view init.
 	if (const auto metadata = view.GetParentView()->QueryMetadata(METADATA_KEY))
-		dscView->LoadMetadata(*metadata);
+		controller->LoadMetadata(*metadata);
 
-	GlobalControllers().insert({id, dscView});
-	return dscView;
+	GlobalControllers().insert({id, controller});
+	return controller;
 }
 
 DSCRef<SharedCacheController> SharedCacheController::FromView(BinaryView& view)

@@ -490,7 +490,7 @@ std::vector<CacheSymbol> SharedCacheMachOHeader::ReadSymbolTable(VirtualMemory& 
 		{
 			// TODO: where logger?
 			LogError(
-				"Symbol entry at index %llu has a string offset of %u which is outside the strings buffer of size %u "
+				"Symbol entry at index %llu has a string offset of %u which is outside the strings buffer of size %llu "
 			    "for symbol table %x",
 				entryIndex, nlist.n_strx, stringInfo.address, stringInfo.entries);
 			continue;
