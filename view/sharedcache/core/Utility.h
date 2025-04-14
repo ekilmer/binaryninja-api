@@ -40,6 +40,8 @@ void ApplySymbol(BinaryNinja::Ref<BinaryNinja::BinaryView> view, BinaryNinja::Re
 // /blah/foo/bar/libObjCThing.dylib -> libObjCThing.dylib
 std::string BaseFileName(const std::string& path);
 
+bool IsSameFolder(BinaryNinja::Ref<BinaryNinja::ProjectFolder> a, BinaryNinja::Ref<BinaryNinja::ProjectFolder> b);
+
 // Represents a range of addresses [start, end).
 // Note that `end` is not included within the range.
 struct AddressRange

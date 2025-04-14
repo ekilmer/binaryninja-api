@@ -136,3 +136,12 @@ std::string BaseFileName(const std::string& path)
 		return path.substr(lastSlashPos + 1);
 	return path;
 }
+
+bool IsSameFolder(Ref<ProjectFolder> a, Ref<ProjectFolder> b)
+{
+	if (!a && !b)
+		return true;
+	if (a && b)
+		return a->GetId() == b->GetId();
+	return false;
+}

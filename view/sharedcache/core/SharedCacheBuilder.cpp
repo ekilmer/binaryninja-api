@@ -83,9 +83,8 @@ size_t SharedCacheBuilder::AddProjectFolder(Ref<ProjectFolder> folder)
 		const auto currentFileName = file.GetName();
 
 		// Skip files not in the folder.
-		if (const auto currentFolder = file.GetFolder(); folder)
-			if (currentFolder->GetId() != folder->GetId())
-				return false;
+		if (!IsSameFolder(file.GetFolder(), folder))
+			return false;
 
 		// Ok, we are now _sure_ that this file _might_ be a part of the cache, lets try and process it!
 		return AddFile(currentFilePath, currentFileName, CacheEntryType::Secondary);
