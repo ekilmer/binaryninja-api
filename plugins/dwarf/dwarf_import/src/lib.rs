@@ -555,6 +555,11 @@ fn parse_dwarf(
             create_section_reader(section_id, view, eh_frame_endian, dwo_file)
         };
         let mut eh_frame = gimli::EhFrame::load(eh_frame_section_reader).unwrap();
+        if let Some(view_arch) = view.default_arch() {
+            if view_arch.name().as_str() == "aarch64" {
+                eh_frame.set_vendor(gimli::Vendor::AArch64);
+            }
+        }
         eh_frame.set_address_size(view.address_size() as u8);
         range_data_offsets = parse_unwind_section(view, eh_frame)
             .map_err(|e| error!("Error parsing .eh_frame: {}", e))?;
