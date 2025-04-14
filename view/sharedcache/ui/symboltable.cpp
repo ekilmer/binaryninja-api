@@ -10,22 +10,26 @@
 using namespace BinaryNinja;
 using namespace SharedCacheAPI;
 
+
 SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
 	: QAbstractTableModel(parent), m_parent(parent) {
 	// TODO: Need to implement updating this font if it is changed by the user
 	m_font = getMonospaceFont(parent);
 }
 
+
 int SymbolTableModel::rowCount(const QModelIndex& parent) const {
 	Q_UNUSED(parent);
 	return static_cast<int>(m_modelSymbols.size());
 }
+
 
 int SymbolTableModel::columnCount(const QModelIndex& parent) const {
 	Q_UNUSED(parent);
 	// We have 3 columns: Address, Type, Name
 	return 3;
 }
+
 
 QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
 	if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::FontRole)) {
@@ -58,6 +62,7 @@ QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
 	}
 }
 
+
 QVariant SymbolTableModel::headerData(int section, Qt::Orientation orientation, int role) const {
 	if (role != Qt::DisplayRole || orientation != Qt::Horizontal) {
 		return QVariant();
@@ -75,11 +80,57 @@ QVariant SymbolTableModel::headerData(int section, Qt::Orientation orientation, 
 	}
 }
 
+
+void SymbolTableModel::sort(int column, Qt::SortOrder order)
+{
+	beginResetModel();
+
+	std::function<bool(const CacheSymbol&, const CacheSymbol&)> comparator;
+
+	switch (column)
+	{
+	case 0: // Address column
+		comparator = [](const CacheSymbol& a, const CacheSymbol& b) {
+			return a.address < b.address;
+		};
+		break;
+	case 1: // Type column
+		comparator = [](const CacheSymbol& a, const CacheSymbol& b) {
+			return GetSymbolTypeAsString(a.type) < GetSymbolTypeAsString(b.type);
+		};
+		break;
+	case 2: // Name column
+		comparator = [](const CacheSymbol& a, const CacheSymbol& b) {
+			return a.name < b.name;
+		};
+		break;
+	default:
+		endResetModel();
+		return;
+	}
+
+	if (order == Qt::DescendingOrder)
+	{
+		std::sort(m_modelSymbols.begin(), m_modelSymbols.end(),
+				  [&comparator](const CacheSymbol& a, const CacheSymbol& b) {
+					  return comparator(b, a);
+				  });
+	}
+	else
+	{
+		std::sort(m_modelSymbols.begin(), m_modelSymbols.end(), comparator);
+	}
+
+	endResetModel();
+}
+
+
 void SymbolTableModel::updateSymbols(std::vector<CacheSymbol>&& symbols)
 {
 	m_preparedSymbols = symbols;
 	setFilter(m_filter);
 }
+
 
 const CacheSymbol& SymbolTableModel::symbolAt(int row) const
 {

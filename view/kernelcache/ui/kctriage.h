@@ -1,25 +1,26 @@
-#include <kernelcacheapi.h>
+#include <QHeaderView>
+#include <QSortFilterProxyModel>
+#include <QStandardItemModel>
+#include <QStyledItemDelegate>
+#include <QTableView>
 #include <binaryninjaapi.h>
+#include <kernelcacheapi.h>
+#include <progresstask.h>
+#include "filter.h"
+#include "ui/fontsettings.h"
+#include "uicontext.h"
 #include "uitypes.h"
 #include "viewframe.h"
-#include "animation.h"
-#include "uicontext.h"
-
-#include <QTableView>
-#include <QStandardItemModel>
-#include <QSortFilterProxyModel>
-#include <QHeaderView>
-#include "filter.h"
-#include <QStyledItemDelegate>
-
-#include "ui/fontsettings.h"
 
 #ifndef BINARYNINJA_KCTRIAGE_H
 #define BINARYNINJA_KCTRIAGE_H
 
+
+using namespace KernelCacheAPI;
+
+
 class AddressColorDelegate : public QStyledItemDelegate
 {
-
 public:
 	explicit AddressColorDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
 
@@ -28,8 +29,24 @@ public:
 		QStyleOptionViewItem opt = option;
 		initStyleOption(&opt, index);
 
+		opt.font = getMonospaceFont(qobject_cast<QWidget*>(parent()));
 		opt.palette.setColor(QPalette::Text, getThemeColor(BNThemeColor::AddressColor));
 		opt.displayAlignment = Qt::AlignCenter | Qt::AlignVCenter;
+
+		QStyledItemDelegate::paint(painter, opt, index);
+	}
+};
+
+
+class MonospaceFontDelegate : public QStyledItemDelegate {
+public:
+	explicit MonospaceFontDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
+
+	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+		QStyleOptionViewItem opt = option;
+		initStyleOption(&opt, index);
+
+		opt.font = getMonospaceFont(qobject_cast<QWidget*>(parent()));
 
 		QStyledItemDelegate::paint(painter, opt, index);
 	}
@@ -73,7 +90,10 @@ public:
 
 	void scrollToFirstItem() override {
 		if (model()->rowCount() > 0) {
-			scrollTo(model()->index(0, 0));
+			QModelIndex top = indexAt(rect().topLeft());
+			if (top.isValid()) {
+				scrollTo(top);
+			}
 		}
 	}
 
@@ -86,109 +106,177 @@ public:
 
 	void selectFirstItem() override {
 		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			selectionModel()->select(firstIndex, QItemSelectionModel::ClearAndSelect);
+			QModelIndex top = indexAt(rect().topLeft());
+			if (top.isValid()) {
+				selectionModel()->select(top, QItemSelectionModel::ClearAndSelect);
+				setCurrentIndex(top);
+			}
 		}
 	}
 
 	void activateFirstItem() override {
 		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			setCurrentIndex(firstIndex);
-			emit activated(firstIndex);
-		}
-	}
-
-	bool eventFilter(QObject* obj, QEvent* event) override {
-		if (event->type() == QEvent::KeyPress) {
-			auto keyEvent = dynamic_cast<QKeyEvent*>(event);
-			if (keyEvent->key() == Qt::Key_Escape) {
-				clearSelection();
-				return true;
-			}
-			if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return) {
-				emit activated(currentIndex());
-				return true;
+			QModelIndex topLeft = indexAt(rect().topLeft());
+			if (topLeft.isValid()) {
+				setCurrentIndex(topLeft);
+				emit activated(topLeft);
 			}
 		}
-		return QTableView::eventFilter(obj, event);
 	}
 
 signals:
 	void filterTextChanged(const QString& text);
 };
 
-class SymbolTableView;
 
-class SymbolTableModel : public QAbstractTableModel {
-	Q_OBJECT
-
-	SymbolTableView* m_parent;
-	QFont m_font;
-	std::string m_filter;
-	std::vector<KernelCacheAPI::KCSymbol> m_symbols;
+class SymbolTableProxyModel : public QSortFilterProxyModel
+{
+Q_OBJECT
 
 public:
-	explicit SymbolTableModel(SymbolTableView* parent);
+	SymbolTableProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent), m_timer(new QTimer(this))
+	{
+		m_timer->setSingleShot(true);
+		connect(m_timer, &QTimer::timeout, this, &SymbolTableProxyModel::delayedFilterChanged);
+	}
 
-	int rowCount(const QModelIndex& parent) const override;
-	int columnCount(const QModelIndex& parent) const override;
-	QVariant data(const QModelIndex& index, int role) const override;
-	QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-	void updateSymbols();
-	void setFilter(std::string text);
+	void setFilterString(const QString& filter)
+	{
+		QRegularExpression newRegEx(QRegularExpression::escape(filter), QRegularExpression::CaseInsensitiveOption);
+		if (m_filter != newRegEx) {
+			m_filter = std::move(newRegEx);
+			m_timer->start(200);
+		}
+	}
 
-	const KernelCacheAPI::KCSymbol& symbolAt(int row) const;
+protected:
+	bool filterAcceptsRow(int source_row, const QModelIndex& source_parent) const override
+	{
+		if (m_filter.pattern().isEmpty())
+			return true;
+
+		for (int column = 0; column < sourceModel()->columnCount(source_parent); ++column)
+		{
+			QModelIndex index = sourceModel()->index(source_row, column, source_parent);
+			QString data = sourceModel()->data(index).toString();
+			if (m_filter.match(data).hasMatch())
+				return true;
+		}
+		return false;
+	}
+
+private slots:
+	void delayedFilterChanged()
+	{
+		invalidateFilter();
+	}
+
+private:
+	QRegularExpression m_filter;
+	QTimer* m_timer;
 };
 
 
 class SymbolTableView : public QTableView, public FilterTarget
 {
-	Q_OBJECT
+Q_OBJECT
 	friend class SymbolTableModel;
 
 	std::vector<KernelCacheAPI::KCSymbol> m_symbols;
-
-	SymbolTableModel* m_model;
+	QStandardItemModel* m_model;
+	SymbolTableProxyModel* m_proxyModel;
 
 public:
-	SymbolTableView(QWidget* parent, Ref<KernelCacheAPI::KernelCache> cache);
-	~SymbolTableView() override;
+	SymbolTableView(QWidget* parent, Ref<KernelCache>& cache)
+		: QTableView(parent), m_model(new QStandardItemModel(this)), m_proxyModel(new SymbolTableProxyModel(this))
+	{
+		m_proxyModel->setSourceModel(m_model);
+		setModel(m_proxyModel);
 
-	void scrollToFirstItem() override {
-		if (model()->rowCount() > 0) {
-			scrollTo(model()->index(0, 0));
-		}
+		// Set up the headers
+		m_model->setColumnCount(3);
+		m_model->setHorizontalHeaderLabels({"Address", "Name", "Image"});
+		setFont(getMonospaceFont(parent));
+		setItemDelegateForColumn(0, new AddressColorDelegate(this));
+		setItemDelegateForColumn(1, new MonospaceFontDelegate(this));
+		setItemDelegateForColumn(2, new MonospaceFontDelegate(this));
+
+		// Configure view settings
+		horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+		horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+		horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+		setEditTriggers(QAbstractItemView::NoEditTriggers);
+		setSelectionBehavior(QAbstractItemView::SelectRows);
+		setSelectionMode(QAbstractItemView::SingleSelection);
+		verticalHeader()->setVisible(false);
+
+		setSortingEnabled(true);
+
+		BackgroundThread::create(this)->thenBackground([this, cache](){
+			m_symbols = cache->LoadAllSymbolsAndWait();
+		})->thenMainThread([this](){
+			updateSymbols();
+		})->start();
 	}
 
-	void scrollToCurrentItem() override {
-		QModelIndex currentIndex = selectionModel()->currentIndex();
-		if (currentIndex.isValid()) {
-			scrollTo(currentIndex);
-		}
-	}
+	~SymbolTableView() override = default;
 
-	void selectFirstItem() override {
-		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			selectionModel()->select(firstIndex, QItemSelectionModel::ClearAndSelect);
-		}
-	}
-
-	void activateFirstItem() override {
-		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			setCurrentIndex(firstIndex);
-			emit activated(firstIndex);
+	void updateSymbols()
+	{
+		m_model->removeRows(0, m_model->rowCount());
+		for (const auto& symbol : m_symbols)
+		{
+			QList<QStandardItem*> row;
+			row << new QStandardItem(QString("0x%1").arg(symbol.address, 0, 16))
+				<< new QStandardItem(QString::fromStdString(symbol.name))
+				<< new QStandardItem(QString::fromStdString(symbol.image));
+			m_model->appendRow(row);
 		}
 	}
 
 	KernelCacheAPI::KCSymbol getSymbolAtRow(int row) const
 	{
-		return m_model->symbolAt(row);
+		QModelIndex proxyIndex = m_proxyModel->index(row, 0);
+		QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
+		return m_symbols[sourceIndex.row()];
 	}
 
-	void setFilter(const std::string& filter) override;
+	void scrollToFirstItem() override
+	{
+		scrollToTop();
+	}
+
+	void scrollToCurrentItem() override
+	{
+		scrollTo(selectionModel()->currentIndex());
+	}
+
+	void selectFirstItem() override
+	{
+		if (m_proxyModel->rowCount() > 0) {
+			QModelIndex idx = m_proxyModel->index(0, 0);
+			if (idx.isValid()) {
+				selectionModel()->select(idx, QItemSelectionModel::ClearAndSelect);
+				setCurrentIndex(idx);
+			}
+		}
+	}
+
+	void activateFirstItem() override
+	{
+		if (m_proxyModel->rowCount() > 0) {
+			QModelIndex idx = m_proxyModel->index(0, 0);
+			if (idx.isValid()) {
+				setCurrentIndex(idx);
+				emit activated(idx);
+			}
+		}
+	}
+
+	void setFilter(const std::string& text) override
+	{
+		m_proxyModel->setFilterString(QString::fromStdString(text));
+	}
 };
 
 

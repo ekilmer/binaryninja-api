@@ -1,24 +1,29 @@
-#include <binaryninjaapi.h>
+#include <QHeaderView>
 #include <QItemDelegate>
+#include <QPainter>
+#include <QSortFilterProxyModel>
+#include <QStandardItemModel>
 #include <QStyledItemDelegate>
-
-#include "uitypes.h"
-#include "viewframe.h"
-#include "animation.h"
-#include "uicontext.h"
-
+#include <QTableView>
+#include <binaryninjaapi.h>
+#include <progresstask.h>
+#include <sharedcacheapi.h>
 #include "filter.h"
 #include "symboltable.h"
-
 #include "ui/fontsettings.h"
+#include "uicontext.h"
+#include "uitypes.h"
+#include "viewframe.h"
 
 #ifndef BINARYNINJA_DSCTRIAGE_H
 #define BINARYNINJA_DSCTRIAGE_H
 
+using namespace BinaryNinja;
+using namespace SharedCacheAPI;
+
 
 class AddressColorDelegate : public QStyledItemDelegate
 {
-
 public:
 	explicit AddressColorDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
 
@@ -27,6 +32,7 @@ public:
 		QStyleOptionViewItem opt = option;
 		initStyleOption(&opt, index);
 
+		opt.font = getMonospaceFont(qobject_cast<QWidget*>(parent()));
 		opt.palette.setColor(QPalette::Text, getThemeColor(BNThemeColor::AddressColor));
 		opt.displayAlignment = Qt::AlignCenter | Qt::AlignVCenter;
 
@@ -130,7 +136,10 @@ public:
 
 	void scrollToFirstItem() override {
 		if (model()->rowCount() > 0) {
-			scrollTo(model()->index(0, 0));
+			QModelIndex top = indexAt(rect().topLeft());
+			if (top.isValid()) {
+				scrollTo(top);
+			}
 		}
 	}
 
@@ -143,33 +152,38 @@ public:
 
 	void selectFirstItem() override {
 		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			selectionModel()->select(firstIndex, QItemSelectionModel::ClearAndSelect);
+			QModelIndex top = indexAt(rect().topLeft());
+			if (top.isValid()) {
+				selectionModel()->select(top, QItemSelectionModel::ClearAndSelect);
+				setCurrentIndex(top);
+			}
 		}
 	}
 
 	void activateFirstItem() override {
 		if (model()->rowCount() > 0) {
-			QModelIndex firstIndex = model()->index(0, 0);
-			setCurrentIndex(firstIndex);
-			emit activated(firstIndex);
+			QModelIndex topLeft = indexAt(rect().topLeft());
+			if (topLeft.isValid()) {
+				setCurrentIndex(topLeft);
+				emit activated(topLeft);
+			}
 		}
 	}
 
-	bool eventFilter(QObject* obj, QEvent* event) override {
-		if (event->type() == QEvent::KeyPress) {
-			auto* keyEvent = dynamic_cast<QKeyEvent*>(event);
-			if (keyEvent->key() == Qt::Key_Escape) {
-				clearSelection();
-				return true;
-			}
-			if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return) {
-				emit activated(currentIndex());
-				return true;
-			}
-		}
-		return QTableView::eventFilter(obj, event);
-	}
+//	bool eventFilter(QObject* obj, QEvent* event) override {
+//		if (event->type() == QEvent::KeyPress) {
+//			auto* keyEvent = dynamic_cast<QKeyEvent*>(event);
+//			if (keyEvent->key() == Qt::Key_Escape) {
+//				clearSelection();
+//				return true;
+//			}
+//			if (keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Return) {
+//				emit activated(currentIndex());
+//				return true;
+//			}
+//		}
+//		return QTableView::eventFilter(obj, event);
+//	}
 
 signals:
 	void filterTextChanged(const QString& text);
@@ -184,6 +198,7 @@ class DSCTriageView : public QWidget, public View, public UIContextNotification
 	SplitTabWidget* m_triageTabs;
 	DockableTabCollection* m_triageCollection;
 
+	FilterableTableView* m_imageTable;
 	QStandardItemModel* m_imageModel;
 
 	SymbolTableView* m_symbolTable;

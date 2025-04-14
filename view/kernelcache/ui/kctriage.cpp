@@ -1,150 +1,12 @@
-#include "globalarea.h"
-#include "kctriage.h"
-#include "progresstask.h"
-#include "ui/fontsettings.h"
 #include <QMessageBox>
 #include <QPainter>
 #include <cmath>
+#include "globalarea.h"
+#include "kctriage.h"
+#include "ui/fontsettings.h"
 
 using namespace BinaryNinja;
 using namespace KernelCacheAPI;
-
-
-SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
-	: QAbstractTableModel(parent), m_parent(parent) {
-	// TODO: Need to implement updating this font if it is changed by the user
-	m_font = getMonospaceFont(parent);
-}
-
-
-int SymbolTableModel::rowCount(const QModelIndex& parent) const {
-	Q_UNUSED(parent);
-	return static_cast<int>(m_symbols.size());
-}
-
-
-int SymbolTableModel::columnCount(const QModelIndex& parent) const {
-	Q_UNUSED(parent);
-	// We have 3 columns: Address, Name, and Image
-	return 3;
-}
-
-
-QVariant SymbolTableModel::data(const QModelIndex& index, int role) const {
-	if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::FontRole)) {
-		return QVariant();
-	}
-
-	const KCSymbol& symbol = m_symbols.at(index.row());
-
-	switch (role)
-	{
-	case Qt::DisplayRole:
-	{
-		switch (index.column()) {
-		case 0: // Address column
-			return QString("0x%1").arg(symbol.address, 0, 16); // Display address as hexadecimal
-		case 1: // Name column
-			return QString::fromStdString(symbol.name);
-		case 2: // Image column
-			return QString::fromStdString(symbol.image);
-		default:
-			return QVariant();
-		}
-	}
-	case Qt::FontRole:
-		return m_font;
-	default:
-		return QVariant();
-	}
-}
-
-
-QVariant SymbolTableModel::headerData(int section, Qt::Orientation orientation, int role) const {
-	if (role != Qt::DisplayRole || orientation != Qt::Horizontal) {
-		return QVariant();
-	}
-
-	switch (section) {
-	case 0:
-		return QString("Address");
-	case 1:
-		return QString("Name");
-	case 2:
-		return QString("Image");
-	default:
-		return QVariant();
-	}
-}
-
-
-void SymbolTableModel::updateSymbols() {
-	m_symbols = m_parent->m_symbols;
-	setFilter(m_filter);
-}
-
-
-const KCSymbol& SymbolTableModel::symbolAt(int row) const {
-	return m_symbols.at(row);
-}
-
-
-void SymbolTableModel::setFilter(std::string text)
-{
-	beginResetModel();
-
-	m_filter = text;
-	m_symbols.clear();
-
-	if (!m_filter.empty())
-	{
-		m_symbols.reserve(m_parent->m_symbols.size());
-		for (const auto& symbol : m_parent->m_symbols)
-			if (symbol.name.find(m_filter) != std::string::npos)
-				m_symbols.push_back(symbol);
-		m_symbols.shrink_to_fit();
-	}
-	else
-	{
-		m_symbols = m_parent->m_symbols;
-	}
-
-	endResetModel();
-}
-
-
-SymbolTableView::SymbolTableView(QWidget* parent, Ref<KernelCache> cache)
-	: QTableView(parent), m_model(new SymbolTableModel(this)) {
-
-	// Set up the filter model
-	setModel(m_model);
-
-	// Configure view settings
-	horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-	setEditTriggers(QAbstractItemView::NoEditTriggers);
-	setSelectionBehavior(QAbstractItemView::SelectRows);
-	setSelectionMode(QAbstractItemView::SingleSelection);
-
-	setSortingEnabled(true);
-
-	BackgroundThread::create(this)->thenBackground([this, cache](){
-		// LogInfo("Symbol Search: Loading symbols...");
-		m_symbols = cache->LoadAllSymbolsAndWait();
-		// LogInfo("Symbol Search: Loaded 0x%zx symbols", m_symbols.size());
-	})->thenMainThread([this](){
-		m_model->updateSymbols();
-	})->start();
-}
-
-
-SymbolTableView::~SymbolTableView() {
-	delete m_model;
-}
-
-
-void SymbolTableView::setFilter(const std::string& filter) {
-	m_model->setFilter(filter);
-}
 
 
 KCTriageViewType::KCTriageViewType()
@@ -193,8 +55,6 @@ KCTriageView::KCTriageView(QWidget* parent, BinaryViewRef data) : QWidget(parent
 	m_layout = new QVBoxLayout(this);
 	m_layout->addWidget(m_triageTabs);
 	setLayout(m_layout);
-
-	// XXX: RefreshData
 
 	m_triageTabs->selectWidget(defaultWidget);
 }
@@ -261,18 +121,18 @@ QWidget* KCTriageView::initImageTable()
 	auto loadImageButton = new QPushButton();
 	connect(loadImageButton, &QPushButton::clicked, [this](bool) {
 		// Collect only visible selected rows
-		QModelIndexList visibleSelectedRows;
+		QModelIndexList selected;
 		for (const auto& index : m_imageTable->selectionModel()->selectedRows()) {
 			if (!m_imageTable->isRowHidden(index.row())) {
-				visibleSelectedRows.append(index);
+				selected.append(index);
 			}
 		}
 
-		if (visibleSelectedRows.empty())
+		if (selected.empty())
 			return;
 
-		for (const auto& selection : visibleSelectedRows) {
-			auto name = selection.data().toString().toStdString();
+		for (const auto& selection : selected) {
+			auto name = m_imageModel->item(selection.row(), 1)->text().toStdString();
 			WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
 		}
 	});
@@ -284,7 +144,7 @@ QWidget* KCTriageView::initImageTable()
 	});
 
 	connect(m_imageTable, &FilterableTableView::activated, this, [=](const QModelIndex& index) {
-		auto selected = m_imageModel->item(index.row(), 0);
+		auto selected = m_imageModel->item(index.row(), 1);
 		auto name = selected->text().toStdString();
 		WorkerPriorityEnqueue([this, name]() { m_cache->LoadImageWithInstallName(name); });
 	});
@@ -292,12 +152,11 @@ QWidget* KCTriageView::initImageTable()
 	auto loadImageLayout = new QVBoxLayout;
 	loadImageLayout->addWidget(loadImageFilterEdit);
 	loadImageLayout->addWidget(m_imageTable);
-	loadImageLayout->addWidget(loadImageButton);
 
-	auto buttonLayout = new QHBoxLayout;
-	buttonLayout->addWidget(loadImageButton);
-	buttonLayout->setAlignment(Qt::AlignLeft);
-	loadImageLayout->addLayout(buttonLayout);
+	auto loadImageFooterLayout = new QHBoxLayout;
+	loadImageFooterLayout->addWidget(loadImageButton);
+	loadImageFooterLayout->setAlignment(Qt::AlignLeft);
+	loadImageLayout->addLayout(loadImageFooterLayout);
 
 	auto loadImageWidget = new QWidget;
 	loadImageWidget->setLayout(loadImageLayout);
@@ -306,7 +165,7 @@ QWidget* KCTriageView::initImageTable()
 
 	m_imageTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-	m_imageTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+	m_imageTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
 	m_imageTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
 
 	m_imageTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -332,22 +191,12 @@ void KCTriageView::initSymbolTable()
 		m_symbolTable->setFilter(filter.toStdString());
 	});
 
-	// Apply custom column styling
-	m_symbolTable->setItemDelegateForColumn(0, new AddressColorDelegate(m_symbolTable));
-
 	auto symbolLayout = new QVBoxLayout;
 	symbolLayout->addWidget(symbolFilterEdit);
 	symbolLayout->addWidget(m_symbolTable);
 
 	auto symbolWidget = new QWidget;
 	symbolWidget->setLayout(symbolLayout);
-
-	m_symbolTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents); // Address
-	m_symbolTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);          // Name
-	m_symbolTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);          // Image
-
-	m_symbolTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_symbolTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
 	std::function<void(uint64_t)> navigateToAddress = [=](uint64_t addr) {
 		ExecuteOnMainThread([addr, this](){
