@@ -1028,16 +1028,15 @@ The PDB loader comes with a couple configuration options which enable and disabl
 
 ## Launching Binary Ninja from the command line (CLI)
 
-While it has always been possible to launch Binary Ninja from the command line (shell), passing file paths or URLs to open, as of 5.0, it is now possible to have some control over whether it will open in an already running instance of Binary Ninja, or in a new instance. (Previously, this would always start a new Binary Ninja application instance, unless a `binaryninja:` URL was found on the command line.)
+When you launch Binary Ninja from the command-line, you can control whether or not a new window is launched or an existing window is used.
 
-As of version 5.0:
-* Running Binary Ninja from the command line will try to find a running instance in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
+* Running Binary Ninja from the command line will try to find a running instance of the same version in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
 * For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
 * Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
-  1. Try to activate existing tabs for those files in a running instance, or failing that,   
+  1. Try to activate and focus existing tabs for those files in a running instance, or failing that,
   2. Try to open those files in new tabs in a running instance, or failing that,
   3. Open those files in a new instance of Binary Ninja.
-* Passing the `-n` or `--new-instance` command line argument will cause a new Binary Ninja application to be launched, and any files or URLs on the command line will be opened in the new instance.
+* Passing the `-n` or `--new-instance` command line argument will cause a new Binary Ninja application to be launched and any files or URLs on the command line will be opened in the new instance.
 
 ## Debugger
 

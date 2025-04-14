@@ -344,7 +344,6 @@ All settings are uniquely identified with an identifier string. Identifiers are 
 |ui.featureMap|Feature Map Location|Location of the feature map.|`string`|`right`|[`SettingsUserScope`]|<a id='ui.featureMap.location'>ui.featureMap.location</a>|
 | | |  enum: Feature map appears on the right side of the window.|`enum`|`right`| | |
 | | |  enum: Feature map appears at the top of the window.|`enum`|`top`| | |
-|ui.files|Always Open a New Instance from the Command Line|Force Binary Ninja to always open a new application instance when run from the command line with no arguments, instead of activating a running instance. If false, a new instance can always be opened using the '-n' command line argument.|`boolean`|`True`|[`SettingsUserScope`]|<a id='ui.files.commandLine.newInstance'>ui.files.commandLine.newInstance</a>|
 |ui.files|Existing Database Detection|When opening a file in the UI, detect if a database exists and offer to open the database.|`string`|`prompt`|[`SettingsUserScope`]|<a id='ui.files.detection.database'>ui.files.detection.database</a>|
 | | |  enum: Enable detection and generate prompt.|`enum`|`prompt`| | |
 | | |  enum: Enable detection and automatically open the file or database, if found.|`enum`|`always`| | |
