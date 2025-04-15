@@ -372,6 +372,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 	QStringList m_viewTypePriority;
 	int m_preferredSyncGroup = 1;
 	bool m_aboutToClose = false;
+	LoggerRef m_logger;
 
 	UIActionHandler m_actionHandler;
 	TimerWithMaxTries* m_mainNavigationTimer;
@@ -436,8 +437,8 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 		return qobject_cast<T*>(widget);
 	}
 
-	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
-	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true);
+	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
+	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
 	bool navigate(BinaryViewRef data, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool navigateToFunction(FunctionRef func, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool goToReference(BinaryViewRef data, FunctionRef func, uint64_t source, uint64_t target, bool addHistoryEntry = true);
