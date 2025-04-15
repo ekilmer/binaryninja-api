@@ -1670,7 +1670,28 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			}
 			else
 			{
-				GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
+				bool castedSrcExpr = false;
+				if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
+				{
+					auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
+					if (arrayIndexExpr.operation == HLIL_VAR &&
+						arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
+					{
+						tokens.Append(TextToken, "*");
+						tokens.AppendOpenParen();
+						tokens.Append(OperationToken, "&");
+						GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
+						tokens.Append(KeywordToken, " as ");
+						tokens.Append(TextToken, "*");
+						tokens.Append(KeywordToken, "mut ");
+						AppendSizeToken(instr.size, false, tokens);
+						tokens.AppendCloseParen();
+						castedSrcExpr = true;
+					}
+				}
+
+				if (!castedSrcExpr)
+					GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
 			}
 
 			AppendFieldTextTokens(srcExpr, fieldOffset, memberIndex, instr.size, tokens, false);
