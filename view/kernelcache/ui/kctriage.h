@@ -264,7 +264,8 @@ public:
 
 		// Configure view settings
 		horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-		horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+		horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
+		horizontalHeader()->resizeSection(1, 400);
 		horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
 		setEditTriggers(QAbstractItemView::NoEditTriggers);
 		setSelectionBehavior(QAbstractItemView::SelectRows);
