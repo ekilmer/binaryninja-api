@@ -3,7 +3,7 @@
 Shared cache support in Binary Ninja provides you with tools to selectively load specific images, search for 
 specific symbols, and follow analysis references between any images loaded from a `dyld_shared_cache` in one view.
 
-Our support for `dyld_shared_cache` is largely open source. The supporting code can can be found in our public API repository [here](https://github.com/Vector35/binaryninja-api/tree/dev/view/sharedcache). Instructions for setting up your development environment and building plugins like this yourself can be found in our [Developer Guide](../dev/plugins.html#writing-native-plugins). Contributions are welcome!
+Our support for `dyld_shared_cache` is largely open source. The supporting code can can be found in our public API repository [here](https://github.com/Vector35/binaryninja-api/tree/dev/view/sharedcache). Instructions for setting up your development environment and building plugins like this yourself can be found in our [Developer Guide](../dev/plugins.md#writing-native-plugins). Contributions are welcome!
 
 ## Support Matrix
 
