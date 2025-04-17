@@ -953,7 +953,6 @@ Any variables or functions defined globally within the script will be available 
 ### Python Debugging
 See the [plugin development guide](../dev/plugins.md#debugging-using-other-ides).
 
-Note
 ???+ Tip "Tip"
     The current script console only supports Python at the moment, but it's fully extensible for other programming languages for advanced users who wish to implement their own bindings.
 

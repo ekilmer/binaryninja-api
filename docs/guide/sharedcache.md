@@ -21,34 +21,34 @@ List of supported features for the given shared cache targets:
 
 ## Obtaining a Shared Cache
 
-The `dyld_shared_cache` is one or more files that contain all the shared libraries used by modern Apple operating systems (like macOS, iOS, and tvOS). These can be obtained
-directly from Apple, or with the help of a tool such as `blacktop/ipsw`.
+The `dyld_shared_cache` is one or more files that contain all the shared libraries used by modern Apple operating systems (like macOS, iOS, and tvOS). These can be obtained directly from Apple, or with the help of a tool such as [`blacktop/ipsw`](#using-blacktopipsw).
 
-### With `blacktop/ipsw`
+### Using `blacktop/ipsw`
 
-Our recommended way to retrieve a `dyld_shared_cache` is using blacktop's wonderful [`ipsw` tool](https://github.com/blacktop/ipsw).
+Our recommended way to retrieve a `dyld_shared_cache` is using blacktop's [`ipsw` tool](https://github.com/blacktop/ipsw).
 
 1. [Install blacktop/ipsw](https://github.com/blacktop/ipsw?tab=readme-ov-file#install)
 2. Run `ipsw download ipsw --version [target iOS version] --device [target device model (e.g. iPhone10,3)]`
 3. Run `ipsw extract --dyld [filename]`
 
-### From Local macOS Install
+### Local macOS Install
 
 The local shared cache on macOS is located at `/System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`.
 
 ## Opening a Shared Cache
 
-Binary Ninja currently only supports `dyld_shared_cache` files that have been extracted into a flat directory, so you will need to extract the IPSW (if there is one) first. After extraction, we are expecting a file structure similar to the following:
+Binary Ninja currently only supports `dyld_shared_cache` files that have been extracted into a flat directory, so you will need to extract the IPSW (if there is one) first. After extraction, we expect files similar to the following:
 
-- `your_directory`
+  - `your_project_folder`
     - `dyld_shared_cache_arm64` (**Primary**)
     - `dyld_shared_cache_arm64.01` (Secondary, optional)
     - `dyld_shared_cache_arm64.02` (Secondary, optional)
     - `dyld_shared_cache_arm64.symbols` (Symbols, optional)
 
-To access the entire shared cache, open the **Primary** file in Binary Ninja. In the example above this would be `dyld_shared_cache_arm64`.
-Opening any other file (e.g. `dyld_shared_cache_arm64.01`) will result in a partial shared cache, with only the information present
-in the file you opened.
+To load the shared cache, open the **Primary** file in Binary Ninja. In the example above this would be `dyld_shared_cache_arm64`.
+
+???+ Danger "Warning"
+    Opening any other file (e.g. `dyld_shared_cache_arm64.01`) will result in a partial shared cache, with only the information present in the file you opened.
 
 ### Project Support
 
@@ -56,12 +56,12 @@ Binary Ninja projects support `dyld_shared_cache` files. However, due to the nat
 saving the analysis database (`.bndb`) in a separate directory will require you to select the primary shared cache file on
 every open of the database. As a result, we advise keeping your analysis database in the same folder as your `dyld_shared_cache` files.
 
-- `your_project_folder`
-  - `dyld_shared_cache_arm64` (**Primary**)
-  - `dyld_shared_cache_arm64.01` (Secondary, optional)
-  - `dyld_shared_cache_arm64.02` (Secondary, optional)
-  - `dyld_shared_cache_arm64.symbols` (Symbols, optional)
-  - `your_database.bndb` (This is recommended)
+  - `your_project_folder`
+    - `dyld_shared_cache_arm64` (**Primary**)
+    - `dyld_shared_cache_arm64.01` (Secondary, optional)
+    - `dyld_shared_cache_arm64.02` (Secondary, optional)
+    - `dyld_shared_cache_arm64.symbols` (Symbols, optional)
+    - `your_database.bndb` (This is recommended)
 
 ## Interacting With a Shared Cache
 
@@ -97,7 +97,7 @@ opening a `dyld_shared_cache` and is how you add images to the actual binary vie
 
 ### Scripting
 
-Another way to interact with the shared cache information is through the provided Python API, available in the `binaryninja.sharedcache` module.
+Another way to interact with the shared cache information is through the provided Python API, available in the [`binaryninja.sharedcache`](https://github.com/Vector35/binaryninja-api/blob/dev/view/sharedcache/api/python/sharedcache.py) module.
 
 Additionally, the `dsc` (or `shared_cache`) magic variable is available in the scripting console whenever a shared cache is opened.
 
@@ -113,7 +113,8 @@ for image in dsc.loaded_images:
         dsc.apply_image(bv, dep_image)
 ```
 
-**Note:** If you are processing `dyld_shared_cache` files headlessly, [`loader.dsc.autoLoadPattern`](settings.md) is a *very* useful setting to override. This is a regex you can have match all the files you *want* to analyze, skipping the need to use the Python or C++ API to load them manually.
+???+ Note "Note"
+    If you are processing `dyld_shared_cache` files headlessly, [`loader.dsc.autoLoadPattern`](settings.md) is a *very* useful setting to override. This is a regex you can have match all the files you *want* to analyze, skipping the need to use the Python or C++ API to load them manually.
 
 ## Glossary
 
