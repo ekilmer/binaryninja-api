@@ -2575,6 +2575,11 @@ public:
 	{
 		return false;
 	}
+
+	virtual bool IsStackReservedForArgumentRegisters() override
+	{
+		return true;
+	}
 };
 
 class MipsLinuxRtlResolveCallingConvention: public CallingConvention
