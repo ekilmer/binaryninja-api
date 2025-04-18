@@ -203,7 +203,6 @@ The previous tools are used in the generation of our documentation, but are not 
     - [serde_urlencoded] ([serde_urlencoded license] - APACHE 2.0 / MIT)
     - [serial_test] ([serial_test license] - MIT)
     - [serial_test_derive] ([serial_test_derive license] - MIT)
-    - [sha-1] ([sha-1 license] - MIT)
     - [sha1] ([sha1 license] - APACHE 2.0 / MIT)
     - [shlex] ([shlex license] - APACHE 2.0 / MIT)
     - [slab] ([slab license] - MIT)
@@ -719,8 +718,6 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [serial_test license]: https://github.com/palfrey/serial_test/blob/main/LICENSE
 [serial_test_derive]: https://github.com/palfrey/serial_test/
 [serial_test_derive license]: https://github.com/palfrey/serial_test/blob/main/LICENSE
-[sha-1]: https://github.com/RustCrypto/hashes/tree/master/sha-1
-[sha-1 license]: https://github.com/RustCrypto/hashes/tree/master/sha-1
 [sha1]: https://github.com/RustCrypto/hashes/tree/master/sha1
 [sha1 license]: https://github.com/RustCrypto/hashes/blob/master/sha1/LICENSE-MIT
 [shlex]: https://github.com/comex/rust-shlex
