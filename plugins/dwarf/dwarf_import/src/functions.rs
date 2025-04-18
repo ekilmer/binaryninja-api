@@ -81,7 +81,7 @@ pub(crate) fn parse_function_entry<R: ReaderType>(
     debug_info_builder: &mut DebugInfoBuilder,
 ) -> Option<usize> {
     // Collect function properties (if they exist in this DIE)
-    let raw_name = get_raw_name(dwarf, unit, entry);
+    let raw_name = get_raw_name(dwarf, unit, entry, debug_info_builder_context);
     let return_type = get_type(
         dwarf,
         unit,

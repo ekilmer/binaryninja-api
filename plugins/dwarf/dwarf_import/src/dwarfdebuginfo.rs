@@ -608,7 +608,7 @@ impl DebugInfoBuilder {
                     if func.address.is_none() && func.raw_name.is_some() {
                         // DWARF doesn't contain GOT info, so remove any entries there...they will be wrong (relying on Binja's mechanisms for the GOT is good )
                         if symbol.sym_type() != SymbolType::ImportAddress {
-                            func.address = Some(symbol.address());
+                            func.address = Some(symbol.address() - bv.start());
                         }
                     }
 
