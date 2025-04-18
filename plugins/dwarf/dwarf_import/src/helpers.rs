@@ -221,21 +221,31 @@ pub(crate) fn get_raw_name<R: ReaderType>(
     dwarf: &Dwarf<R>,
     unit: &Unit<R>,
     entry: &DebuggingInformationEntry<R>,
+    debug_info_builder_context: &DebugInfoBuilderContext<R>,
 ) -> Option<String> {
-    if let Ok(Some(attr_val)) = entry.attr_value(constants::DW_AT_linkage_name) {
-        if let Ok(attr_string) = dwarf.attr_string(unit, attr_val.clone()) {
-            if let Ok(attr_string) = attr_string.to_string() {
-                return Some(attr_string.to_string());
-            }
-        } else if let Some(dwarf) = dwarf.sup() {
-            if let Ok(attr_string) = dwarf.attr_string(unit, attr_val) {
-                if let Ok(attr_string) = attr_string.to_string() {
-                    return Some(attr_string.to_string());
+    match resolve_specification(dwarf, unit, entry, debug_info_builder_context) {
+        DieReference::UnitAndOffset((dwarf, entry_unit, entry_offset)) => {
+            if let Ok(Some(attr_val)) = entry_unit
+                .entry(entry_offset)
+                .unwrap()
+                .attr_value(constants::DW_AT_linkage_name)
+            {
+                if let Ok(attr_string) = dwarf.attr_string(entry_unit, attr_val.clone()) {
+                    if let Ok(attr_string) = attr_string.to_string() {
+                        return Some(attr_string.to_string());
+                    }
+                } else if let Some(dwarf) = &dwarf.sup {
+                    if let Ok(attr_string) = dwarf.attr_string(entry_unit, attr_val) {
+                        if let Ok(attr_string) = attr_string.to_string() {
+                            return Some(attr_string.to_string());
+                        }
+                    }
                 }
             }
+            None
         }
+        DieReference::Err => None,
     }
-    None
 }
 
 // Get the size of an object as a usize
