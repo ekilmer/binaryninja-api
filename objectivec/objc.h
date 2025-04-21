@@ -252,7 +252,6 @@ namespace BinaryNinja {
 
 	class ObjCProcessor {
 		struct Types {
-			QualifiedName relativePtr;
 			QualifiedName id;
 			QualifiedName sel;
 			QualifiedName BOOL;

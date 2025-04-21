@@ -1264,9 +1264,6 @@ void ObjCProcessor::ProcessObjCData()
 	m_symbolQueue = new SymbolQueue();
 	auto addrSize = m_data->GetAddressSize();
 
-	m_typeNames.relativePtr = defineTypedef(m_data, {"rptr_t"}, Type::IntegerType(4, true));
-	auto rptr_t = Type::NamedType(m_data, m_typeNames.relativePtr);
-
 	m_typeNames.id = defineTypedef(m_data, {"id"}, Type::PointerType(addrSize, Type::VoidType()));
 	m_typeNames.sel = defineTypedef(m_data, {"SEL"}, Type::PointerType(addrSize, Type::IntegerType(1, false)));
 
@@ -1275,17 +1272,27 @@ void ObjCProcessor::ProcessObjCData()
 	m_typeNames.nsuInteger = defineTypedef(m_data, {"NSUInteger"}, Type::IntegerType(addrSize, false));
 	m_typeNames.cgFloat = defineTypedef(m_data, {"CGFloat"}, Type::FloatType(addrSize));
 
-	Ref<Type> relativeSelectorPtr;
+	BNPointerBaseType relativeSelectorBaseType = RelativeToVariableAddressPointerBaseType;
+	uint64_t relativeSelectorBaseOffset = 0;
 	auto reader = GetReader();
 	if (auto objCRelativeMethodsBaseAddr = GetObjCRelativeMethodBaseAddress(reader.get())) {
 		m_logger->LogDebug("RelativeMethodSelector Base: 0x%llx", objCRelativeMethodsBaseAddr);
-
-		auto type = TypeBuilder::PointerType(4, Type::PointerType(addrSize, Type::IntegerType(1, false)))
-			.SetPointerBase(RelativeToConstantPointerBaseType, objCRelativeMethodsBaseAddr)
-			.Finalize();
-		auto relativeSelectorPtrName = defineTypedef(m_data, {"relative_SEL"}, type);
-		relativeSelectorPtr = Type::NamedType(m_data, relativeSelectorPtrName);
+		relativeSelectorBaseType = RelativeToConstantPointerBaseType;
+		relativeSelectorBaseOffset = objCRelativeMethodsBaseAddr;
 	}
+
+	auto relativeSelectorPtrName = defineTypedef(m_data, {"rel_SEL"},
+		TypeBuilder::PointerType(4, Type::PointerType(addrSize, Type::IntegerType(1, false)))
+			.SetPointerBase(relativeSelectorBaseType, relativeSelectorBaseOffset)
+			.Finalize());
+	auto relativeCharPtrName = defineTypedef(m_data, {"rel_cstr"},
+		TypeBuilder::PointerType(4, Type::PointerType(addrSize, Type::IntegerType(1, false)))
+			.SetPointerBase(RelativeToVariableAddressPointerBaseType, 0)
+			.Finalize());
+	auto relativeIMPPtrName = defineTypedef(m_data, {"rel_IMP"},
+		TypeBuilder::PointerType(4, Type::VoidType())
+			.SetPointerBase(RelativeToVariableAddressPointerBaseType, 0)
+			.Finalize());
 
 	// https://github.com/apple-oss-distributions/objc4/blob/196363c165b175ed925ef6b9b99f558717923c47/runtime/objc-abi.h
 	EnumerationBuilder imageInfoFlagBuilder;
@@ -1322,9 +1329,9 @@ void ObjCProcessor::ProcessObjCData()
 	m_typeNames.imageInfo = imageInfoType.first;
 
 	StructureBuilder methodEntry;
-	methodEntry.AddMember(relativeSelectorPtr ? relativeSelectorPtr : rptr_t, "name");
-	methodEntry.AddMember(rptr_t, "types");
-	methodEntry.AddMember(rptr_t, "imp");
+	methodEntry.AddMember(Type::NamedType(m_data, relativeSelectorPtrName), "name");
+	methodEntry.AddMember(Type::NamedType(m_data, relativeCharPtrName), "types");
+	methodEntry.AddMember(Type::NamedType(m_data, relativeIMPPtrName), "imp");
 	auto type = finalizeStructureBuilder(m_data, methodEntry, "objc_method_entry_t");
 	m_typeNames.methodEntry = type.first;
 
