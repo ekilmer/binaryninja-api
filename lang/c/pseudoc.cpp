@@ -235,9 +235,15 @@ void PseudoCFunction::AppendComparison(const string& comparison, const HighLevel
 	const auto leftExpr = instr.GetLeftExpr();
 	const auto rightExpr = instr.GetRightExpr();
 
-	GetExprTextInternal(leftExpr, emitter, settings, precedence, false, signedHint);
+	if (leftExpr.operation == HLIL_SPLIT)
+		AppendDefaultSplitExpr(leftExpr, emitter, settings, precedence);
+	else
+		GetExprTextInternal(leftExpr, emitter, settings, precedence, false, signedHint);
 	emitter.Append(OperationToken, comparison);
-	GetExprTextInternal(rightExpr, emitter, settings, precedence, false, signedHint);
+	if (rightExpr.operation == HLIL_SPLIT)
+		AppendDefaultSplitExpr(rightExpr, emitter, settings, precedence);
+	else
+		GetExprTextInternal(rightExpr, emitter, settings, precedence, false, signedHint);
 }
 
 
@@ -433,6 +439,25 @@ PseudoCFunction::FieldDisplayType PseudoCFunction::GetFieldDisplayType(
 		return FieldDisplayMemberOffset;
 	else
 		return FieldDisplayNone;
+}
+
+
+void PseudoCFunction::AppendDefaultSplitExpr(const BinaryNinja::HighLevelILInstruction& instr,
+	BinaryNinja::HighLevelILTokenEmitter& tokens, DisassemblySettings* settings, BNOperatorPrecedence precedence)
+{
+	const auto high = instr.GetHighExpr<HLIL_SPLIT>();
+	const auto low = instr.GetLowExpr<HLIL_SPLIT>();
+	if (precedence == EqualityOperatorPrecedence)
+		tokens.AppendOpenParen();
+	tokens.AppendOpenParen();
+	GetExprTextInternal(high, tokens, settings, precedence);
+	tokens.Append(OperationToken, " << ");
+	tokens.Append(IntegerToken, std::to_string(low.size * 8));
+	tokens.AppendCloseParen();
+	tokens.Append(OperationToken, " | ");
+	GetExprTextInternal(low, tokens, settings, precedence);
+	if (precedence == EqualityOperatorPrecedence)
+		tokens.AppendCloseParen();
 }
 
 
@@ -1310,9 +1335,9 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			std::optional<string> assignUpdateOperator;
 			std::optional<HighLevelILInstruction> assignUpdateSource;
 			bool assignUpdateNegate = false;
-			const auto isSplit = destExpr.operation == HLIL_SPLIT;
+			const auto destIsSplit = destExpr.operation == HLIL_SPLIT;
 			std::optional<bool> assignSignedHint;
-			if (isSplit)
+			if (destIsSplit)
 			{
 				const auto high = destExpr.GetHighExpr<HLIL_SPLIT>();
 				const auto low = destExpr.GetLowExpr<HLIL_SPLIT>();
@@ -1327,6 +1352,14 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				tokens.AppendSemicolon();
 				tokens.NewLine();
 				GetExprTextInternal(low, tokens, settings, precedence);
+			}
+			else if (srcExpr.operation == HLIL_SPLIT)
+			{
+				GetExprTextInternal(destExpr, tokens, settings, precedence);
+				tokens.Append(OperationToken, " = ");
+				AppendDefaultSplitExpr(srcExpr, tokens, settings, precedence);
+				tokens.AppendSemicolon();
+				return;
 			}
 			else
 			{
@@ -1454,7 +1487,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				appearsDead = false;
 			}
 
-			if (isSplit)
+			if (destIsSplit)
 			{
 //				const auto high = destExpr.GetHighExpr<HLIL_SPLIT>();
 				const auto low = destExpr.GetLowExpr<HLIL_SPLIT>();
@@ -1484,7 +1517,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				GetExprTextInternal(srcExpr, tokens, settings, AssignmentOperatorPrecedence, false, assignSignedHint);
 			}
 
-			if (isSplit)
+			if (destIsSplit)
 				tokens.AppendCloseParen();
 
 			if (appearsDead)
@@ -1571,6 +1604,21 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			}
 			else
 			{
+				if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
+				{
+					auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
+					if (arrayIndexExpr.operation == HLIL_VAR &&
+						arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
+					{
+						tokens.Append(TextToken, "*");
+						tokens.AppendOpenParen();
+						AppendSizeToken(instr.size, false, tokens);
+						tokens.Append(TextToken, "*");
+						tokens.AppendCloseParen();
+						tokens.Append(OperationToken, "&");
+					}
+				}
+
 				GetExprTextInternal(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
 			}
 
@@ -1614,7 +1662,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				const auto constant = srcExpr.GetConstant<HLIL_CONST_PTR>();
 
 				vector<InstructionTextToken> pointerTokens{};
-				if (AppendPointerTextToken(srcExpr, constant, pointerTokens, settings, DereferenceNonDataSymbols, precedence) == DataSymbolResult)
+				if (AppendPointerTextToken(instr, constant, pointerTokens, settings, DereferenceNonDataSymbols, precedence) == DataSymbolResult)
 				{
 					const auto type = srcExpr.GetType();
 					if (type && type->GetClass() == PointerTypeClass && instr.size != type->GetChildType()->GetWidth())

@@ -186,17 +186,13 @@ class BINARYNINJAUIAPI View
 	virtual void cut();
 	virtual void copy(TransformRef xform = nullptr);
 	virtual void copyAddress();
-#ifdef ULTIMATE_EDITION
 	virtual void copyLocationAsURL();
-#endif
 	virtual void paste(TransformRef xform = nullptr);
 	virtual bool canCut();
 	virtual bool canCopy();
 	virtual bool canCopyWithTransform();
 	virtual bool canCopyAddress();
-#ifdef ULTIMATE_EDITION
 	virtual bool canCopyLocationAsURL();
-#endif
 	virtual bool canPaste();
 	virtual bool canPasteWithTransform();
 
@@ -376,6 +372,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 	QStringList m_viewTypePriority;
 	int m_preferredSyncGroup = 1;
 	bool m_aboutToClose = false;
+	LoggerRef m_logger;
 
 	UIActionHandler m_actionHandler;
 	TimerWithMaxTries* m_mainNavigationTimer;
@@ -422,7 +419,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 	QWidget* getCurrentWidget() const { return m_view; }
 
 	bool isGraphViewPreferred();
-	void setPriorityView(const QString& viewType);
+	void setPriorityView(const QString& viewType, bool isBinaryDataNavigable);
 	bool setViewType(const QString& viewType);
 	void focus();
 
@@ -440,8 +437,8 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 		return qobject_cast<T*>(widget);
 	}
 
-	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
-	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true);
+	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
+	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
 	bool navigate(BinaryViewRef data, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool navigateToFunction(FunctionRef func, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool goToReference(BinaryViewRef data, FunctionRef func, uint64_t source, uint64_t target, bool addHistoryEntry = true);

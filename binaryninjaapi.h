@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2024 Vector 35 Inc
+// Copyright (c) 2015-2025 Vector 35 Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -1057,9 +1057,23 @@ namespace BinaryNinja {
 			*/
 			size_t GetSessionId();
 
+			/*! Indent the logger's indentation level by one
+			 */
 			void Indent();
+
+			/*! Decrease the logger's indentation level by one
+			 */
 			void Dedent();
+
+			/*! Set the logger's indentation level to zero
+			 */
 			void ResetIndent();
+
+			/*! Get the string to prepend to log messages to indent them
+
+				\return Indentation string
+			 */
+			std::string GetIndent() const;
 	};
 
 	/*! A class allowing registering and retrieving Loggers
@@ -1118,6 +1132,24 @@ namespace BinaryNinja {
 			\return a list of registered logger names
 		*/
 		static std::vector<std::string> GetLoggerNames();
+	};
+
+	/*! RAII helper that indents/dedents a Logger inside a scope
+		\ingroup logging
+	 */
+	class LoggerIndentScope
+	{
+		Ref<Logger> m_logger;
+
+	public:
+		LoggerIndentScope(Ref<Logger> logger): m_logger(logger)
+		{
+			m_logger->Indent();
+		}
+		~LoggerIndentScope()
+		{
+			m_logger->Dedent();
+		}
 	};
 
 	/*!
@@ -6109,6 +6141,7 @@ namespace BinaryNinja {
 
 		AnalysisInfo GetAnalysisInfo();
 		BNAnalysisProgress GetAnalysisProgress();
+		BNAnalysisState GetAnalysisState();
 		Ref<BackgroundTask> GetBackgroundAnalysisTask();
 
 		/*! Returns the virtual address of the Function that occurs after the virtual address `addr`
@@ -10083,6 +10116,8 @@ namespace BinaryNinja {
 		WorkflowMachine(Ref<BinaryView> view);
 		WorkflowMachine(Ref<Function> function);
 
+		bool PostJsonRequest(const std::string& request);
+
 		/*! Start the workflow WorkflowMachine
 			Starts the workflow machine for the given BinaryView or Function.
 			\return true if the command is accepted, false otherwise.
@@ -10126,12 +10161,13 @@ namespace BinaryNinja {
 		*/
 		bool Step();
 
-		/*! Get the current state of the workflow machine
-
-			Returns the current state of the workflow machine.
-			\return The current state of the workflow machine
-		*/
+		// TODO: Add new BNWorkflowMachineStatus structure and cooresponding API
+		// BNWorkflowMachineStatus GetStatus();
+		// TODO remove the following APIs once the above is implemented
 		std::string GetState();
+		std::pair<bool, bool> GetLogStatus();
+
+		bool SetLogEnabled(bool enable, bool global = false);
 
 		std::optional<bool> QueryOverride(const std::string& activity);
 		bool SetOverride(const std::string& activity, bool enable);

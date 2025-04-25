@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2024 Vector 35 Inc
+// Copyright (c) 2015-2025 Vector 35 Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 101
+#define BN_CURRENT_CORE_ABI_VERSION 103
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -754,6 +754,7 @@ extern "C"
 		RelativeToSectionStartDisassemblyAddressMode,
 		RelativeToFunctionStartDisassemblyAddressMode,
 		RelativeToAddressBaseOffsetDisassemblyAddressMode,
+		RelativeToDataStartDisassemblyAddressMode,
 		DisassemblyAddressModeMask = 0xFFFF,
 
 		IncludeNameDisassemblyAddressModeFlag = 0x10000,
@@ -1014,7 +1015,10 @@ extern "C"
 		ILPreventAliasAnalysis = 0x20,
 
 		// Set on and instruction that has been re-written to clarify ControlFlowGuard constructs
-		ILIsCFGProtected = 0x40
+		ILIsCFGProtected = 0x40,
+
+		// MLIL instruction appears to be an otherwise unused intermediate
+		MLILPossiblyUnusedIntermediate = 0x80,
 	} BNILInstructionAttribute;
 
 	typedef enum BNIntrinsicClass
@@ -3739,6 +3743,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNLoggerIndent(BNLogger* logger);
 	BINARYNINJACOREAPI void BNLoggerDedent(BNLogger* logger);
 	BINARYNINJACOREAPI void BNLoggerResetIndent(BNLogger* logger);
+	BINARYNINJACOREAPI char* BNGetLoggerIndent(BNLogger* logger);
 	BINARYNINJACOREAPI BNLogger* BNLogCreateLogger(const char* loggerName, size_t sessionId);
 	BINARYNINJACOREAPI BNLogger* BNLogGetLogger(const char* loggerName, size_t sessionId);
 	BINARYNINJACOREAPI char** BNLogGetLoggerNames(size_t* count);
@@ -5067,6 +5072,7 @@ extern "C"
 	BINARYNINJACOREAPI BNAnalysisInfo* BNGetAnalysisInfo(BNBinaryView* view);
 	BINARYNINJACOREAPI void BNFreeAnalysisInfo(BNAnalysisInfo* info);
 	BINARYNINJACOREAPI BNAnalysisProgress BNGetAnalysisProgress(BNBinaryView* view);
+	BINARYNINJACOREAPI BNAnalysisState BNGetAnalysisState(BNBinaryView* view);
 	BINARYNINJACOREAPI BNBackgroundTask* BNGetBackgroundAnalysisTask(BNBinaryView* view);
 
 	BINARYNINJACOREAPI uint64_t BNGetNextFunctionStartAfterAddress(BNBinaryView* view, uint64_t addr);
@@ -7726,7 +7732,7 @@ extern "C"
 
 	// Base Address Detection
 	BINARYNINJACOREAPI BNBaseAddressDetection* BNCreateBaseAddressDetection(BNBinaryView *view);
-	BINARYNINJACOREAPI bool BNDetectBaseAddress(BNBaseAddressDetection* bad, BNBaseAddressDetectionSettings& settings);
+	BINARYNINJACOREAPI bool BNDetectBaseAddress(BNBaseAddressDetection* bad, BNBaseAddressDetectionSettings* settings);
 	BINARYNINJACOREAPI size_t BNGetBaseAddressDetectionScores(BNBaseAddressDetection* bad, BNBaseAddressDetectionScore* scores, size_t count,
 		BNBaseAddressDetectionConfidence* confidence, uint64_t* lastTestedBaseAddress);
 	BINARYNINJACOREAPI BNBaseAddressDetectionReason* BNGetBaseAddressDetectionReasons(BNBaseAddressDetection* bad,
