@@ -126,7 +126,9 @@ void AnalyzeStubFunction(Ref<Function> func, Ref<MediumLevelILFunction> mlil, Sh
 		if (region->type == SharedCacheRegionTypeImage)
 			return false;
 		// Adjust the new region semantics to read only, this helps analysis pickup constant loads in our stub functions.
-		region->flags = static_cast<BNSegmentFlag>(SegmentReadable | SegmentContainsData);
+		// NOTE: We do NOT do this for stub island as that contains CODE!
+		if (region->type != SharedCacheRegionTypeStubIsland)
+			region->flags = static_cast<BNSegmentFlag>(SegmentReadable | SegmentContainsData);
 		return controller.ApplyRegion(*view, *region);
 	};
 
