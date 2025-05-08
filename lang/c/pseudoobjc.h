@@ -22,7 +22,7 @@ protected:
 		BNOperatorPrecedence precedence, bool statement) override;
 
 private:
- 	bool GetExpr_ObjCMsgSend(const BinaryNinja::HighLevelILInstruction& expr,
+	bool GetExpr_ObjCMsgSend(uint64_t msgSendAddress, bool isRewritten, const BinaryNinja::HighLevelILInstruction& expr,
 		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
 		const std::vector<BinaryNinja::HighLevelILInstruction>& parameterExprs);
 	bool GetExpr_GenericObjCRuntimeCall(uint64_t address, const BinaryNinja::HighLevelILInstruction& expr,

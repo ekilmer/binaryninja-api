@@ -60,6 +60,43 @@ void SplitSelector(const std::string& selector, std::vector<std::string>& tokens
 		tokens.push_back(token);
 }
 
+std::optional<std::pair<uint64_t, Ref<Symbol>>> GetCallTargetInfo(const HighLevelILInstruction& callTarget,
+	const std::vector<HighLevelILInstruction>& parameterExprs, const Function& function)
+{
+	uint64_t constant = 0;
+	Ref<Symbol> symbol;
+
+	switch (callTarget.operation)
+	{
+	case HLIL_CONST_PTR:
+	{
+		constant = callTarget.GetConstant<HLIL_CONST_PTR>();
+		symbol = function.GetView()->GetSymbolByAddress(constant);
+		break;
+	}
+	case HLIL_IMPORT:
+	{
+		constant = callTarget.GetConstant<HLIL_IMPORT>();
+		auto importAddressSymbol = function.GetView()->GetSymbolByAddress(constant);
+		if (!importAddressSymbol)
+			return std::nullopt;
+
+		const auto symbolType = importAddressSymbol->GetType();
+		if (symbolType != ImportedDataSymbol && symbolType != ImportAddressSymbol)
+			return std::nullopt;
+
+		symbol = Symbol::ImportedFunctionFromImportAddressSymbol(importAddressSymbol, constant);
+	}
+	default:
+		break;
+	}
+
+	if (!symbol)
+		return std::nullopt;
+
+	return std::make_pair(constant, symbol);
+}
+
 struct RuntimeCall
 {
 	enum Type
@@ -78,6 +115,7 @@ struct RuntimeCall
 
 	Type type;
 	uint64_t address;
+	bool isRewritten = false;
 };
 
 constexpr std::array RUNTIME_CALLS = {
@@ -114,36 +152,10 @@ constexpr std::array RUNTIME_CALLS = {
 std::optional<RuntimeCall> DetectObjCRuntimeCall(const HighLevelILInstruction& callTarget,
 	const std::vector<HighLevelILInstruction>& parameterExprs, const Function& function)
 {
-	uint64_t constant = 0;
-	Ref<Symbol> symbol;
-
-	switch (callTarget.operation)
-	{
-	case HLIL_CONST_PTR:
-	{
-		constant = callTarget.GetConstant<HLIL_CONST_PTR>();
-		symbol = function.GetView()->GetSymbolByAddress(constant);
-		break;
-	}
-	case HLIL_IMPORT:
-	{
-		constant = callTarget.GetConstant<HLIL_IMPORT>();
-		auto importAddressSymbol = function.GetView()->GetSymbolByAddress(constant);
-		if (!importAddressSymbol)
-			return std::nullopt;
-
-		const auto symbolType = importAddressSymbol->GetType();
-		if (symbolType != ImportedDataSymbol && symbolType != ImportAddressSymbol)
-			return std::nullopt;
-
-		symbol = Symbol::ImportedFunctionFromImportAddressSymbol(importAddressSymbol, constant);
-	}
-	default:
-		break;
-	}
-
-	if (!symbol)
+	auto callTargetInfo = GetCallTargetInfo(callTarget, parameterExprs, function);
+	if (!callTargetInfo)
 		return std::nullopt;
+	auto [constant, symbol] = callTargetInfo.value();
 
 	const auto symbolShortName = symbol->GetShortName();
 	auto it = std::find_if(RUNTIME_CALLS.begin(), RUNTIME_CALLS.end(), [&](const auto& pair) {
@@ -153,6 +165,26 @@ std::optional<RuntimeCall> DetectObjCRuntimeCall(const HighLevelILInstruction& c
 		return std::nullopt;
 
 	return RuntimeCall {it->second, constant};
+}
+
+std::optional<RuntimeCall> DetectRewrittenDirectObjCMethodCall(const HighLevelILInstruction& callTarget,
+	const std::vector<HighLevelILInstruction>& parameterExprs, const Function& function)
+{
+	auto callTargetInfo = GetCallTargetInfo(callTarget, parameterExprs, function);
+	if (!callTargetInfo)
+		return std::nullopt;
+	auto [constant, symbol] = callTargetInfo.value();
+
+	const auto symbolShortName = symbol->GetShortName();
+	if (symbolShortName.length() < 6)
+		return std::nullopt;
+
+	// Look for the pattern -[ClassName methodName:] or +[ClassName methodName:]
+	if ((symbolShortName[0] != '-' && symbolShortName[0] != '+') || symbolShortName[1] != '['
+		|| symbolShortName.back() != ']' || symbolShortName.find(' ') == std::string::npos)
+		return std::nullopt;
+
+	return RuntimeCall {RuntimeCall::MessageSend, constant, true};
 }
 
 }  // unnamed namespace
@@ -170,6 +202,9 @@ void PseudoObjCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelIL
 
 	auto objCRuntimeCall = DetectObjCRuntimeCall(destExpr, parameterExprs, *GetFunction());
 	if (!objCRuntimeCall)
+		objCRuntimeCall = DetectRewrittenDirectObjCMethodCall(destExpr, parameterExprs, *GetFunction());
+
+	if (!objCRuntimeCall)
 		return PseudoCFunction::GetExpr_CALL_OR_TAILCALL(instr, tokens, settings, precedence, statement);
 
 	std::vector<std::string_view> runtimeCallTokens;
@@ -177,7 +212,7 @@ void PseudoObjCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelIL
 	{
 	case RuntimeCall::MessageSend:
 	case RuntimeCall::MessageSendSuper:
-		if (GetExpr_ObjCMsgSend(destExpr, tokens, settings, parameterExprs))
+		if (GetExpr_ObjCMsgSend(objCRuntimeCall->address, objCRuntimeCall->isRewritten, destExpr, tokens, settings, parameterExprs))
 		{
 			if (statement)
 				tokens.AppendSemicolon();
@@ -224,8 +259,9 @@ void PseudoObjCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelIL
 	return PseudoCFunction::GetExpr_CALL_OR_TAILCALL(instr, tokens, settings, precedence, statement);
 }
 
-bool PseudoObjCFunction::GetExpr_ObjCMsgSend(const HighLevelILInstruction& instr, HighLevelILTokenEmitter& tokens,
-	DisassemblySettings* settings, const std::vector<HighLevelILInstruction>& parameterExprs)
+bool PseudoObjCFunction::GetExpr_ObjCMsgSend(uint64_t msgSendAddress, bool isRewritten,
+	const HighLevelILInstruction& instr, HighLevelILTokenEmitter& tokens, DisassemblySettings* settings,
+	const std::vector<HighLevelILInstruction>& parameterExprs)
 {
 	if (parameterExprs.size() < 2)
 		return false;
@@ -238,6 +274,8 @@ bool PseudoObjCFunction::GetExpr_ObjCMsgSend(const HighLevelILInstruction& instr
 	std::vector<std::string> selectorTokens {2};
 	SplitSelector(selector, selectorTokens);
 
+	uint64_t referencedAddress = isRewritten ? msgSendAddress : selectorAddress;
+
 	tokens.AppendOpenBracket();
 
 	GetExprText(parameterExprs[0], tokens, settings);
@@ -249,7 +287,7 @@ bool PseudoObjCFunction::GetExpr_ObjCMsgSend(const HighLevelILInstruction& instr
 		if (index < selectorTokens.size())
 		{
 			tokens.Append(
-				DataSymbolToken, StringReferenceTokenContext, selectorTokens[index], instr.address, selectorAddress);
+				DataSymbolToken, StringReferenceTokenContext, selectorTokens[index], instr.address, referencedAddress);
 			tokens.Append(TextToken, ":");
 		}
 		else
@@ -264,7 +302,7 @@ bool PseudoObjCFunction::GetExpr_ObjCMsgSend(const HighLevelILInstruction& instr
 		for (size_t index = parameterExprs.size(); index < selectorTokens.size(); index++)
 		{
 			tokens.Append(
-				DataSymbolToken, StringReferenceTokenContext, selectorTokens[index], instr.address, selectorAddress);
+				DataSymbolToken, StringReferenceTokenContext, selectorTokens[index], instr.address, referencedAddress);
 			if (index != selectorTokens.size() - 1 || selector.back() == ':')
 				tokens.Append(TextToken, ":");
 		}
