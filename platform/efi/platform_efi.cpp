@@ -20,7 +20,6 @@ public:
 		Ref<CallingConvention> cc;
 
 		m_idtr = arch->GetRegisterByName("idtr");
-
 		cc = arch->GetCallingConventionByName("cdecl");
 		if (cc)
 		{
@@ -58,19 +57,7 @@ public:
 
 	virtual void BinaryViewInit(BinaryView* view) override
 	{
-		if (!m_idtrtype)
-			m_idtrtype = Type::NamedType(QualifiedName("IDTR32"), GetTypeByName(QualifiedName("IDTR32")));
-
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
+		m_idtrtype = Type::NamedType(QualifiedName("IDTR32"), GetTypeByName(QualifiedName("IDTR32")));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override
@@ -95,7 +82,6 @@ public:
 		Ref<CallingConvention> cc;
 
 		m_idtr = arch->GetRegisterByName("idtr");
-
 		cc = arch->GetCallingConventionByName("cdecl");
 		if (cc)
 		{
@@ -133,19 +119,7 @@ public:
 
 	virtual void BinaryViewInit(BinaryView* view) override
 	{
-		if (!m_idtrtype)
-			m_idtrtype = Type::NamedType(QualifiedName("IDTR32"), GetTypeByName(QualifiedName("IDTR32")));
-
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
+		m_idtrtype = Type::NamedType(QualifiedName("IDTR32"), GetTypeByName(QualifiedName("IDTR32")));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override
@@ -191,19 +165,7 @@ public:
 
 	virtual void BinaryViewInit(BinaryView* view) override
 	{
-		if (!m_idtrtype)
-			m_idtrtype = Type::NamedType(QualifiedName("IDTR64"), GetTypeByName(QualifiedName("IDTR64")));
-				
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
+		m_idtrtype = Type::NamedType(QualifiedName("IDTR64"), GetTypeByName(QualifiedName("IDTR64")));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override
@@ -249,19 +211,7 @@ public:
 
 	virtual void BinaryViewInit(BinaryView* view) override
 	{
-		if (!m_idtrtype)
-			m_idtrtype = Type::NamedType(QualifiedName("IDTR64"), GetTypeByName(QualifiedName("IDTR64")));
-				
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
+		m_idtrtype = Type::NamedType(QualifiedName("IDTR64"), GetTypeByName(QualifiedName("IDTR64")));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override
@@ -324,26 +274,6 @@ public:
 		}
 	}
 
-	virtual void BinaryViewInit(BinaryView* view) override
-	{
-		if (!m_tpidrel0type)
-			m_tpidrel0type = Type::NamedType(QualifiedName("EFI_PEI_SERVICES"),
-				Type::PointerType(view->GetDefaultArchitecture(),
-					Type::PointerType(
-						view->GetDefaultArchitecture(), GetTypeByName(QualifiedName("EFI_PEI_SERVICES")))));
-				
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
-	}
-
 	static Ref<Platform> Recognize(BinaryView* view, Metadata* metadata)
 	{
 		Ref<Metadata> subsystem = metadata->Get("Subsystem");
@@ -352,6 +282,13 @@ public:
 		if (subsystem->GetUnsignedInteger() >= 10 && subsystem->GetUnsignedInteger() <= 13)
 			return g_efiArm64;
 		return nullptr;
+	}
+
+	virtual void BinaryViewInit(BinaryView* view) override
+	{
+		m_tpidrel0type = Type::NamedType(QualifiedName("EFI_PEI_SERVICES"),
+			Type::PointerType(GetArchitecture(),
+				Type::PointerType(GetArchitecture(), GetTypeByName(QualifiedName("EFI_PEI_SERVICES")))));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override
@@ -384,26 +321,6 @@ public:
 		}
 	}
 
-	virtual void BinaryViewInit(BinaryView* view) override
-	{
-		if (!m_tpidrel0type)
-			m_tpidrel0type = Type::NamedType(QualifiedName("EFI_PEI_SERVICES"),
-				Type::PointerType(view->GetDefaultArchitecture(),
-					Type::PointerType(
-						view->GetDefaultArchitecture(), GetTypeByName(QualifiedName("EFI_PEI_SERVICES")))));
-			
-		auto ctx = PluginCommandContext();
-        ctx.binaryView = view;
-		auto commandList = PluginCommand::GetValidList(ctx);
-		for (auto command : commandList)
-		{
-			if (command.GetName() == "EFI Resolver\\Resolve EFI Types And Protocols")
-			{
-				command.Execute(ctx);
-			}
-		}
-	}
-
 	static Ref<Platform> Recognize(BinaryView* view, Metadata* metadata)
 	{
 		Ref<Metadata> subsystem = metadata->Get("Subsystem");
@@ -412,6 +329,14 @@ public:
 		if (subsystem->GetUnsignedInteger() == 0x10)  // IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION
 			return g_efiArm64Windows;
 		return nullptr;
+	}
+
+	virtual void BinaryViewInit(BinaryView* view) override
+	{
+		m_tpidrel0type = Type::NamedType(QualifiedName("EFI_PEI_SERVICES"),
+			Type::PointerType(GetArchitecture(),
+				Type::PointerType(
+					GetArchitecture(), GetTypeByName(QualifiedName("EFI_PEI_SERVICES")))));
 	}
 
 	virtual Ref<Type> GetGlobalRegisterType(uint32_t reg) override

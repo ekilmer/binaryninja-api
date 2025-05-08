@@ -3,18 +3,25 @@ Author: **Vector 35 Inc**
 
 _A Binary Ninja built-in plugin that automatically resolves type information for EFI protocol usage._
 
-This repository contains C++ version of EFI Resolver, which is bundled with Binary Ninja. For the original Python
-version, please refer to https://github.com/vector35/efi-resolver/tree/main
-
 ## Description:
 
-EFI Resolver is a Binary Ninja plugin that automates the task of resolving EFI protocol type information. It supports both DXE files and PEI files. It propagates parameter pointers from entry points to system table, MM system table, boot services, and runtime services to any global variables where they are stored. For PEI files, it also supports identifying [processor-specific mechanisms](https://uefi.org/specs/PI/1.8/V1_PEI_Foundation.html#pei-services-table-retrieval) for retrieving PEI services pointers. The plugin also identifies references to the boot services, MM protocol functions and PEI services, and applies type information according to the GUID passed to these functions. The plugin supports the core UEFI specification, and allows users to provide custom vendor protocols.
+EFI Resolver is a Binary Ninja plugin that automates the resolution of EFI protocol type information. It supports both
+DXE files and PEI modules. The plugin propagates parameter pointers from entry points to system tables, including the
+main system table, MM system table, boot services, and runtime services, assigning types to global variables.
+
+For PEI files, EFI Resolver can also detect
+[processor-specific patterns](https://uefi.org/specs/PI/1.8/V1_PEI_Foundation.html#pei-services-table-retrieval)
+used to retrieve PEI services pointers.
+
+Additionally, the plugin identifies references to boot services, MM protocol functions, and PEI services. It applies
+type information based on the GUIDs passed to these functions.
+
+EFI Resolver supports the core UEFI specification and allows users to define custom vendor protocols.
 
 ## Build Instructions
 
 ```bash
-git clone https://github.com/Vector35/binaryninja-api.git
-git clone https://github.com/Vector35/efi-resolver.git && cd efi-resolver
+git clone https://github.com/Vector35/binaryninja-api.git && cd binaryninja-api/plugins/efi_resolver
 export BN_API_PATH=../binaryninja-api # Or specifying the path to api repo
 cmake -S . -B build -GNinja
 cmake --build build -t install
@@ -26,7 +33,7 @@ This plugin is released under an Apache-2.0 license.
 
 ## Supplying Custom UEFI Protocol GUIDs and Types
 
-By default, EFI Resolver propagates types and GUIDs using Binary Ninja's native platform types for EFI. Many UEFI
+EFI Resolver propagates types and GUIDs using Binary Ninja's native platform types for EFI. Many UEFI
 firmware binaries include types (and GUIDs) for proprietary protocols. This section describes how users can supply
 custom UEFI types and GUIDs for use with EFI Resolver type propagation.
 
