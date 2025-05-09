@@ -2432,8 +2432,7 @@ Ref<Symbol> MachoView::DefineMachoSymbol(
 		{
 			QualifiedName demangledName;
 			Ref<Type> demangledType;
-			bool simplify = Settings::Instance()->Get<bool>("analysis.types.templateSimplifier", this);
-			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, simplify))
+			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, nullptr, m_simplifyTemplates))
 			{
 				shortName = demangledName.GetString();
 				fullName = shortName;
@@ -2441,10 +2440,6 @@ Ref<Symbol> MachoView::DefineMachoSymbol(
 					fullName += demangledType->GetStringAfterName();
 				if (!typeRef && m_extractMangledTypes && !GetDefaultPlatform()->GetFunctionByName(rawName))
 					typeRef = demangledType;
-			}
-			else
-			{
-				m_logger->LogDebug("Failed to demangle name: '%s'\n", rawName.c_str());
 			}
 		}
 

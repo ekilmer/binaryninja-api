@@ -2531,8 +2531,7 @@ void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uin
 		{
 			QualifiedName demangledName;
 			Ref<Type> demangledType;
-			bool simplify = Settings::Instance()->Get<bool>("analysis.types.templateSimplifier", this);
-			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, simplify))
+			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, m_simplifyTemplates))
 			{
 				shortName = demangledName.GetString();
 				fullName = shortName;
