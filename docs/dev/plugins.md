@@ -213,7 +213,7 @@ both publishing and using native plugins.
 
 ### UI Plugins
 
-If you want to include UI in your plugin, you can integrate with Binary Ninja's Qt-based UI by linking with Qt and `binaryninjaui`.
+If you want to include a UI in your plugin, you can integrate with Binary Ninja's Qt-based UI by linking with Qt and `binaryninjaui`.
 You will need to use the same version of Qt as Binary Ninja. We provide steps for building it [here](../about/open-source.md#building-qt),
 or you can attempt to use a system-provided copy if you use Linux and like to live dangerously.
 Building it is a bit of a process, but should provide you with a working installation. Once you have a Qt build,
