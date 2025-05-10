@@ -147,9 +147,92 @@ WorkflowMachine::WorkflowMachine(Ref<Function> function): m_function(function)
 }
 
 
+bool WorkflowMachine::PostJsonRequest(const std::string& request)
+{
+	string jsonResult;
+	if (m_function)
+		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), request.c_str());
+	else
+		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), request.c_str());
+
+	rapidjson::Document response(rapidjson::kObjectType);
+	response.Parse(jsonResult.c_str());
+	if (response.HasMember("commandStatus") && response["commandStatus"].HasMember("accepted"))
+		return response["commandStatus"]["accepted"].GetBool();
+
+	return false;
+}
+
+
+Ref<FlowGraph> WorkflowMachine::GetGraph(const std::string& activity, bool sequential)
+{
+	BNFlowGraph* graph;
+	if (m_function)
+		graph = BNGetWorkflowGraphForFunction(m_function->GetObject(), activity.c_str(), sequential);
+	else
+		graph = BNGetWorkflowGraphForBinaryView(m_view->GetObject(), activity.c_str(), sequential);
+
+	return new CoreFlowGraph(graph);
+}
+
+
+void WorkflowMachine::ShowTopology()
+{
+	if (m_function)
+		BNShowWorkflowReportForFunction(m_function->GetObject(), "topology");
+	else
+		BNShowWorkflowReportForBinaryView(m_view->GetObject(), "topology");
+}
+
+
+WorkflowMachine::Status WorkflowMachine::GetStatus()
+{
+	WorkflowMachine::Status status;
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& allocator = request.GetAllocator();
+	request.AddMember("command", "status", allocator);
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	string jsonResult;
+	if (m_function)
+		jsonResult = BNPostWorkflowRequestForFunction(m_function->GetObject(), buffer.GetString());
+	else
+		jsonResult = BNPostWorkflowRequestForBinaryView(m_view->GetObject(), buffer.GetString());
+
+	rapidjson::Document response(rapidjson::kObjectType);
+	response.Parse(jsonResult.c_str());
+	if (response.HasMember("machineState") && response["machineState"].HasMember("state") && response["machineState"].HasMember("activity"))
+	{
+		status.state = response["machineState"]["state"].GetString();
+		status.activity = response["machineState"]["activity"].GetString();
+	}
+	if (response.HasMember("logStatus") && response["logStatus"].HasMember("local") && response["logStatus"].HasMember("global"))
+	{
+		status.localLogEnabled = response["logStatus"]["local"].GetBool();
+		status.globalLogEnabled = response["logStatus"]["global"].GetBool();
+	}
+
+	return status;
+}
+
+
+bool WorkflowMachine::Resume()
+{
+	return PostRequest("resume");
+}
+
+
 bool WorkflowMachine::Run()
 {
 	return PostRequest("run");
+}
+
+
+bool WorkflowMachine::Configure()
+{
+	return PostRequest("configure");
 }
 
 
@@ -183,11 +266,13 @@ bool WorkflowMachine::Step()
 }
 
 
-string WorkflowMachine::GetState()
+bool WorkflowMachine::SetLogEnabled(bool enable, bool global)
 {
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& allocator = request.GetAllocator();
-	request.AddMember("command", "status", allocator);
+	request.AddMember("command", "log", allocator);
+	request.AddMember("enable", enable, allocator);
+	request.AddMember("global", global, allocator);
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
@@ -200,10 +285,10 @@ string WorkflowMachine::GetState()
 
 	rapidjson::Document response(rapidjson::kObjectType);
 	response.Parse(jsonResult.c_str());
-	if (response.HasMember("machineState") && response["machineState"].HasMember("state"))
-		return response["machineState"]["state"].GetString();
+	if (response.HasMember("commandStatus") && response["commandStatus"].HasMember("accepted"))
+		return response["commandStatus"]["accepted"].GetBool();
 
-	return "Invalid";
+	return false;
 }
 
 

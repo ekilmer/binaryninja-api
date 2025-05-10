@@ -105,6 +105,7 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	QTimer* m_loadingTimer;
 	QTimer* m_zoomTimer;
 	QTimer* m_zoomPauseTimer;
+	bool m_initialSizeToFit = false;
 
 	std::mutex m_updateMutex;
 	bool m_updated;
@@ -225,6 +226,7 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	virtual void OnAnalysisFunctionUpdated(BinaryNinja::BinaryView* data, BinaryNinja::Function* func) override;
 	virtual void OnAnalysisFunctionUpdateRequested(BinaryNinja::BinaryView* data, BinaryNinja::Function* func) override;
 	virtual void OnDataMetadataUpdated(BinaryNinja::BinaryView* data, uint64_t offset) override;
+	virtual void OnTagAdded(BinaryNinja::BinaryView* data, const BinaryNinja::TagReference& tagRef) override;
 	virtual void OnTagUpdated(BinaryNinja::BinaryView* data, const BinaryNinja::TagReference& tagRef) override;
 
 	void setInitialGraph(FlowGraphRef graph);
@@ -255,6 +257,7 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	virtual void setRelatedIndexHighlights(FunctionRef func, const std::set<size_t>& related) override;
 	virtual void setRelatedInstructionHighlights(FunctionRef func, const std::set<uint64_t>& related) override;
 
+	void enableInitialSizeToFit() { m_initialSizeToFit = true; }
 	float getScale() const { return m_scale; }
 	float maxScale() const;
 	virtual void zoom(bool direction);

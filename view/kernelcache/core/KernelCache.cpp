@@ -223,7 +223,7 @@ void KernelCache::PerformInitialLoad(std::lock_guard<std::mutex>& lock)
 		return;
 	}
 	uint32_t cpuType = reader.Read32();
-	uint32_t cpuSubtype = reader.Read32();
+	reader.SeekRelative(4);
 	uint32_t fileType = reader.Read32();
 	if (fileType != MH_FILESET)
 	{
@@ -231,8 +231,7 @@ void KernelCache::PerformInitialLoad(std::lock_guard<std::mutex>& lock)
 		return;
 	}
 	uint32_t ncmds = reader.Read32();
-	uint32_t sizeofcmds = reader.Read32();
-	uint32_t flags = reader.Read32();
+	reader.SeekRelative(8);
 	if ((cpuType & MachOABIMask) != MachOABI64)
 	{
 		m_logger->LogError("Invalid ABI in KernelCache. 32 bit not yet supported.");
@@ -603,12 +602,12 @@ bool KernelCache::LoadImageWithInstallName(std::lock_guard<std::mutex>& lock, st
 			break;
 		}
 	}
-	const auto header = LoadHeaderForAddress(m_kcView, targetImage->headerFileLocation, targetImage->installName);
-
-	if (!header)
-	{
+	if (!targetImage)
 		return false;
-	}
+
+	const auto header = LoadHeaderForAddress(m_kcView, targetImage->headerFileLocation, targetImage->installName);
+	if (!header)
+		return false;
 
 	m_modifiedState->viewState = KCViewStateLoadedWithImages;
 
@@ -1812,7 +1811,7 @@ void KernelCache::ReadExportNode(Ref<BinaryView> view, std::vector<Ref<Symbol>>&
 			{
 				if (!currentText.empty() && textBase + imageOffset)
 				{
-					uint32_t flags;
+					uint32_t sectionFlags;
 					BNSymbolType type;
 					for (auto s : header.sections)
 					{
@@ -1820,12 +1819,12 @@ void KernelCache::ReadExportNode(Ref<BinaryView> view, std::vector<Ref<Symbol>>&
 						{
 							if (s.addr + s.size > textBase + imageOffset)
 							{
-								flags = s.flags;
+								sectionFlags = s.flags;
 							}
 						}
 					}
-					if ((flags & S_ATTR_PURE_INSTRUCTIONS) == S_ATTR_PURE_INSTRUCTIONS
-						|| (flags & S_ATTR_SOME_INSTRUCTIONS) == S_ATTR_SOME_INSTRUCTIONS)
+					if ((sectionFlags & S_ATTR_PURE_INSTRUCTIONS) == S_ATTR_PURE_INSTRUCTIONS
+						|| (sectionFlags & S_ATTR_SOME_INSTRUCTIONS) == S_ATTR_SOME_INSTRUCTIONS)
 						type = FunctionSymbol;
 					else
 						type = DataSymbol;
@@ -1900,6 +1899,13 @@ std::vector<KernelCacheImage> KernelCache::GetLoadedImages()
 		images.push_back(image);
 	}
 	return images;
+}
+
+
+bool KernelCache::IsImageLoaded(uint64_t address)
+{
+	std::lock_guard lock(m_viewSpecificState->stateMutex);
+	return m_viewSpecificState->state.loadedImages.find(address)!= m_viewSpecificState->state.loadedImages.end();
 }
 
 
@@ -2016,17 +2022,17 @@ bool KernelCache::SaveModifiedStateToKCView(std::lock_guard<std::mutex>&)
 		// merged into a single state object and the modification count is reset to zero.
 		for (size_t i = modificationNumber + 1; i < std::numeric_limits<size_t>::max(); ++i)
 		{
-			std::string metadataKey = KernelCacheMetadata::ModifiedStateTagPrefix + std::to_string(i);
+			std::string modifiedStateMetadataKey = KernelCacheMetadata::ModifiedStateTagPrefix + std::to_string(i);
 			bool done = true;
-			if (m_kcView->QueryMetadata(metadataKey))
+			if (m_kcView->QueryMetadata(modifiedStateMetadataKey))
 			{
 				done = false;
-				m_kcView->RemoveMetadata(metadataKey);
+				m_kcView->RemoveMetadata(modifiedStateMetadataKey);
 			}
-			if (m_kcView->GetParentView()->QueryMetadata(metadataKey))
+			if (m_kcView->GetParentView()->QueryMetadata(modifiedStateMetadataKey))
 			{
 				done = false;
-				m_kcView->GetParentView()->RemoveMetadata(metadataKey);
+				m_kcView->GetParentView()->RemoveMetadata(modifiedStateMetadataKey);
 			}
 			if (done)
 				break;
@@ -2156,6 +2162,14 @@ extern "C"
 		{
 			return cache->object->LoadImageContainingAddress(address);
 		}
+
+		return false;
+	}
+
+	bool BNKCViewIsImageLoaded(BNKernelCache* cache, uint64_t address)
+	{
+		if (cache->object)
+			return cache->object->IsImageLoaded(address);
 
 		return false;
 	}

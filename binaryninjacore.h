@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2024 Vector 35 Inc
+// Copyright (c) 2015-2025 Vector 35 Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 101
+#define BN_CURRENT_CORE_ABI_VERSION 105
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -307,6 +307,8 @@ extern "C"
 	typedef struct BNLineFormatter BNLineFormatter;
 	typedef struct BNRenderLayer BNRenderLayer;
 	typedef struct BNStringRef BNStringRef;
+
+	typedef bool(*BNProgressFunction)(void*, size_t, size_t);
 
 	//! Console log levels
 	typedef enum BNLogLevel
@@ -754,6 +756,7 @@ extern "C"
 		RelativeToSectionStartDisassemblyAddressMode,
 		RelativeToFunctionStartDisassemblyAddressMode,
 		RelativeToAddressBaseOffsetDisassemblyAddressMode,
+		RelativeToDataStartDisassemblyAddressMode,
 		DisassemblyAddressModeMask = 0xFFFF,
 
 		IncludeNameDisassemblyAddressModeFlag = 0x10000,
@@ -1014,7 +1017,10 @@ extern "C"
 		ILPreventAliasAnalysis = 0x20,
 
 		// Set on and instruction that has been re-written to clarify ControlFlowGuard constructs
-		ILIsCFGProtected = 0x40
+		ILIsCFGProtected = 0x40,
+
+		// MLIL instruction appears to be an otherwise unused intermediate
+		MLILPossiblyUnusedIntermediate = 0x80,
 	} BNILInstructionAttribute;
 
 	typedef enum BNIntrinsicClass
@@ -2709,7 +2715,7 @@ extern "C"
 		void* readContext;
 		uint64_t (*writeCallback)(uint8_t* data, uint64_t len, void* ctxt);
 		void* writeContext;
-		bool (*progressCallback)(void* ctxt, uint64_t progress, uint64_t total);
+		BNProgressFunction progressCallback;
 		void* progressContext;
 	} BNDownloadInstanceInputOutputCallbacks;
 
@@ -2717,7 +2723,7 @@ extern "C"
 	{
 		uint64_t (*writeCallback)(uint8_t* data, uint64_t len, void* ctxt);
 		void* writeContext;
-		bool (*progressCallback)(void* ctxt, uint64_t progress, uint64_t total);
+		BNProgressFunction progressCallback;
 		void* progressContext;
 	} BNDownloadInstanceOutputCallbacks;
 
@@ -3008,7 +3014,7 @@ extern "C"
 		    void* ctxt, const char* title, const char* text, BNMessageBoxButtonSet buttons, BNMessageBoxIcon icon);
 		bool (*openUrl)(void* ctxt, const char* url);
 		bool (*runProgressDialog)(void* ctxt, const char* title, bool canCancel,
-			void (*task)(void* taskCtxt, bool(*progress)(void* progressCtxt, size_t cur, size_t max), void* progressCtxt), void* taskCtxt);
+			void (*task)(void* taskCtxt, BNProgressFunction progress, void* progressCtxt), void* taskCtxt);
 	} BNInteractionHandlerCallbacks;
 
 	typedef struct BNObjectDestructionCallbacks
@@ -3491,7 +3497,6 @@ extern "C"
 		uint32_t flags;
 	} BNSegmentInfo;
 
-	typedef bool(*BNProgressFunction)(void*, size_t, size_t);
 	typedef bool(*BNCollaborationAnalysisConflictHandler)(void*, const char** keys, BNAnalysisMergeConflict** conflicts, size_t conflictCount);
 	typedef bool(*BNCollaborationNameChangesetFunction)(void*, BNCollaborationChangeset*);
 
@@ -3739,6 +3744,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNLoggerIndent(BNLogger* logger);
 	BINARYNINJACOREAPI void BNLoggerDedent(BNLogger* logger);
 	BINARYNINJACOREAPI void BNLoggerResetIndent(BNLogger* logger);
+	BINARYNINJACOREAPI char* BNGetLoggerIndent(BNLogger* logger);
 	BINARYNINJACOREAPI BNLogger* BNLogCreateLogger(const char* loggerName, size_t sessionId);
 	BINARYNINJACOREAPI BNLogger* BNLogGetLogger(const char* loggerName, size_t sessionId);
 	BINARYNINJACOREAPI char** BNLogGetLoggerNames(size_t* count);
@@ -4225,7 +4231,7 @@ extern "C"
 
 	BINARYNINJACOREAPI bool BNSearch(BNBinaryView* view, const char* query, void* context, BNProgressFunction progressCallback, void* matchContext, bool (*callback)(void*, uint64_t, BNDataBuffer*));
 	BINARYNINJACOREAPI char* BNDetectSearchMode(const char* query);
-	BINARYNINJACOREAPI bool BNPerformSearch(const char* query, const uint8_t* buffer, size_t size, bool(*callback)(void*, size_t, size_t), void* context);
+	BINARYNINJACOREAPI bool BNPerformSearch(const char* query, const uint8_t* buffer, size_t size, BNProgressFunction callback, void* context);
 
 	BINARYNINJACOREAPI void BNBeginBulkAddSegments(BNBinaryView* view);
 	BINARYNINJACOREAPI void BNEndBulkAddSegments(BNBinaryView* view);
@@ -5067,6 +5073,7 @@ extern "C"
 	BINARYNINJACOREAPI BNAnalysisInfo* BNGetAnalysisInfo(BNBinaryView* view);
 	BINARYNINJACOREAPI void BNFreeAnalysisInfo(BNAnalysisInfo* info);
 	BINARYNINJACOREAPI BNAnalysisProgress BNGetAnalysisProgress(BNBinaryView* view);
+	BINARYNINJACOREAPI BNAnalysisState BNGetAnalysisState(BNBinaryView* view);
 	BINARYNINJACOREAPI BNBackgroundTask* BNGetBackgroundAnalysisTask(BNBinaryView* view);
 
 	BINARYNINJACOREAPI uint64_t BNGetNextFunctionStartAfterAddress(BNBinaryView* view, uint64_t addr);
@@ -5246,6 +5253,7 @@ extern "C"
 	BINARYNINJACOREAPI bool BNLookupImportedTypePlatform(BNBinaryView* view, const BNQualifiedName* typeName, BNPlatform** platform, BNQualifiedName* resultName);
 
 	BINARYNINJACOREAPI void BNReanalyzeAllFunctions(BNBinaryView* view);
+	BINARYNINJACOREAPI void BNAnalyzeFunction(BNFunction* func);
 	BINARYNINJACOREAPI void BNReanalyzeFunction(BNFunction* func, BNFunctionUpdateType type);
 	BINARYNINJACOREAPI void BNMarkUpdatesRequired(BNFunction* func, BNFunctionUpdateType type);
 	BINARYNINJACOREAPI void BNMarkCallerUpdatesRequired(BNFunction* func, BNFunctionUpdateType type);
@@ -5267,7 +5275,7 @@ extern "C"
 	BINARYNINJACOREAPI BNTypeContainerType BNTypeContainerGetType(BNTypeContainer* container);
 	BINARYNINJACOREAPI bool BNTypeContainerIsMutable(BNTypeContainer* container);
 	BINARYNINJACOREAPI BNPlatform* BNTypeContainerGetPlatform(BNTypeContainer* container);
-	BINARYNINJACOREAPI bool BNTypeContainerAddTypes(BNTypeContainer* container, const BNQualifiedName* typeNames, BNType** types, size_t typeCount, bool(*progress)(void*, size_t, size_t), void* progressContext, BNQualifiedName** resultNames, char*** resultIds, size_t* resultCount);
+	BINARYNINJACOREAPI bool BNTypeContainerAddTypes(BNTypeContainer* container, const BNQualifiedName* typeNames, BNType** types, size_t typeCount, BNProgressFunction progress, void* progressContext, BNQualifiedName** resultNames, char*** resultIds, size_t* resultCount);
 	BINARYNINJACOREAPI bool BNTypeContainerRenameType(BNTypeContainer* container, const char* typeId, const BNQualifiedName* newName);
 	BINARYNINJACOREAPI bool BNTypeContainerDeleteType(BNTypeContainer* container, const char* typeId);
 	BINARYNINJACOREAPI bool BNTypeContainerGetTypeId(BNTypeContainer* container, const BNQualifiedName* typeName, char** result);
@@ -5539,11 +5547,13 @@ extern "C"
 	// BinaryView Workflow Machine
 	BINARYNINJACOREAPI BNWorkflow* BNGetWorkflowForBinaryView(BNBinaryView* view);
 	BINARYNINJACOREAPI char* BNPostWorkflowRequestForBinaryView(BNBinaryView* view, const char* request);
+	BINARYNINJACOREAPI BNFlowGraph* BNGetWorkflowGraphForBinaryView(BNBinaryView* view, const char* name, bool sequential);
 	BINARYNINJACOREAPI void BNShowWorkflowReportForBinaryView(BNBinaryView* view, const char* name);
 
 	// Function Workflow Machine
 	BINARYNINJACOREAPI BNWorkflow* BNGetWorkflowForFunction(BNFunction* func);
 	BINARYNINJACOREAPI char* BNPostWorkflowRequestForFunction(BNFunction* func, const char* request);
+	BINARYNINJACOREAPI BNFlowGraph* BNGetWorkflowGraphForFunction(BNFunction* func, const char* name, bool sequential);
 	BINARYNINJACOREAPI void BNShowWorkflowReportForFunction(BNFunction* func, const char* name);
 
 	// Provenance
@@ -7151,7 +7161,7 @@ extern "C"
 	    const char* title, const char* text, BNMessageBoxButtonSet buttons, BNMessageBoxIcon icon);
 	BINARYNINJACOREAPI bool BNOpenUrl(const char* url);
 	BINARYNINJACOREAPI bool BNRunProgressDialog(const char* title, bool canCancel,
-		void (*task)(void* taskCtxt, bool(*progress)(void* progressCtxt, size_t cur, size_t max), void* progressCtxt), void* taskCtxt);
+		void (*task)(void* taskCtxt, BNProgressFunction progress, void* progressCtxt), void* taskCtxt);
 
 	BINARYNINJACOREAPI BNReportCollection* BNCreateReportCollection(void);
 	BINARYNINJACOREAPI BNReportCollection* BNNewReportCollectionReference(BNReportCollection* reports);
@@ -7726,7 +7736,7 @@ extern "C"
 
 	// Base Address Detection
 	BINARYNINJACOREAPI BNBaseAddressDetection* BNCreateBaseAddressDetection(BNBinaryView *view);
-	BINARYNINJACOREAPI bool BNDetectBaseAddress(BNBaseAddressDetection* bad, BNBaseAddressDetectionSettings& settings);
+	BINARYNINJACOREAPI bool BNDetectBaseAddress(BNBaseAddressDetection* bad, BNBaseAddressDetectionSettings* settings);
 	BINARYNINJACOREAPI size_t BNGetBaseAddressDetectionScores(BNBaseAddressDetection* bad, BNBaseAddressDetectionScore* scores, size_t count,
 		BNBaseAddressDetectionConfidence* confidence, uint64_t* lastTestedBaseAddress);
 	BINARYNINJACOREAPI BNBaseAddressDetectionReason* BNGetBaseAddressDetectionReasons(BNBaseAddressDetection* bad,

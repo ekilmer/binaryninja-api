@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2024 Vector 35 Inc
+// Copyright (c) 2015-2025 Vector 35 Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -2485,6 +2485,12 @@ Confidence<RegisterValue> Function::GetRegisterValueAtExit(uint32_t reg) const
 {
 	BNRegisterValueWithConfidence value = BNGetFunctionRegisterValueAtExit(m_object, reg);
 	return Confidence<RegisterValue>(RegisterValue::FromAPIObject(value.value), value.confidence);
+}
+
+
+void Function::Analyze()
+{
+	BNAnalyzeFunction(m_object);
 }
 
 

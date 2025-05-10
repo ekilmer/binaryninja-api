@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2024 Vector 35 Inc
+// Copyright (c) 2015-2025 Vector 35 Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -149,7 +149,7 @@ std::optional<std::string> TypeContainer::AddType(QualifiedName name, Ref<Type> 
 
 std::optional<std::unordered_map<QualifiedName, std::string>> TypeContainer::AddTypes(
 	const std::vector<std::pair<QualifiedName, Ref<Type>>>& types,
-	std::function<bool(size_t, size_t)> progress)
+	ProgressFunction progress)
 {
 	BNQualifiedName* apiTypeNames = new BNQualifiedName[types.size()];
 	BNType** apiTypes = new BNType*[types.size()];

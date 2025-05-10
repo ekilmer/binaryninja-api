@@ -138,23 +138,23 @@ class BINARYNINJAUIAPI View
 	virtual bool canCompile() { return false; }
 
 	virtual bool findNextData(uint64_t start, uint64_t end, const BinaryNinja::DataBuffer& data, uint64_t& addr,
-	    BNFindFlag flags, const std::function<bool(size_t current, size_t total)>& cb);
+	    BNFindFlag flags, const BinaryNinja::ProgressFunction& cb);
 	virtual bool findNextText(uint64_t start, uint64_t end, const std::string& text, uint64_t& addr,
 	    DisassemblySettingsRef settings, BNFindFlag flags, const BinaryNinja::FunctionViewType& graph,
-	    const std::function<bool(size_t current, size_t total)>& cb);
+	    const BinaryNinja::ProgressFunction& cb);
 	virtual bool findNextConstant(uint64_t start, uint64_t end, uint64_t constant, uint64_t& addr,
 	    DisassemblySettingsRef settings, const BinaryNinja::FunctionViewType& graph,
-	    const std::function<bool(size_t current, size_t total)>& cb);
+	    const BinaryNinja::ProgressFunction& cb);
 
 	virtual bool findAllData(uint64_t start, uint64_t end, const BinaryNinja::DataBuffer& data, BNFindFlag flags,
-	    const std::function<bool(size_t current, size_t total)>& cb,
+	    const BinaryNinja::ProgressFunction& cb,
 	    const std::function<bool(uint64_t addr, const BinaryNinja::DataBuffer& match)>& matchCallback);
 	virtual bool findAllText(uint64_t start, uint64_t end, const std::string& data, DisassemblySettingsRef settings,
-	    BNFindFlag flags, const BinaryNinja::FunctionViewType& graph, const std::function<bool(size_t current, size_t total)>& cb,
+	    BNFindFlag flags, const BinaryNinja::FunctionViewType& graph, const BinaryNinja::ProgressFunction& cb,
 	    const std::function<bool(
 	        uint64_t addr, const std::string& match, const BinaryNinja::LinearDisassemblyLine& line)>& matchCallback);
 	virtual bool findAllConstant(uint64_t start, uint64_t end, uint64_t constant, DisassemblySettingsRef settings,
-	    const BinaryNinja::FunctionViewType& graph, const std::function<bool(size_t current, size_t total)>& cb,
+	    const BinaryNinja::FunctionViewType& graph, const BinaryNinja::ProgressFunction& cb,
 	    const std::function<bool(uint64_t addr, const BinaryNinja::LinearDisassemblyLine& line)>& matchCallback);
 
 	virtual BinaryViewRef getData() = 0;
@@ -186,17 +186,13 @@ class BINARYNINJAUIAPI View
 	virtual void cut();
 	virtual void copy(TransformRef xform = nullptr);
 	virtual void copyAddress();
-#ifdef ULTIMATE_EDITION
 	virtual void copyLocationAsURL();
-#endif
 	virtual void paste(TransformRef xform = nullptr);
 	virtual bool canCut();
 	virtual bool canCopy();
 	virtual bool canCopyWithTransform();
 	virtual bool canCopyAddress();
-#ifdef ULTIMATE_EDITION
 	virtual bool canCopyLocationAsURL();
-#endif
 	virtual bool canPaste();
 	virtual bool canPasteWithTransform();
 
@@ -376,6 +372,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 	QStringList m_viewTypePriority;
 	int m_preferredSyncGroup = 1;
 	bool m_aboutToClose = false;
+	LoggerRef m_logger;
 
 	UIActionHandler m_actionHandler;
 	TimerWithMaxTries* m_mainNavigationTimer;
@@ -422,7 +419,7 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 	QWidget* getCurrentWidget() const { return m_view; }
 
 	bool isGraphViewPreferred();
-	void setPriorityView(const QString& viewType);
+	void setPriorityView(const QString& viewType, bool isBinaryDataNavigable);
 	bool setViewType(const QString& viewType);
 	void focus();
 
@@ -440,8 +437,8 @@ class BINARYNINJAUIAPI ViewFrame : public QWidget
 		return qobject_cast<T*>(widget);
 	}
 
-	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
-	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true);
+	bool navigate(const QString& type, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
+	bool navigate(const QString& type, const std::function<bool(View*)>& handler, bool updateInfo = true, bool addHistoryEntry = true, bool checkNavigable = false);
 	bool navigate(BinaryViewRef data, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool navigateToFunction(FunctionRef func, uint64_t offset, bool updateInfo = true, bool addHistoryEntry = true);
 	bool goToReference(BinaryViewRef data, FunctionRef func, uint64_t source, uint64_t target, bool addHistoryEntry = true);

@@ -1,4 +1,4 @@
-# Copyright (c) 2015-2024 Vector 35 Inc
+# Copyright (c) 2015-2025 Vector 35 Inc
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -897,6 +897,9 @@ from binaryninja import *
 		self.input_ready_state = ScriptingProviderInputReadyState.ReadyForScriptExecution
 		self.debugger_imported = False
 		from binaryninja.settings import Settings
+		settings = Settings()
+		if settings.contains('corePlugins.view.sharedCache') and settings.get_bool('corePlugins.view.sharedCache'):
+			from .sharedcache import SharedCacheController
 		if os.environ.get('BN_STANDALONE_DEBUGGER'):
 			# By the time this scriptingprovider.py file is imported, the user plugins are not loaded yet.
 			# So `from debugger import DebuggerController` would not work.
@@ -904,7 +907,6 @@ from binaryninja import *
 			self.DebuggerController = DebuggerController
 			self.debugger_imported = True
 		else:
-			settings = Settings()
 			if settings.contains('corePlugins.debugger') and settings.get_bool('corePlugins.debugger') and \
 				(os.environ.get('BN_DISABLE_CORE_DEBUGGER') is None):
 				from .debugger import DebuggerController
@@ -1767,7 +1769,7 @@ PythonScriptingProvider.register_magic_variable(
 
 def _get_current_token(instance: PythonScriptingInstance):
 	if instance.interpreter.locals["current_ui_token_state"] is not None:
-		if instance.interpreter.locals["current_ui_token_state"].valid:
+		if instance.interpreter.locals["current_ui_token_state"].tokenIndex != 0xffffffff:  # BN_INVALID_OPERAND
 			return instance.interpreter.locals["current_ui_token_state"].token
 	return None
 
@@ -1806,6 +1808,19 @@ PythonScriptingProvider.register_magic_variable(
 	"current_il_index",
 	_get_current_il_index,
 	depends_on=["current_ui_view_location"]
+)
+
+
+def _get_current_il_expr_index(instance: PythonScriptingInstance):
+	if instance.interpreter.locals["current_token"] is not None:
+		return instance.interpreter.locals["current_token"].il_expr_index
+	return None
+
+
+PythonScriptingProvider.register_magic_variable(
+	"current_il_expr_index",
+	_get_current_il_expr_index,
+	depends_on=["current_token"]
 )
 
 
@@ -1866,6 +1881,25 @@ PythonScriptingProvider.register_magic_variable(
 	_get_current_il_instruction,
 	depends_on=[
 		"current_il_index",
+		"current_il_function"
+	]
+)
+
+
+def _get_current_il_expr(instance: PythonScriptingInstance):
+	if instance.interpreter.locals["current_il_function"] is not None \
+			and instance.interpreter.locals["current_il_expr_index"] is not None:
+		return instance.interpreter.locals["current_il_function"].get_expr(
+			instance.interpreter.locals["current_il_expr_index"]
+		)
+	return None
+
+
+PythonScriptingProvider.register_magic_variable(
+	"current_il_expr",
+	_get_current_il_expr,
+	depends_on=[
+		"current_il_expr_index",
 		"current_il_function"
 	]
 )

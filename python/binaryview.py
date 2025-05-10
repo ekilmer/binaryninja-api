@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright (c) 2015-2024 Vector 35 Inc
+# Copyright (c) 2015-2025 Vector 35 Inc
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -47,7 +47,7 @@ from .enums import (
     TypeClass, BinaryViewEventType, FunctionGraphType, TagReferenceType, TagTypeType, RegisterValueType, DisassemblyOption,
 	RelocationType
 )
-from .exceptions import RelocationWriteException, ILException, ExternalLinkException
+from .exceptions import RelocationWriteException, ExternalLinkException
 
 from . import associateddatastore  # required for _BinaryViewAssociatedDataStore
 from .log import log_warn, log_error, Logger
@@ -2605,18 +2605,25 @@ class BinaryView:
 		self._platform = None
 		self._endianness = None
 
-	def __enter__(self) -> 'BinaryView':
-		return self
-
-	def __exit__(self, type, value, traceback):
-		self.file.close()
-
-	def __del__(self):
+	def _cleanup(self):
 		if core is None:
 			return
 		for i in self._notifications.values():
 			i._unregister()
-		core.BNFreeBinaryView(self.handle)
+		self._notifications.clear()
+		if self.handle is not None:
+			core.BNFreeBinaryView(self.handle)
+			self.handle = None
+
+	def __enter__(self) -> 'BinaryView':
+		return self
+
+	def __exit__(self, type, value, traceback):
+		self._cleanup()
+		self.file.close()
+
+	def __del__(self):
+		self._cleanup()
 
 	def __repr__(self):
 		start = self.start
@@ -3181,10 +3188,7 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			try:
-				yield func.mlil
-			except ILException:
-				pass
+			yield func.mlil
 
 	def hlil_functions(
 	    self, preload_limit: Optional[int] = None,
@@ -3197,10 +3201,7 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			try:
-				yield func.hlil
-			except ILException:
-				pass
+			yield func.hlil
 
 	@property
 	def has_functions(self) -> bool:
@@ -3376,6 +3377,11 @@ class BinaryView:
 		"""Status of current analysis (read-only)"""
 		result = core.BNGetAnalysisProgress(self.handle)
 		return AnalysisProgress(result.state, result.count, result.total)
+
+	@property
+	def analysis_state(self) -> AnalysisState:
+		"""State of current analysis (read-only)"""
+		return core.BNGetAnalysisState(self.handle)
 
 	@property
 	def linear_disassembly(self) -> Iterator['lineardisassembly.LinearDisassemblyLine']:
@@ -9546,9 +9552,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		seg = core.BNGetSegmentAt(self.handle, addr)
 		if not seg:
 			return None
-		segment_handle = core.BNNewSegmentReference(seg)
-		assert segment_handle is not None, "core.BNNewSegmentReference returned None"
-		return Segment(segment_handle)
+		return Segment(seg)
 
 	def get_address_for_data_offset(self, offset: int) -> Optional[int]:
 		"""
@@ -9640,9 +9644,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		section = core.BNGetSectionByName(self.handle, name)
 		if section is None:
 			return None
-		section_handle = core.BNNewSectionReference(section)
-		assert section_handle is not None, "core.BNNewSectionReference returned None"
-		result = Section(section_handle)
+		result = Section(section)
 		return result
 
 	def get_unique_section_names(self, name_list: List[str]) -> List[str]:
@@ -9715,9 +9717,8 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 	def debug_info(self) -> "debuginfo.DebugInfo":
 		"""The current debug info object for this binary view"""
 		debug_handle = core.BNGetDebugInfo(self.handle)
-		debug_ref = core.BNNewDebugInfoReference(debug_handle)
-		assert debug_ref is not None, "core.BNNewDebugInfoReference returned None"
-		return debuginfo.DebugInfo(debug_ref)
+		assert debug_handle is not None, "core.BNGetDebugInfo returned None"
+		return debuginfo.DebugInfo(debug_handle)
 
 	@debug_info.setter
 	def debug_info(self, value: "debuginfo.DebugInfo") -> None:

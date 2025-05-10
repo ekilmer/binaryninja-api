@@ -1,4 +1,4 @@
-// Copyright 2021-2024 Vector 35 Inc.
+// Copyright 2021-2025 Vector 35 Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -464,6 +464,15 @@ impl Function {
             let raw_var = BNVariable::from(var);
             let raw_name = BNGetVariableName(self.handle, &raw_var);
             BnString::from_raw(raw_name)
+        }
+    }
+
+    pub fn variable_type(&self, var: &Variable) -> Option<Conf<Ref<Type>>> {
+        let raw_var = BNVariable::from(var);
+        let result = unsafe { BNGetVariableType(self.handle, &raw_var) };
+        match result.type_.is_null() {
+            false => Some(Conf::<Ref<Type>>::from_owned_raw(result)),
+            true => None,
         }
     }
 
@@ -2164,6 +2173,11 @@ impl Function {
     pub fn unsplit_variable(&self, var: &Variable) {
         let raw_var = BNVariable::from(var);
         unsafe { BNUnsplitVariable(self.handle, &raw_var) }
+    }
+
+    /// Causes this function to be analyzed if it's out of date. This function does not wait for the analysis to finish.
+    pub fn analyze(&self) {
+        unsafe { BNAnalyzeFunction(self.handle) }
     }
 
     /// Causes this function to be reanalyzed. This function does not wait for the analysis to finish.

@@ -460,6 +460,30 @@ extern "C"
 		}
 
 #ifdef ULTIMATE_EDITION
+		Ref<Architecture> mcore_le = Architecture::GetByName("mcore_le");
+		if (mcore_le)
+		{
+			Ref<Platform> platform;
+
+			platform = new LinuxCSkyV1Platform(mcore_le, "linux-mcore_le");
+			Platform::Register("linux", platform);
+			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
+			BinaryViewType::RegisterPlatform("ELF", 0, platform);
+			BinaryViewType::RegisterPlatform("ELF", 3, platform);
+		}
+
+		Ref<Architecture> mcore_be = Architecture::GetByName("mcore_be");
+		if (mcore_be)
+		{
+			Ref<Platform> platform;
+
+			platform = new LinuxCSkyV1Platform(mcore_be, "linux-mcore_be");
+			Platform::Register("linux", platform);
+			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
+			BinaryViewType::RegisterPlatform("ELF", 0, platform);
+			BinaryViewType::RegisterPlatform("ELF", 3, platform);
+		}
+
 		Ref<Architecture> cskyv1 = Architecture::GetByName("csky_le_v1");
 		if (cskyv1)
 		{

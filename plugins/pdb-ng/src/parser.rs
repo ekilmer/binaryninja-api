@@ -1,4 +1,4 @@
-// Copyright 2022-2024 Vector 35 Inc.
+// Copyright 2022-2025 Vector 35 Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -261,7 +261,7 @@ impl<'a, S: Source<'a> + 'a> PDBParserInstance<'a, S> {
                                 address, &name.raw_name, type_
                             )
                         });
-                        self.debug_info.add_function(DebugFunctionInfo::new(
+                        self.debug_info.add_function(&DebugFunctionInfo::new(
                             Some(name.short_name.unwrap_or(name.raw_name.clone())),
                             Some(name.full_name.unwrap_or(name.raw_name.clone())),
                             Some(name.raw_name),
