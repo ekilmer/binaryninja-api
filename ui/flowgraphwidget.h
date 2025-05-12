@@ -216,6 +216,7 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	bool isFunctionHeader();
 
 	bool m_enableBlockIndicators = false;
+	float m_blockIndicatorStrokeWidth = 1.0f;
 
   public:
 	FlowGraphWidget(QWidget* parent, BinaryViewRef view, FlowGraphRef graph = FlowGraphRef());
