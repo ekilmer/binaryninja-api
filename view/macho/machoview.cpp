@@ -2900,8 +2900,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					if (name == NULL)
 						throw MachoFormatException();
 
-					DefineMachoSymbol(symtype, string(name), address, binding, true);
-
 					memset(&externReloc, 0, sizeof(externReloc));
 					externReloc.nativeType = BINARYNINJA_MANUAL_RELOCATION;
 					externReloc.address = address;
@@ -2915,8 +2913,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 				case BindOpcodeDoBindAddAddressULEB:
 					if (name == NULL)
 						throw MachoFormatException();
-
-					DefineMachoSymbol(symtype, string(name), address, binding, true);
 
 					memset(&externReloc, 0, sizeof(externReloc));
 					externReloc.nativeType = BINARYNINJA_MANUAL_RELOCATION;
@@ -2932,8 +2928,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 				case BindOpcodeDoBindAddAddressImmediateScaled:
 					if (name == NULL)
 						throw MachoFormatException();
-
-					DefineMachoSymbol(symtype, string(name), address, binding, true);
 
 					memset(&externReloc, 0, sizeof(externReloc));
 					externReloc.nativeType = BINARYNINJA_MANUAL_RELOCATION;
@@ -2954,8 +2948,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					uint64_t skip = readLEB128(table, tableSize, i);
 					for (; count > 0; count--)
 					{
-						DefineMachoSymbol(symtype, string(name), address, binding, true);
-
 						memset(&externReloc, 0, sizeof(externReloc));
 						externReloc.nativeType = BINARYNINJA_MANUAL_RELOCATION;
 						externReloc.address = address;
@@ -3540,9 +3532,6 @@ void MachoView::ParseChainedFixups(MachOHeader& header, linkedit_data_command ch
 								if (!entry.name.empty())
 								{
 									reloc.address = targetAddress;
-									DefineMachoSymbol(ImportAddressSymbol, entry.name,
-										targetAddress,
-										entry.weak ? WeakBinding : GlobalBinding, true);
 
 									BNRelocationInfo externReloc;
 									memset(&externReloc, 0, sizeof(externReloc));
