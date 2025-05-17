@@ -359,6 +359,12 @@ std::vector<BaseClassInfo> MicrosoftRTTIProcessor::ProcessClassHierarchyDescript
         auto baseClassDesc = BaseClassDescriptor(m_view, baseClassDescAddr);
 
         auto baseClassTypeDescAddr = resolveAddr(baseClassDesc.pTypeDescriptor);
+        if (baseClassTypeDescAddr == 0)
+        {
+            // Fixes issue https://github.com/Vector35/binaryninja-api/issues/6837
+            m_logger->LogWarn("Skipping BaseClassDescriptor with null pTypeDescriptor %llx", baseClassDescAddr);
+            continue;
+        }
         auto baseClassTypeDesc = TypeDescriptor(m_view, baseClassTypeDescAddr);
         auto baseClassName = DemangleNameMS(m_view, allowMangledClassNames, baseClassTypeDesc.name);
         if (!baseClassName.has_value())
