@@ -43,6 +43,7 @@ use crate::high_level_il::HighLevelILFunction;
 use crate::language_representation::CoreLanguageRepresentationFunction;
 use crate::low_level_il::LowLevelILRegularFunction;
 use crate::medium_level_il::MediumLevelILFunction;
+use crate::metadata::Metadata;
 use crate::variable::{
     IndirectBranchInfo, MergedVariable, NamedVariableWithType, RegisterValue, RegisterValueType,
     StackVariableReference, Variable,
@@ -2427,6 +2428,48 @@ impl Function {
             unsafe { BNGetFunctionParentComponents(self.view().handle, self.handle, &mut count) };
         assert!(!result.is_null());
         unsafe { Array::new(result, count, ()) }
+    }
+
+    pub fn query_metadata(&self, key: &str) -> Option<Ref<Metadata>> {
+        let key = key.to_cstr();
+        let value: *mut BNMetadata = unsafe { BNFunctionQueryMetadata(self.handle, key.as_ptr()) };
+        if value.is_null() {
+            None
+        } else {
+            Some(unsafe { Metadata::ref_from_raw(value) })
+        }
+    }
+
+    pub fn get_metadata(&self) -> Option<Ref<Metadata>> {
+        let value: *mut BNMetadata = unsafe { BNFunctionGetMetadata(self.handle) };
+        if value.is_null() {
+            None
+        } else {
+            Some(unsafe { Metadata::ref_from_raw(value) })
+        }
+    }
+
+    pub fn get_auto_metadata(&self) -> Option<Ref<Metadata>> {
+        let value: *mut BNMetadata = unsafe { BNFunctionGetAutoMetadata(self.handle) };
+        if value.is_null() {
+            None
+        } else {
+            Some(unsafe { Metadata::ref_from_raw(value) })
+        }
+    }
+
+    pub fn store_metadata<V>(&self, key: &str, value: V, is_auto: bool)
+    where
+        V: Into<Ref<Metadata>>,
+    {
+        let md = value.into();
+        let key = key.to_cstr();
+        unsafe { BNFunctionStoreMetadata(self.handle, key.as_ptr(), md.as_ref().handle, is_auto) };
+    }
+
+    pub fn remove_metadata(&self, key: &str) {
+        let key = key.to_cstr();
+        unsafe { BNFunctionRemoveMetadata(self.handle, key.as_ptr()) };
     }
 }
 

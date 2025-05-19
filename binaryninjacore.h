@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 105
+#define BN_CURRENT_CORE_ABI_VERSION 106
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -5010,6 +5010,13 @@ extern "C"
 	BINARYNINJACOREAPI void BNFunctionExpandAll(BNFunction* func);
 	BINARYNINJACOREAPI void BNFunctionCollapseRegion(BNFunction* func,  uint64_t hash);
 	BINARYNINJACOREAPI void BNFunctionExpandRegion(BNFunction* func, uint64_t hash);
+
+	BINARYNINJACOREAPI void BNFunctionStoreMetadata(
+	    BNFunction* func, const char* key, BNMetadata* value, bool isAuto);
+	BINARYNINJACOREAPI BNMetadata* BNFunctionQueryMetadata(BNFunction* func, const char* key);
+	BINARYNINJACOREAPI void BNFunctionRemoveMetadata(BNFunction* func, const char* key);
+	BINARYNINJACOREAPI BNMetadata* BNFunctionGetMetadata(BNFunction* func);
+	BINARYNINJACOREAPI BNMetadata* BNFunctionGetAutoMetadata(BNFunction* func);
 
 	BINARYNINJACOREAPI void BNSetAutoCallTypeAdjustment(
 	    BNFunction* func, BNArchitecture* arch, uint64_t addr, BNTypeWithConfidence* type);

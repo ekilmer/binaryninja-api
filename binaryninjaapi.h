@@ -11458,6 +11458,12 @@ namespace BinaryNinja {
 		void CollapseRegion(uint64_t hash);
 		void ExpandRegion(uint64_t hash);
 		void ExpandAll();
+
+		void StoreMetadata(const std::string& key, Ref<Metadata> value, bool isAuto = false);
+		Ref<Metadata> QueryMetadata(const std::string& key);
+		Ref<Metadata> GetMetadata();
+		Ref<Metadata> GetAutoMetadata();
+		void RemoveMetadata(const std::string& key);
 	};
 
 	/*!

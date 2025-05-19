@@ -3369,6 +3369,42 @@ void Function::ExpandAll()
 	BNFunctionExpandAll(m_object);
 }
 
+
+void Function::StoreMetadata(const std::string& key, Ref<Metadata> value, bool isAuto)
+{
+	if (!value)
+		return;
+	BNFunctionStoreMetadata(m_object, key.c_str(), value->GetObject(), isAuto);
+}
+
+
+Ref<Metadata> Function::QueryMetadata(const std::string& key)
+{
+	BNMetadata* value = BNFunctionQueryMetadata(m_object, key.c_str());
+	if (!value)
+		return nullptr;
+	return new Metadata(value);
+}
+
+
+Ref<Metadata> Function::GetMetadata()
+{
+	return new Metadata(BNFunctionGetMetadata(m_object));
+}
+
+
+Ref<Metadata> Function::GetAutoMetadata()
+{
+	return new Metadata(BNFunctionGetAutoMetadata(m_object));
+}
+
+
+void Function::RemoveMetadata(const std::string& key)
+{
+	BNFunctionRemoveMetadata(m_object, key.c_str());
+}
+
+
 AdvancedFunctionAnalysisDataRequestor::AdvancedFunctionAnalysisDataRequestor(Function* func) : m_func(func)
 {
 	if (m_func)

@@ -47,6 +47,7 @@ from . import callingconvention
 from . import workflow
 from . import languagerepresentation
 from . import deprecation
+from . import metadata
 from . import __version__
 
 # we define the following as such so the linter doesn't confuse 'highlight' the module with the
@@ -3389,6 +3390,68 @@ class Function:
 		:return: True if the region should be rendered as collapsed
 		"""
 		return core.BNFunctionIsRegionCollapsed(self.handle, hash)
+
+	def store_metadata(self, key: str, md: metadata.MetadataValueType, isAuto: bool = False) -> None:
+		"""
+		`store_metadata` stores an object for the given key in the current Function. Objects stored using
+		`store_metadata` can be retrieved when the database is reopened unless isAuto is set to True.
+
+		:param str key: key value to associate the Metadata object with
+		:param Varies md: object to store
+		:param bool isAuto: whether the metadata is an auto metadata
+		:rtype: None
+        """
+		_md = md
+		if not isinstance(_md, metadata.Metadata):
+			_md = metadata.Metadata(_md)
+		core.BNFunctionStoreMetadata(self.handle, key, _md.handle, isAuto)
+
+	def query_metadata(self, key: str) -> 'metadata.MetadataValueType':
+		"""
+		`query_metadata` retrieves metadata associated with the given key stored in the current function.
+
+		:param str key: key to query
+		:rtype: metadata associated with the key
+		"""
+		md_handle = core.BNFunctionQueryMetadata(self.handle, key)
+		if md_handle is None:
+			raise KeyError(key)
+		return metadata.Metadata(handle=md_handle).value
+
+	def remove_metadata(self, key: str) -> None:
+		"""
+		`remove_metadata` removes the metadata associated with key from the current function.
+
+		:param str key: key associated with metadata to remove from the function
+		:rtype: None
+		"""
+		core.BNFunctionRemoveMetadata(self.handle, key)
+
+	@property
+	def metadata(self) -> Dict[str, 'metadata.MetadataValueType']:
+		"""
+		`metadata` retrieves the metadata associated with the current function.
+
+		:rtype: metadata associated with the function
+		"""
+		md_handle = core.BNFunctionGetMetadata(self.handle)
+		assert md_handle is not None, "core.BNFunctionGetMetadata returned None"
+		value = metadata.Metadata(handle=md_handle).value
+		assert isinstance(value, dict), "core.BNFunctionGetMetadata did not return a dict"
+		return value
+
+	@property
+	def auto_metadata(self) -> Dict[str, 'metadata.MetadataValueType']:
+		"""
+		`metadata` retrieves the metadata associated with the current function.
+
+		:rtype: metadata associated with the function
+		"""
+		md_handle = core.BNFunctionGetAutoMetadata(self.handle)
+		assert md_handle is not None, "core.BNFunctionGetAutoMetadata returned None"
+		value = metadata.Metadata(handle=md_handle).value
+		assert isinstance(value, dict), "core.BNFunctionGetAutoMetadata did not return a dict"
+		return value
 
 
 class AdvancedFunctionAnalysisDataRequestor:
