@@ -31,6 +31,7 @@ from .enums import (
 	HighlightColorStyle, DisassemblyOption, IntegerDisplayType, FunctionAnalysisSkipOverride, FunctionUpdateType,
 	BuiltinType
 )
+from .commonil import Localcall
 
 from . import associateddatastore  # Required in the main scope due to being an argument for _FunctionAssociatedDataStore
 from . import types
