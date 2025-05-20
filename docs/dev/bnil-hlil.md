@@ -19,7 +19,7 @@ The High Level Intermediate Language (HLIL) is Binary Ninja's decompiler output.
 To observe the transformartions that occur from MLIL to HLIL, you can use the built-in [`debug report`](https://api.binary.ninja/binaryninja.function-module.html#binaryninja.function.Function.request_debug_report) API:
 
 ```py
-> request_debug_report("hlil")
+> current_function.request_debug_report("hlil")
 ```
 
 ![HLIL Debug Report](../img/hlil-debug-report.png)
