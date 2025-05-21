@@ -8165,6 +8165,7 @@ extern "C"
 	BINARYNINJACOREAPI bool BNHighLevelILTokenEmitterGetDefaultBracesOnSameLine(BNHighLevelILTokenEmitter* emitter);
 	BINARYNINJACOREAPI bool BNHighLevelILTokenEmitterIsSimpleScopeAllowed(BNHighLevelILTokenEmitter* emitter);
 	BINARYNINJACOREAPI BNInstructionTextToken* BNHighLevelILTokenEmitterGetCurrentTokens(BNHighLevelILTokenEmitter* emitter, size_t* tokenCount);
+	BINARYNINJACOREAPI void BNHighLevelILTokenEmitterSetCurrentTokens(BNHighLevelILTokenEmitter* emitter, BNInstructionTextToken* tokens, size_t tokenCount);
 	BINARYNINJACOREAPI BNDisassemblyTextLine* BNHighLevelILTokenEmitterGetLines(BNHighLevelILTokenEmitter* emitter, size_t* count);
 
 	BINARYNINJACOREAPI void BNAddHighLevelILSizeToken(size_t size, BNInstructionTextTokenType type, BNHighLevelILTokenEmitter* tokens);

@@ -821,6 +821,15 @@ vector<InstructionTextToken> HighLevelILTokenEmitter::GetCurrentTokens() const
 }
 
 
+void HighLevelILTokenEmitter::SetCurrentTokens(const std::vector<InstructionTextToken>& newTokens)
+{
+	size_t count;
+	auto* tokens = AllocAPIObjectList<InstructionTextToken>(newTokens, &count);
+	BNHighLevelILTokenEmitterSetCurrentTokens(m_object, tokens, count);
+	FreeAPIObjectList<InstructionTextToken>(tokens, count);
+}
+
+
 void HighLevelILTokenEmitter::SetBraceRequirement(BNBraceRequirement required)
 {
 	BNHighLevelILTokenEmitterSetBraceRequirement(m_object, required);

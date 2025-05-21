@@ -2460,6 +2460,9 @@ namespace BinaryNinja {
 		InstructionTextToken(const BNInstructionTextToken& token);
 
 		InstructionTextToken WithConfidence(uint8_t conf);
+		BNInstructionTextToken GetAPIObject() const;
+		static InstructionTextToken FromAPIObject(const BNInstructionTextToken* token);
+		static void FreeAPIObject(BNInstructionTextToken* token);
 		static void ConvertInstructionTextToken(const InstructionTextToken& token, BNInstructionTextToken* result);
 		static BNInstructionTextToken* CreateInstructionTextTokenList(const std::vector<InstructionTextToken>& tokens);
 		static void FreeInstructionTextToken(BNInstructionTextToken* token);
@@ -19501,6 +19504,9 @@ namespace BinaryNinja {
 
 		/*! Returns the list of tokens on the current line */
 		std::vector<InstructionTextToken> GetCurrentTokens() const;
+
+		/*! Set the list of tokens on the current line */
+		void SetCurrentTokens(const std::vector<InstructionTextToken>& newTokens);
 
 		/*! Sets the requirement for insertion of braces around scopes in the output. */
 		void SetBraceRequirement(BNBraceRequirement required);

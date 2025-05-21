@@ -33,8 +33,8 @@ void PseudoCFunction::BeginLines(const HighLevelILInstruction& instr, HighLevelI
 		// At top level, add braces around the entire function
 		tokens.PrependCollapseIndicator();
 		tokens.AppendOpenBrace();
-		tokens.NewLine();
 		tokens.IncreaseIndent();
+		tokens.NewLine();
 	}
 }
 
@@ -2755,10 +2755,39 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 	case HLIL_LABEL:
 		[&]() {
 			const auto target = instr.GetTarget<HLIL_LABEL>();
-			tokens.DecreaseIndent();
+			// NB: Not using DecreaseIndent() here because it will mess up the indentation guides
+			// that rely on matched calls to IncreaseIndent()/DecreaseIndent() to properly set
+			// indentation groupings. Instead, we manually remove the last indent in the tokens
+			tokens.InitLine();
+			auto newTokens = tokens.GetCurrentTokens();
+			bool foundIndent = false;
+			bool erasedIndent = false;
+			for (size_t i = 0; i < newTokens.size(); i++)
+			{
+				auto& token = newTokens[i];
+				if (token.type == IndentationToken)
+				{
+					foundIndent = true;
+				}
+				else if (foundIndent)
+				{
+					// We have indents and this is the first non-indent token after all the indents,
+					// so remove the previous token. It must exist because we will have to have gone through
+					// the condition above and looped at least once.
+					newTokens.erase(newTokens.begin() + (i - 1));
+					erasedIndent = true;
+					break;
+				}
+			}
+			if (foundIndent && !erasedIndent)
+			{
+				// Found an indent, but it was the last token, so erase the last token
+				newTokens.erase(newTokens.begin() + (newTokens.size() - 1));
+			}
+			tokens.SetCurrentTokens(newTokens);
+
 			tokens.Append(GotoLabelToken, GetFunction()->GetGotoLabelName(target), target);
 			tokens.Append(TextToken, ":");
-			tokens.IncreaseIndent();
 		}();
 		break;
 

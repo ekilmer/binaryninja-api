@@ -991,11 +991,31 @@ class PseudoPythonFunction(LanguageRepresentationFunction):
                 tokens.append(InstructionTextToken(InstructionTextTokenType.GotoLabelToken, instr.target.name,
                                                    instr.target.label_id))
             elif instr.operation == HighLevelILOperation.HLIL_LABEL:
-                tokens.decrease_indent()
+                # NB: Not using decrease_indent() here because it will mess up the indentation guides
+                # that rely on matched calls to increase_indent()/decrease_indent() to properly set
+                # indentation groupings. Instead, we manually remove the last indent in the tokens
+                tokens.init_line()
+                new_tokens = tokens.current_tokens
+                found_indent = False
+                erased_indent = False
+                for i in range(len(new_tokens)):
+                    token = new_tokens[i]
+                    if token.type == InstructionTextTokenType.IndentationToken:
+                        found_indent = True
+                    elif found_indent:
+                        # We have indents and this is the first non-indent token after all the indents,
+                        # so remove the previous token. It must exist because we will have to have gone through
+                        # the condition above and looped at least once.
+                        new_tokens.pop(i - 1)
+                        erased_indent = True
+                        break
+                if found_indent and not erased_indent:
+                    # Found an indent, but it was the last token, so erase the last token
+                    new_tokens.pop(len(new_tokens) - 1)
+                tokens.current_tokens = new_tokens
                 tokens.append(InstructionTextToken(InstructionTextTokenType.GotoLabelToken, instr.target.name,
                                                    instr.target.label_id))
                 tokens.append(InstructionTextToken(InstructionTextTokenType.TextToken, ":"))
-                tokens.increase_indent()
             elif instr.operation == HighLevelILOperation.HLIL_LOW_PART:
                 parens = precedence > OperatorPrecedence.MemberAndFunctionOperatorPrecedence
                 if parens:

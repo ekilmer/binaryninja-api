@@ -53,6 +53,10 @@ class HighLevelILTokenEmitter:
 		if core is not None:
 			core.BNFreeHighLevelILTokenEmitter(self.handle)
 
+	def init_line(self):
+		"""Initialize a new line, creating indentation tokens at the start."""
+		core.BNHighLevelILTokenEmitterInitLine(self.handle)
+
 	def new_line(self):
 		"""Starts a new line in the output."""
 		core.BNHighLevelILTokenEmitterNewLine(self.handle)
@@ -240,7 +244,7 @@ class HighLevelILTokenEmitter:
 
 	@property
 	def current_tokens(self) -> List['function.InstructionTextToken']:
-		"""The list of tokens on the current line (read-only)."""
+		"""The list of tokens on the current line."""
 		count = ctypes.c_ulonglong()
 		tokens = core.BNHighLevelILTokenEmitterGetCurrentTokens(self.handle, count)
 		result = []
@@ -248,6 +252,11 @@ class HighLevelILTokenEmitter:
 			result = function.InstructionTextToken._from_core_struct(tokens, count.value)
 			core.BNFreeInstructionText(tokens, count.value)
 		return result
+
+	@current_tokens.setter
+	def current_tokens(self, tokens: List['function.InstructionTextToken']):
+		buf = function.InstructionTextToken._get_core_struct(tokens)
+		core.BNHighLevelILTokenEmitterSetCurrentTokens(self.handle, buf, len(tokens))
 
 	@property
 	def lines(self) -> List['function.DisassemblyTextLine']:

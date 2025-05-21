@@ -119,6 +119,26 @@ InstructionTextToken InstructionTextToken::WithConfidence(uint8_t conf)
 }
 
 
+BNInstructionTextToken InstructionTextToken::GetAPIObject() const
+{
+	BNInstructionTextToken result;
+	ConvertInstructionTextToken(*this, &result);
+	return result;
+}
+
+
+InstructionTextToken InstructionTextToken::FromAPIObject(const BNInstructionTextToken* token)
+{
+	return InstructionTextToken(*token);
+}
+
+
+void InstructionTextToken::FreeAPIObject(BNInstructionTextToken* token)
+{
+	FreeInstructionTextToken(token);
+}
+
+
 void InstructionTextToken::ConvertInstructionTextToken(const InstructionTextToken& token, BNInstructionTextToken* result)
 {
 	result->type = token.type;
