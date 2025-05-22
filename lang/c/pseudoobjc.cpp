@@ -359,7 +359,7 @@ void PseudoObjCFunction::GetExpr_CONST_PTR(const BinaryNinja::HighLevelILInstruc
 		GetFunction()->GetView()->GetTypeByRef(variable.type->GetNamedTypeReference()) :
 		variable.type.GetValue();
 
-	if (type->GetClass() != StructureTypeClass)
+	if (!type || type->GetClass() != StructureTypeClass)
 		return PseudoCFunction::GetExpr_CONST_PTR(instr, tokens, settings, precedence, statement);
 
 	auto structureName = type->GetStructureName().GetString();
