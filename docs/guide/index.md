@@ -151,7 +151,7 @@ A "Compact Mode" exists which presents only file paths. This can be enabled and 
 
 Recent files can be opened on double click. They can also be navigated using the arrow keys, and opened via pressing enter. Opening a recent file using `[SHIFT+ENTER]` will open that file with the Open With Options dialog.
 
-The Recent files list can be cleared via using the Command Palette (`[CTRL] + P`) action `Clear Recently Opened`.
+The Recent files list can be cleared via using the Command Palette (`[CTRL] + P`) action `Clear All Recent Files`.
 
 Hotkeys (macOS: `[CMD] + 0` - `[CMD] + 9`, Windows/Linux: `[CTRL] + 0` - `[CTRL + 9]`) can also be used to quickly open a file. The hotkey for a given entry will be shown on the right.
 
@@ -423,7 +423,7 @@ The Stack sidebar panel shows the currently selected function's stack layout. Yo
 
 The History sidebar panel shows all annotations made during the history of a database. Note that even changes made prior to the introduction of the UI will be shown. This not only makes it easier to see what changes have been made, but allows you to right-click and revert to a particular point in analysis. Additionally, the right-click menu includes a toggle to hide or show the date of the change.
 
-Note that when plugins or the UI batch multiple changes in one action, they wil be summarized with a count of actions but no further details are possible. 
+Note that when plugins or the UI batch multiple changes in one action, they wil be summarized with a count of actions but no further details are possible.
 
 There is currently no support for branching/forking style of history at this time.
 
@@ -650,7 +650,7 @@ Note that you can cancel the analysis at any time and the current results will b
 large files or files with many pointers being analyzed.
 
 If the file format has a header that can be identified before analysis that may help BASE identify the proper load
-address, otherwise the alignment would need to account for the header. 
+address, otherwise the alignment would need to account for the header.
 
 |Setting|Description|Default|
 |--- |--- |--- |
@@ -669,7 +669,7 @@ libraries linked will be listed in this section and are available in the [API as
 ### 6. Imports / Exports
 
 The Imports and Exports sections show any imports and exports. The lists are sortable by clicking
-the table headers. 
+the table headers.
 
 ### 7. Sections
 
@@ -1003,7 +1003,7 @@ When you launch Binary Ninja from the command-line, you can control whether or n
 
 * Running Binary Ninja from the command line will try to find a running instance of the same version in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
 * For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
-* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
+* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will
     1. Try to activate and focus existing tabs for those files in a running instance, or failing that,
     2. Try to open those files in new tabs in a running instance, or failing that,
     3. Open those files in a new instance of Binary Ninja.
