@@ -1021,6 +1021,9 @@ extern "C"
 
 		// MLIL instruction appears to be an otherwise unused intermediate
 		MLILPossiblyUnusedIntermediate = 0x80,
+
+		// HLIL expression can be folded into other expressions or has been folded
+		HLILFoldableExpr = 0x100,
 	} BNILInstructionAttribute;
 
 	typedef enum BNIntrinsicClass
@@ -3226,6 +3229,13 @@ extern "C"
 		AllowDeadStoreElimination
 	} BNDeadStoreElimination;
 
+	typedef enum BNExprFolding
+	{
+		DefaultExprFolding,
+		PreventExprFolding,
+		AllowExprFolding
+	} BNExprFolding;
+
 	typedef struct BNDebugFunctionInfo
 	{
 		char* shortName;
@@ -4979,6 +4989,8 @@ extern "C"
 	    BNFunction* func, const BNVariable* var);
 	BINARYNINJACOREAPI void BNSetFunctionVariableDeadStoreElimination(
 	    BNFunction* func, const BNVariable* var, BNDeadStoreElimination mode);
+	BINARYNINJACOREAPI BNExprFolding BNGetExprFolding(BNFunction* func, uint64_t addr);
+	BINARYNINJACOREAPI void BNSetExprFolding(BNFunction* func, uint64_t addr, BNExprFolding mode);
 	BINARYNINJACOREAPI BNMergedVariable* BNGetMergedVariables(BNFunction* func, size_t* count);
 	BINARYNINJACOREAPI void BNFreeMergedVariableList(BNMergedVariable* vars, size_t count);
 	BINARYNINJACOREAPI void BNMergeVariables(BNFunction* func, const BNVariable* target, const BNVariable* sources,

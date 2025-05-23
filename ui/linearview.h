@@ -316,6 +316,8 @@ class BINARYNINJAUIAPI LinearView : public QAbstractScrollArea, public View, pub
 		TypeRef resType, uint64_t baseAddr, uint64_t& begin, uint64_t& end, bool singleLine, std::set<TypeRef>& seen);
 
 	BNDeadStoreElimination getCurrentVariableDeadStoreElimination();
+	std::optional<uint64_t> getCurrentFoldableExprAddress();
+	BNExprFolding getCurrentExprFolding();
 
 	void setDataButtonVisible(bool visible);
 	std::optional<std::pair<BinaryNinja::Variable, BinaryNinja::Variable>> getMergeVariablesAtCurrentLocation();
@@ -406,6 +408,7 @@ private Q_SLOTS:
 	std::optional<uint64_t> addressForCall();
 
 	void setCurrentVariableDeadStoreElimination(BNDeadStoreElimination elimination);
+	void setCurrentExprFolding(BNExprFolding folding);
 
 Q_SIGNALS:
 	void notifyResizeEvent(int width, int height);

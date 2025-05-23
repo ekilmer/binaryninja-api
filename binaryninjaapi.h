@@ -11423,6 +11423,9 @@ namespace BinaryNinja {
 		BNDeadStoreElimination GetVariableDeadStoreElimination(const Variable& var);
 		void SetVariableDeadStoreElimination(const Variable& var, BNDeadStoreElimination mode);
 
+		BNExprFolding GetExprFolding(uint64_t addr);
+		void SetExprFolding(uint64_t addr, BNExprFolding mode);
+
 		std::map<Variable, std::set<Variable>> GetMergedVariables();
 		void MergeVariables(const Variable& target, const std::set<Variable>& sources);
 		void UnmergeVariables(const Variable& target, const std::set<Variable>& sources);

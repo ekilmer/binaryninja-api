@@ -807,6 +807,28 @@ Performing this action on both variables in the example results in the following
 
 ![Dead Store Elimination Results](../img/dead-store-after.png "Dead Store Elimination Results"){ width="500" }
 
+## Expression Folding
+
+Binary Ninja automatically performs optimization passes on high level code. One of these optimizations is to fold
+assignments with a single use into the statement that uses it. An example of a function call being folded into another
+is shown below:
+
+![Expression Folding](../img/folding-before.png "Expression Folding"){ width="500" }
+
+Binary Ninja uses heuristics to determine if this will improve readability, but sometimes it doesn't make the preferred
+choice. You can override the heuristic by right-clicking an expression and choosing "Allow" or "Prevent" from the
+"Expression Folding" submenu.
+
+![Expression Folding Menu](../img/folding-menu.png "Expression Folding Menu"){ width="500" }
+
+This option will only appear if the expression can be folded. If Binary Ninja's analysis determines that it is not sound
+to fold an expression, the submenu will not be present.
+
+Choosing "Prevent" from the "Expression Folding" menu on the call to `_strlen` in the example above results in the
+following output:
+
+![Expression Folding Results](../img/folding-after.png "Expression Folding Results"){ width="500" }
+
 ## Merging and Splitting Variables
 
 Binary Ninja automatically splits all variables that the analysis determines to be safely splittable. This allows the user to assign different types to different uses of the same register or memory location. Sometimes, however, the code is more clear if two or more of these variables are merged together into a single variable.

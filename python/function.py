@@ -29,7 +29,7 @@ from . import _binaryninjacore as core
 from .enums import (
 	AnalysisSkipReason, FunctionGraphType, SymbolType, InstructionTextTokenType, HighlightStandardColor,
 	HighlightColorStyle, DisassemblyOption, IntegerDisplayType, FunctionAnalysisSkipOverride, FunctionUpdateType,
-	BuiltinType
+	BuiltinType, ExprFolding
 )
 
 from . import associateddatastore  # Required in the main scope due to being an argument for _FunctionAssociatedDataStore
@@ -3455,6 +3455,16 @@ class Function:
 		value = metadata.Metadata(handle=md_handle).value
 		assert isinstance(value, dict), "core.BNFunctionGetAutoMetadata did not return a dict"
 		return value
+
+	def get_expr_folding(self, addr: Union[int, highlevelil.HighLevelILInstruction]) -> ExprFolding:
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		return ExprFolding(core.BNGetExprFolding(self.handle, addr))
+
+	def set_expr_folding(self, addr: Union[int, highlevelil.HighLevelILInstruction], value: ExprFolding):
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		core.BNSetExprFolding(self.handle, addr, value)
 
 
 class AdvancedFunctionAnalysisDataRequestor:

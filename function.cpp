@@ -2813,6 +2813,18 @@ void Function::SetVariableDeadStoreElimination(const Variable& var, BNDeadStoreE
 }
 
 
+BNExprFolding Function::GetExprFolding(uint64_t addr)
+{
+	return BNGetExprFolding(m_object, addr);
+}
+
+
+void Function::SetExprFolding(uint64_t addr, BNExprFolding mode)
+{
+	BNSetExprFolding(m_object, addr, mode);
+}
+
+
 std::map<Variable, std::set<Variable>> Function::GetMergedVariables()
 {
 	size_t count;
