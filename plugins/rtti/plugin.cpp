@@ -29,7 +29,7 @@ void RTTIAnalysis(const Ref<AnalysisContext>& analysisContext)
 		}
 		catch (std::exception& e)
 		{
-			LogErrorF("MSVC RTTI Analysis failed with uncaught exception: %s", e.what());
+			LogError("MSVC RTTI Analysis failed with uncaught exception: %s", e.what());
 		}
 	}
 
@@ -41,7 +41,7 @@ void RTTIAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogErrorF("Itanium RTTI Analysis failed with uncaught exception: %s", e.what());
+		LogError("Itanium RTTI Analysis failed with uncaught exception: %s", e.what());
 	}
 }
 
@@ -60,7 +60,7 @@ void VFTAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogErrorF("MSVC VFT Analysis failed with uncaught exception: %s", e.what());
+		LogError("MSVC VFT Analysis failed with uncaught exception: %s", e.what());
 	}
 
 	try
@@ -71,7 +71,7 @@ void VFTAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogErrorF("Itanium VFT Analysis failed with uncaught exception: %s", e.what());
+		LogError("Itanium VFT Analysis failed with uncaught exception: %s", e.what());
 	}
 }
 
