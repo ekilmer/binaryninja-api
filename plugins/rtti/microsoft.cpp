@@ -431,6 +431,16 @@ std::optional<ClassInfo> MicrosoftRTTIProcessor::ProcessRTTI(uint64_t coLocatorA
     auto classInfo = ClassInfo{RTTIProcessorType::Microsoft, className.value()};
 
     auto classHierarchyDescAddr = resolveAddr(coLocator->pClassHierarchyDescriptor);
+
+    // Verify the class hierarchy descriptor signature is zero.
+    auto reader = BinaryReader(m_view);
+    reader.Seek(classHierarchyDescAddr);
+    if (auto signature = reader.Read32(); signature != 0)
+    {
+        m_logger->LogWarn("Skipping CompleteObjectorLocator with non-zero hierarchy descriptor signature %llx", coLocatorAddr);
+        return std::nullopt;
+    }
+
     classInfo.baseClasses = ProcessClassHierarchyDescriptor(classHierarchyDescAddr, coLocator.value(), classInfo);
 
     // Locate the current base class if we are in one.
