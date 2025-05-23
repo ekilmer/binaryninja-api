@@ -644,6 +644,7 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 	bool m_navToNextOrPrevStarted = false;
 	bool m_pinned;
 	bool m_uiMaxItemsExceeded = false;
+	bool m_hasInitialSelection = false;
 
 	QWidget* m_header = nullptr;
 
