@@ -4210,6 +4210,8 @@ class BinaryView:
 		"""
 		``create_database`` writes the current database (.bndb) out to the specified file.
 
+		.. warning:: This API will only save a database, NOT the original file from a view. To save the original file, use :py:func:`save`. To update a database, use :py:func:`save_auto_snapshot`
+
 		:param str filename: path and filename to write the bndb to, this string `should` have ".bndb" appended to it.
 		:param callback progress_func: optional function to be called with the current progress and total count.
 		:param SaveSettings settings: optional argument for special save options.
@@ -4696,6 +4698,8 @@ class BinaryView:
 	def save(self, dest: Union['fileaccessor.FileAccessor', str]) -> bool:
 		"""
 		``save`` saves the original binary file to the provided destination ``dest`` along with any modifications.
+
+		.. warning:: This API will only save the original file from a view. To save a database, use :py:func:`create_database`.
 
 		:param str dest: destination path and filename of file to be written
 		:return: True on success, False on failure
