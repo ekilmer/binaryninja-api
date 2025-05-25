@@ -19,18 +19,31 @@ std::optional<std::string> RTTI::DemangleNameGNU3(BinaryView* view, bool allowMa
     QualifiedName demangledName = {};
     Ref<Type> outType = {};
 
-    // TODO: This is disabled because most of the uses of this were making the problem worse by demangling
-    // TODO: To a very generic string that dozens of classes would then look like. We likely need to add some extra
-    // TODO: sauce to the demangler to pickup strings like:
-    // TODO: REAL: PackageListGui::PackageListGui(Filesystem::Path&&, PackageListGui::UnderSubheader, bool)::$_1[0x0]
-    // TODO: OURS: PackageListGui::PackageListGui
-    // TODO: OURS MANGLED: ZN14PackageListGuiC1EON10Filesystem4PathENS_14UnderSubheaderEbE3$_1
+    std::string adjustedMangledName = mangledName;
     // For some reason some of the names that start with ZN are not prefixed by `_`.
-    // if (mangled.find("ZN") == 0)
-    //     mangled = "_" + mangled;
+    if (adjustedMangledName.rfind("ZN", 0) == 0)
+        adjustedMangledName = "_" + adjustedMangledName;
+    // GCC emits a leading * to indicate that the type info is internal and its
+    // name can be compared via pointer equality. It is not part of the type name.
+    if (adjustedMangledName.rfind("*", 0) == 0)
+        adjustedMangledName = adjustedMangledName.substr(1);
+    // All types at this point should have a _Z prefix, if not, we likely need to just call the demangler directly, as this
+    // function is specific to dealing with mangled _type_ names.
+    if (adjustedMangledName.rfind("_Z", 0) != 0)
+        adjustedMangledName = "_Z" + adjustedMangledName;
 
-    if (!DemangleGNU3(view->GetDefaultArchitecture(), mangledName, outType, demangledName, true))
+    if (!DemangleGNU3(view->GetDefaultArchitecture(), adjustedMangledName, outType, demangledName, true))
         return allowMangled ? std::optional(mangledName) : std::nullopt;
+
+    // Because we might have a generic name such as "PackageListGui::PackageListGui" returned, we must attempt to
+    // stringify the returned type IF its function type and then append that to the end of the demangled name.
+    // REAL: PackageListGui::PackageListGui(Filesystem::Path&&, PackageListGui::UnderSubheader, bool)::$_1[0x0]
+    // MANGLED: ZN14PackageListGuiC1EON10Filesystem4PathENS_14UnderSubheaderEbE3$_1
+    // GENERIC DEMANGLED: PackageListGui::PackageListGui
+    // UPDATED DEMANGLED: PackageListGui::PackageListGui(Filesystem::Path&&, PackageListGui::UnderSubheader, bool)
+    if (outType && outType->IsFunction())
+        demangledName.push_back(outType->GetStringAfterName(view->GetDefaultPlatform()));
+
     return demangledName.GetString();
 }
 
@@ -38,7 +51,6 @@ std::optional<std::string> RTTI::DemangleNameGNU3(BinaryView* view, bool allowMa
 std::string RemoveItaniumPrefix(std::string &name)
 {
     // Remove numerical prefixes.
-    // TODO: We might want to use the numbers for figuring out the class info.
     while (!name.empty() && std::isdigit(name[0]))
         name = name.substr(1);
     return name;

@@ -41,6 +41,28 @@ uint64_t TypeInfoSize(BinaryView *view)
 }
 
 
+// TODO: Delete this function when access semantics are not so screwy.
+bool IsOffsetReadOnlyData(BinaryView *view, uint64_t offset)
+{
+    // Check to see if the section has default section semantics and let it pass.
+    for (const auto& section : view->GetSectionsAt(offset))
+    {
+        // TODO: Adding external here is weird but its whatever. This whole function needs to go away anyways.
+        switch (section->GetSemantics())
+        {
+            case DefaultSectionSemantics:
+            case ReadOnlyDataSectionSemantics:
+            case ExternalSectionSemantics:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    return false;
+}
+
+
 std::optional<TypeInfo> GetTypeInfo(BinaryView* view, uint64_t address)
 {
     // TODO: We really need a valid offset range thing.
@@ -53,7 +75,9 @@ std::optional<TypeInfo> GetTypeInfo(BinaryView* view, uint64_t address)
     if (!view->IsValidOffset(base) || view->IsOffsetCodeSemantics(base))
         return std::nullopt;
     auto typeNameAddr = reader.ReadPointer();
-    if (!view->IsValidOffset(typeNameAddr) || view->IsOffsetCodeSemantics(typeNameAddr))
+    // NOTE: This used to check IsOffsetCodeSemantics but for some reason the default section semantics
+    // is picked up as code. This really makes me sad. Hopefully the offset semantics rework is done soon!
+    if (!view->IsValidOffset(typeNameAddr) || !IsOffsetReadOnlyData(view, typeNameAddr))
         return std::nullopt;
     reader.Seek(typeNameAddr);
     auto type_name = reader.ReadCString(512);
@@ -291,6 +315,32 @@ Ref<Type> VMIClassTypeInfoType(BinaryView *view, uint64_t baseCount)
     return TypeBuilder::StructureType(structureBuilder.Finalize()).Finalize();
 }
 
+static Ref<Symbol> DetectPotentialCopyRelocatedVTable(BinaryView* view, uint64_t address)
+{
+    // 32-bit ELF binaries that are dynamically linked to the C++ runtime may use a
+    // copy relocation for the vtable. The vtable itself will be defined in the .bss
+    // section, and the copy relocation will cause the dynamic linker to populate it
+    // at load time from the C++ runtime library.
+    //
+    // Detect this by looking for a symbol pointing to the start of the vtable data,
+    // two pointers before the vtable address.
+
+    int64_t vtableSymbolOffset = -(view->GetAddressSize() * 2);
+    if (!view->IsValidOffset(address) || !view->IsValidOffset(address + vtableSymbolOffset))
+        return nullptr;
+
+    // ELFView does not add a relocation record for RELOC_COPY so we use hueristics here.
+    if (view->IsOffsetBackedByFile(address))
+        return nullptr;
+    if (!view->IsOffsetWritableSemantics(address))
+        return nullptr;
+
+    auto sym = view->GetSymbolByAddress(address + vtableSymbolOffset);
+    if (!sym || sym->GetShortName().find("__cxxabiv1") == std::string::npos)
+        return nullptr;
+
+    return sym;
+}
 
 std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t objectAddr)
 {
@@ -300,6 +350,9 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
 
     // If there is a symbol at objectAddr pointing to a symbol starting with "vtable for __cxxabiv1"
     Ref<Symbol> baseSym = GetRealSymbol(view, objectAddr, typeInfo->base);
+
+    if (!baseSym)
+        baseSym = DetectPotentialCopyRelocatedVTable(view, typeInfo->base);
 
     if (baseSym == nullptr)
     {
@@ -321,10 +374,18 @@ std::optional<TypeInfoVariant> ReadTypeInfoVariant(BinaryView *view, uint64_t ob
         uint64_t typeInfoAddr = reader.ReadPointer();
         if (!view->IsValidOffset(typeInfoAddr))
             return std::nullopt;
-        auto vftSym = view->GetSymbolByAddress(typeInfoAddr);
-        if (vftSym == nullptr)
-            return std::nullopt;
-        baseSym = vftSym;
+        auto typeInfoSym = view->GetSymbolByAddress(typeInfoAddr);
+        if (typeInfoSym == nullptr)
+        {
+            // For stripped binaries there will be no symbol, contruct a type info object and check.
+            auto rootTypeInfo = GetTypeInfo(view, typeInfoAddr);
+            if (!rootTypeInfo.has_value())
+                return std::nullopt;
+            if (rootTypeInfo->type_name.find("__cxxabiv1") == std::string::npos)
+                return std::nullopt;
+            typeInfoSym = new Symbol(DataSymbol, fmt::format("_typeinfo_for_{}", rootTypeInfo->type_name), typeInfoAddr);
+        }
+        baseSym = typeInfoSym;
     }
 
     auto baseSymName = baseSym->GetShortName();
@@ -389,15 +450,9 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
 
     auto typeInfo = TypeInfo(m_view, objectAddr);
     auto className = DemangleNameItanium(m_view, allowMangledClassNames, typeInfo.type_name);
-    if (!className.has_value())
+    if (!className.has_value() || className->empty())
         return std::nullopt;
     auto classInfo = ClassInfo{RTTIProcessorType::Itanium, className.value()};
-
-    auto typeInfoName = fmt::format("_typeinfo_for_{}", classInfo.className);
-    auto typeInfoSymbol = m_view->GetSymbolByAddress(objectAddr);
-    if (typeInfoSymbol != nullptr)
-        m_view->UndefineAutoSymbol(typeInfoSymbol);
-    m_view->DefineAutoSymbol(new Symbol{DataSymbol, typeInfoName, objectAddr});
 
     auto nameFromTypeInfoSymbol = [&](uint64_t addr) -> std::optional<std::string> {
         auto sym = m_view->GetSymbolByAddress(addr);
@@ -449,7 +504,6 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
     else if (typeInfoVariant == TIVVMIClass)
     {
         auto vmiClassTypeInfo = VMIClassTypeInfo(m_view, objectAddr);
-        m_view->DefineDataVariable(objectAddr, Confidence(VMIClassTypeInfoType(m_view, vmiClassTypeInfo.base_count), 255));
         for (const auto& baseInfo : vmiClassTypeInfo.base_info)
         {
             // Remove the flags and just get the offset
@@ -480,11 +534,19 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
             auto baseClassInfo = BaseClassInfo {baseClassName.value(), offset};
             classInfo.baseClasses.emplace_back(baseClassInfo);
         }
+        m_view->DefineDataVariable(objectAddr, Confidence(VMIClassTypeInfoType(m_view, vmiClassTypeInfo.base_count), 255));
     }
     else
     {
         m_view->DefineDataVariable(objectAddr, Confidence(ClassTypeInfoType(m_view), 255));
     }
+
+    // Defining the data variable was a success, so we can add the symbol now.
+    auto typeInfoName = fmt::format("_typeinfo_for_{}", classInfo.className);
+    auto typeInfoSymbol = m_view->GetSymbolByAddress(objectAddr);
+    if (typeInfoSymbol != nullptr)
+        m_view->UndefineAutoSymbol(typeInfoSymbol);
+    m_view->DefineAutoSymbol(new Symbol{DataSymbol, typeInfoName, objectAddr});
 
     return classInfo;
 }
@@ -690,11 +752,13 @@ void ItaniumRTTIProcessor::ProcessRTTI()
 
     m_view->BeginBulkModifySymbols();
     // Scan data sections for rtti.
-    for (const Ref<Section> &section: m_view->GetSections())
+    for (const Ref<Section> &section : m_view->GetSections())
     {
         if (bgTask->IsCancelled())
             break;
-        if (section->GetSemantics() == ReadOnlyDataSectionSemantics)
+        auto sectionSemantics = section->GetSemantics();
+        // Some RTTI unfortunately will get put into a DefaultSectionSemantics section, so we have to check those.
+        if (sectionSemantics == ReadOnlyDataSectionSemantics || sectionSemantics == DefaultSectionSemantics)
         {
             m_logger->LogDebug("Attempting to find RTTI in section %llx", section->GetStart());
             scan(section);
