@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(binaryninjaapi CXX C)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -83,7 +83,7 @@ if(APPLE)
 endif()
 
 set_target_properties(binaryninjaapi PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_VISIBILITY_PRESET hidden
     CXX_STANDARD_REQUIRED ON
     VISIBILITY_INLINES_HIDDEN ON

@@ -11,7 +11,7 @@
 # According to Good CMake Hygiene, we should use BinaryNinjaCore_<VAR> named variables.
 # Existing plugins likely use BN_<VAR> names already, so both are provided.
 
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 if(NOT BN_INTERNAL_BUILD)
     set(PATH_HINTS "$ENV{BN_INSTALL_DIR}" "${BN_INSTALL_DIR}")

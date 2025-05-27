@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(arch_x86)
 
@@ -56,7 +56,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 set_target_properties(arch_x86 PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
 	CXX_VISIBILITY_PRESET hidden
 	CXX_STANDARD_REQUIRED ON
 	C_STANDARD 11

@@ -102,7 +102,7 @@ Older versions may work but are not supported.
 - Windows: VS 2022 Professional with C/C++ Native Tools package, v143 (14.34)
 - Linux: GCC 11.4+
 
-Additionally, Binary Ninja uses C++17 features, and requires a C++17 compatible compiler.
+Additionally, Binary Ninja uses C++20 features, and requires a C++20 compatible compiler.
 
 ### CMake Setup
 
@@ -120,7 +120,7 @@ The first things to specify in your CMake file are a couple boilerplate options 
     # Name your plugin
     project(TestPlugin CXX)
     
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
     
     # Unless you are writing a plugin that needs Qt's UI, specify this
     set(HEADLESS 1)
