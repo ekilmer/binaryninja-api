@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::architecture::{Architecture, CoreArchitecture, CoreRegister, RegisterId};
 use crate::confidence::Conf;
 use crate::function::{Function, Location};
 use crate::rc::{CoreArrayProvider, CoreArrayProviderInner, Ref};
@@ -386,6 +387,16 @@ impl Variable {
     pub fn to_identifier(&self) -> u64 {
         let raw = BNVariable::from(*self);
         unsafe { BNToVariableIdentifier(&raw) }
+    }
+
+    pub fn to_register(&self, arch: CoreArchitecture) -> Option<CoreRegister> {
+        match self.ty {
+            VariableSourceType::RegisterVariableSourceType => {
+                arch.register_from_id(RegisterId(self.storage as u32))
+            }
+            VariableSourceType::StackVariableSourceType => None,
+            VariableSourceType::FlagVariableSourceType => None,
+        }
     }
 }
 
