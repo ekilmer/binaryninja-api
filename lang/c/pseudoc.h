@@ -5,6 +5,7 @@
 class PseudoCFunction: public BinaryNinja::LanguageRepresentationFunction
 {
 	BinaryNinja::Ref<BinaryNinja::HighLevelILFunction> m_highLevelIL;
+	BinaryNinja::Ref<BinaryNinja::TypePrinter> m_typePrinter;
 
 	enum FieldDisplayType
 	{
@@ -51,6 +52,8 @@ protected:
 		const BinaryNinja::HighLevelILInstruction& instr, BinaryNinja::HighLevelILTokenEmitter& tokens) override;
 	void EndLines(
 		const BinaryNinja::HighLevelILInstruction& instr, BinaryNinja::HighLevelILTokenEmitter& tokens) override;
+
+	BinaryNinja::TypePrinter* GetTypePrinter() const;
 
 	virtual void GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelILInstruction& instr,
 		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,

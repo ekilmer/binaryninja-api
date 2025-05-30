@@ -8,8 +8,12 @@ using namespace BinaryNinja;
 
 PseudoCFunction::PseudoCFunction(LanguageRepresentationFunctionType* type, Architecture* arch, Function* owner,
 	HighLevelILFunction* highLevelILFunction) :
-	LanguageRepresentationFunction(type, arch, owner, highLevelILFunction), m_highLevelIL(highLevelILFunction)
+	LanguageRepresentationFunction(type, arch, owner, highLevelILFunction), m_highLevelIL(highLevelILFunction),
+	m_typePrinter(type->GetTypePrinter())
 {
+	if (!m_typePrinter) {
+		m_typePrinter = TypePrinter::GetDefault();
+	}
 }
 
 
@@ -177,11 +181,7 @@ BNSymbolDisplayResult PseudoCFunction::AppendPointerTextToken(const HighLevelILI
 
 string PseudoCFunction::GetSizeToken(size_t size, bool isSigned)
 {
-	return TypePrinter::GetDefault()->GetTypeString(
-		Type::IntegerType(size, isSigned),
-		nullptr,
-		QualifiedName()
-	);
+	return GetTypePrinter()->GetTypeString(Type::IntegerType(size, isSigned), nullptr, QualifiedName());
 }
 
 
@@ -546,11 +546,8 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 	{
 		tokens.AppendOpenParen();
 		tokens.AppendOpenParen();
-		auto typeTokens = TypePrinter::GetDefault()->GetTypeTokens(
-			instr.GetType(),
-			GetArchitecture()->GetStandalonePlatform(),
-			QualifiedName()
-		);
+		auto typeTokens = GetTypePrinter()->GetTypeTokens(
+			instr.GetType(), GetArchitecture()->GetStandalonePlatform(), QualifiedName());
 		for (auto& token: typeTokens)
 		{
 			tokens.Append(token);
@@ -1004,14 +1001,12 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(destExpr);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
-			const auto prevTypeTokens =
-					variableType ?
-					TypePrinter::GetDefault()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
-			const auto postTypeTokens =
-					variableType ?
-					TypePrinter::GetDefault()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
+			const auto prevTypeTokens = variableType ?
+				GetTypePrinter()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
+			const auto postTypeTokens = variableType ?
+				GetTypePrinter()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
 
 			// Check to see if the variable appears live
 			bool appearsDead = false;
@@ -1070,14 +1065,12 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(variable);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
-			const auto prevTypeTokens =
-					variableType ?
-					TypePrinter::GetDefault()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
-			const auto postTypeTokens =
-					variableType ?
-					TypePrinter::GetDefault()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
+			const auto prevTypeTokens = variableType ?
+				GetTypePrinter()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
+			const auto postTypeTokens = variableType ?
+				GetTypePrinter()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
 
 			if (variableType)
 			{
@@ -2846,6 +2839,11 @@ string PseudoCFunction::GetAnnotationEndString() const
 {
 	// Show annotations as C-style inline comments
 	return " */";
+}
+
+TypePrinter* PseudoCFunction::GetTypePrinter() const
+{
+	return m_typePrinter;
 }
 
 
