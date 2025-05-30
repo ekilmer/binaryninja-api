@@ -183,7 +183,7 @@ impl MediumLevelILFunction {
     /// Allows the user to specify a PossibleValueSet value for an MLIL
     /// variable at its definition site.
     ///
-    /// .. warning:: Setting the variable value, triggers a reanalysis of the
+    /// WARNING: Setting the variable value, triggers a reanalysis of the
     /// function and allows the dataflow to compute and propagate values which
     /// depend on the current variable. This implies that branch conditions
     /// whose values can be determined statically will be computed, leading to
@@ -212,23 +212,15 @@ impl MediumLevelILFunction {
         value: PossibleValueSet,
         after: bool,
     ) -> Result<(), ()> {
-        let Some(_def_site) = self
-            .var_definitions(var)
-            .iter()
-            .find(|def| def.address == addr)
-        else {
-            // Error "No definition for Variable found at given address"
-            return Err(());
-        };
         let function = self.function();
         let def_site = BNArchitectureAndAddress {
             arch: function.arch().handle,
             address: addr,
         };
         let raw_var = BNVariable::from(var);
-        let raw_value = PossibleValueSet::into_raw(value);
+        let raw_value = PossibleValueSet::into_rust_raw(value);
         unsafe { BNSetUserVariableValue(function.handle, &raw_var, &def_site, after, &raw_value) }
-        PossibleValueSet::free_owned_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_value);
         Ok(())
     }
 

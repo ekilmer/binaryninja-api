@@ -1167,7 +1167,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn possible_ssa_variable_values(&self, ssa_var: &SSAVariable) -> PossibleValueSet {
@@ -1190,7 +1190,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     /// Return the ssa version of a [`Variable`] at the given instruction.
@@ -1390,7 +1390,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn possible_register_values_after(&self, reg_id: RegisterId) -> PossibleValueSet {
@@ -1411,7 +1411,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn flag_value(&self, flag_id: FlagId) -> RegisterValue {
@@ -1454,7 +1454,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn possible_flag_values_after_with_opts(
@@ -1471,7 +1471,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn stack_contents(&self, offset: i64, size: usize) -> RegisterValue {
@@ -1514,7 +1514,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     pub fn possible_stack_contents_after_with_opts(
@@ -1533,7 +1533,7 @@ impl MediumLevelILInstruction {
                 options.len(),
             )
         };
-        PossibleValueSet::from_owned_raw(value)
+        PossibleValueSet::from_owned_core_raw(value)
     }
 
     /// Gets the unique variable for a definition instruction. This unique variable can be passed

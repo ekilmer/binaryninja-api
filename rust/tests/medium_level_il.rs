@@ -4,6 +4,7 @@ use binaryninja::medium_level_il::{
     MediumLevelExpressionIndex, MediumLevelILInstructionKind, MediumLevelILLiftedInstructionKind,
     MediumLevelInstructionIndex,
 };
+use binaryninja::variable::{PossibleValueSet, ValueRange};
 use std::path::PathBuf;
 
 #[test]
@@ -115,5 +116,76 @@ fn test_mlil_basic_blocks() {
                 assert_eq!(instr_basic_block, mlil_basic_block.to_owned());
             }
         }
+    }
+}
+
+#[test]
+fn test_mlil_possible_values() {
+    let _session = Session::new().expect("Failed to initialize session");
+    let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
+    let view = binaryninja::load(out_dir.join("atox.obj")).expect("Failed to create view");
+    let image_base = view.original_image_base();
+
+    let functions = view.functions_containing(image_base + 0x0002af9a);
+    assert_eq!(functions.len(), 1);
+    let function = functions.get(0);
+    let mlil_function = function.medium_level_il().unwrap();
+
+    // 0 @ 0002af40  (MLIL_SET_VAR.d edi_1 = (MLIL_VAR.d edi))
+    let instr_0 = mlil_function
+        .instruction_from_index(MediumLevelInstructionIndex(0))
+        .expect("Failed to get instruction");
+    let lifted_instr_0 = instr_0.lift();
+    match lifted_instr_0.kind {
+        MediumLevelILLiftedInstructionKind::SetVar(op) => match op.src.kind {
+            MediumLevelILLiftedInstructionKind::Var(var) => {
+                let var = var.src;
+                let pvs_value = PossibleValueSet::SignedRangeValue {
+                    value: 5,
+                    ranges: vec![ValueRange {
+                        start: -5,
+                        end: 0,
+                        step: 1,
+                    }],
+                };
+                mlil_function
+                    .set_user_var_value(&var, op.src.address, pvs_value.clone(), false)
+                    .expect("Failed to set user var value");
+                let var_values = mlil_function.user_var_values();
+                assert_eq!(var_values.len(), 1);
+                let var_value = var_values.get(0);
+                assert_eq!(var_value.value, pvs_value);
+                assert_eq!(var_value.def_site.addr, op.src.address);
+                assert_eq!(var_value.variable, var);
+                assert_eq!(var_value.after, false);
+            }
+            _ => panic!("Expected Var"),
+        },
+        _ => panic!("Expected SetVar"),
+    }
+
+    // 21 @ 0002af9a  (MLIL_RET return (MLIL_VAR.d eax_2))
+    let instr_21 = mlil_function
+        .instruction_from_index(MediumLevelInstructionIndex(21))
+        .expect("Failed to get instruction");
+    let lifted_instr_21 = instr_21.lift();
+    match lifted_instr_21.kind {
+        MediumLevelILLiftedInstructionKind::Ret(ret) => {
+            // This should be the eax variable, with the signed range.
+            let eax_var_lifted = ret.src.get(0).unwrap();
+            // TODO: I really dislike that we have lifted and unlifted versions of the same thing.
+            let eax_var = mlil_function
+                .instruction_from_expr_index(eax_var_lifted.expr_index)
+                .unwrap();
+            let eax_var_pvs = eax_var.possible_values();
+            match eax_var_pvs {
+                PossibleValueSet::SignedRangeValue { value, ranges } => {
+                    assert_eq!(value, -48);
+                    assert_eq!(ranges.len(), 2);
+                }
+                _ => panic!("Expected SignedRangeValue"),
+            }
+        }
+        _ => panic!("Expected Ret"),
     }
 }
