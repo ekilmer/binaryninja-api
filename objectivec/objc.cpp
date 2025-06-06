@@ -1308,8 +1308,8 @@ uint64_t ObjCProcessor::ReadPointerAccountingForRelocations(ObjCReader* reader)
 }
 
 
-ObjCProcessor::ObjCProcessor(BinaryView* data, const char* loggerName, bool isBackedByDatabase, bool skipClassBaseProtocols) :
-	m_isBackedByDatabase(isBackedByDatabase), m_skipClassBaseProtocols(skipClassBaseProtocols), m_data(data)
+ObjCProcessor::ObjCProcessor(BinaryView* data, const char* loggerName, bool skipClassBaseProtocols) :
+	 m_skipClassBaseProtocols(skipClassBaseProtocols), m_data(data)
 {
 	m_logger = m_data->CreateLogger(loggerName);
 }

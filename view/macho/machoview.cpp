@@ -1854,7 +1854,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 		parseCFStrings = false;
 	if (parseObjCStructs || parseCFStrings)
 	{
-		m_objcProcessor = new MachoObjCProcessor(this, m_backedByDatabase);
+		m_objcProcessor = new MachoObjCProcessor(this);
 	}
 	if (parseObjCStructs)
 	{

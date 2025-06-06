@@ -276,7 +276,6 @@ namespace BinaryNinja {
 			QualifiedName ivarList;
 		} m_typeNames;
 
-		bool m_isBackedByDatabase;
 		// TODO(WeiN76LQh): this is to avoid a bug with defining a classes protocol list in the DSC plugin. Remove once fixed
 		bool m_skipClassBaseProtocols;
 
@@ -332,7 +331,7 @@ namespace BinaryNinja {
 	public:
 		virtual ~ObjCProcessor() = default;
 
-		ObjCProcessor(BinaryView* data, const char* loggerName, bool isBackedByDatabase, bool skipClassBaseProtocols = false);
+		ObjCProcessor(BinaryView* data, const char* loggerName, bool skipClassBaseProtocols = false);
 		void ProcessObjCData();
 		void ProcessCFStrings();
 		void AddRelocatedPointer(uint64_t location, uint64_t rewrite);
