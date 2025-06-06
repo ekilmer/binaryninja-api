@@ -976,21 +976,27 @@ class Function:
 			core.BNRemoveAutoFunctionTagsOfType(self.handle, tag_type.handle)
 
 	@property
-	def low_level_il(self) -> 'lowlevelil.LowLevelILFunction':
+	def low_level_il(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function low level IL (read-only)
+		returns LowLevelILFunction used to represent low level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+
+		.. note::
+			This function causes low level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.llil
 
 	@property
-	def llil(self) -> 'lowlevelil.LowLevelILFunction':
+	def llil(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function low level IL, or None if an error occurs while loading
-		the IL (read-only)
+		returns LowLevelILFunction used to represent low level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+		.. note::
+			This function causes low level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionLowLevelIL(self.handle)
 		if not result:
@@ -999,19 +1005,26 @@ class Function:
 
 	@property
 	def llil_if_available(self) -> Optional['lowlevelil.LowLevelILFunction']:
-		"""returns LowLevelILFunction used to represent Function low level IL, or None if not loaded (read-only)"""
+		"""
+		returns LowLevelILFunction used to represent low level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if low level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionLowLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
-	def lifted_il(self) -> 'lowlevelil.LowLevelILFunction':
+	def lifted_il(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function lifted IL, or None if an error occurs while loading the IL
+		returns LowLevelILFunction used to represent lifted IL, or None if an error occurs while loading the IL
 		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+		.. note::
+			This function causes lifted IL to be generated if it has not been already. It is recommended to generate IL
+			on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionLiftedIL(self.handle)
 		if not result:
@@ -1020,28 +1033,38 @@ class Function:
 
 	@property
 	def lifted_il_if_available(self) -> Optional['lowlevelil.LowLevelILFunction']:
-		"""returns LowLevelILFunction used to represent lifted IL, or None if not loaded (read-only)"""
+		"""
+		returns LowLevelILFunction used to represent lifted IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if lifted IL is available without generating it.
+		"""
 		result = core.BNGetFunctionLiftedILIfAvailable(self.handle)
 		if not result:
 			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
-	def medium_level_il(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def medium_level_il(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function medium level IL (read-only)
+		returns MediumLevelILFunction used to represent medium level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.mlil
 
 	@property
-	def mlil(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mlil(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function medium level IL, or None if an error occurs while
-		loading the IL (read-only)
+		returns MediumLevelILFunction used to represent medium level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionMediumLevelIL(self.handle)
 		if not result:
@@ -1050,19 +1073,26 @@ class Function:
 
 	@property
 	def mlil_if_available(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
-		"""Function medium level IL, or None if not loaded (read-only)"""
+		"""
+		returns MediumLevelILFunction used to represent medium level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if medium level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionMediumLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def mmlil(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mmlil(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function mapped medium level IL, or None if an error occurs
-		while loading the IL (read-only)
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes mapped medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionMappedMediumLevelIL(self.handle)
 		if not result:
@@ -1070,38 +1100,51 @@ class Function:
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def mapped_medium_level_il(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mapped_medium_level_il(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function mapped medium level IL (read-only)
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes mapped medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.mmlil
 
 	@property
 	def mmlil_if_available(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
-		"""Function mapped medium level IL, or None if not loaded (read-only)"""
+		"""
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if not loaded or it cannot be
+		generated (read-only)
+
+		.. note:: This function can be used to check if mapped medium level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionMappedMediumLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def high_level_il(self) -> 'highlevelil.HighLevelILFunction':
+	def high_level_il(self) -> Optional['highlevelil.HighLevelILFunction']:
 		"""
-		returns HighLevelILFunction used to represent Function high level IL (read-only)
+		returns HighLevelILFunction used to represent high level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: highlevelil.HighLevelILFunction
+		.. note::
+			This function causes high level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.hlil
 
 	@property
-	def hlil(self) -> 'highlevelil.HighLevelILFunction':
+	def hlil(self) -> Optional['highlevelil.HighLevelILFunction']:
 		"""
-		returns HighLevelILFunction used to represent Function high level IL, or None if an error occurs while loading
-		the IL (read-only)
+		returns HighLevelILFunction used to represent high level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: highlevelil.HighLevelILFunction
+		.. note::
+			This function causes high level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionHighLevelIL(self.handle)
 		if not result:
@@ -1110,7 +1153,12 @@ class Function:
 
 	@property
 	def hlil_if_available(self) -> Optional['highlevelil.HighLevelILFunction']:
-		"""Function high level IL, or None if not loaded (read-only)"""
+		"""
+		returns HighLevelILFunction used to represent high level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if high level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionHighLevelILIfAvailable(self.handle)
 		if not result:
 			return None
