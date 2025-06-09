@@ -2948,7 +2948,11 @@ class Function:
 			# Special case: function parameters have index 0 and are defined at the start of the function
 			def_addr = self.start
 		else:
-			var_defs = self.mlil.get_var_definitions(var)
+			func_mlil = self.mlil
+			if func_mlil is None:
+				raise ValueError("Could not get definition for Variable")
+
+			var_defs = func_mlil.get_var_definitions(var)
 			if var_defs is None:
 				raise ValueError("Could not get definition for Variable")
 
