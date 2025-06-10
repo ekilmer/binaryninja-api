@@ -6128,6 +6128,13 @@ class LowLevelILFunction:
 			settings_obj = None
 		return flowgraph.CoreFlowGraph(core.BNCreateLowLevelILFunctionGraph(self.handle, settings_obj))
 
+	def create_graph_immediate(self, settings: Optional['function.DisassemblySettings'] = None) -> flowgraph.CoreFlowGraph:
+		if settings is not None:
+			settings_obj = settings.handle
+		else:
+			settings_obj = None
+		return flowgraph.CoreFlowGraph(core.BNCreateLowLevelILImmediateFunctionGraph(self.handle, settings_obj))
+
 
 class LowLevelILBasicBlock(basicblock.BasicBlock):
 	"""

@@ -5518,6 +5518,13 @@ class MediumLevelILFunction:
 			settings_obj = None
 		return flowgraph.CoreFlowGraph(core.BNCreateMediumLevelILFunctionGraph(self.handle, settings_obj))
 
+	def create_graph_immediate(self, settings: Optional['function.DisassemblySettings'] = None) -> flowgraph.CoreFlowGraph:
+		if settings is not None:
+			settings_obj = settings.handle
+		else:
+			settings_obj = None
+		return flowgraph.CoreFlowGraph(core.BNCreateMediumLevelILImmediateFunctionGraph(self.handle, settings_obj))
+
 	@property
 	def arch(self) -> 'architecture.Architecture':
 		return self._arch

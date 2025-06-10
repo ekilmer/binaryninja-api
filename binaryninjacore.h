@@ -5654,6 +5654,14 @@ extern "C"
 	    BNMediumLevelILFunction* func, BNDisassemblySettings* settings);
 	BINARYNINJACOREAPI BNFlowGraph* BNCreateHighLevelILFunctionGraph(
 	    BNHighLevelILFunction* func, BNDisassemblySettings* settings);
+	BINARYNINJACOREAPI BNFlowGraph* BNCreateImmediateFunctionGraph(
+	    BNFunction* func, BNFunctionViewType type, BNDisassemblySettings* settings);
+	BINARYNINJACOREAPI BNFlowGraph* BNCreateLowLevelILImmediateFunctionGraph(
+	    BNLowLevelILFunction* func, BNDisassemblySettings* settings);
+	BINARYNINJACOREAPI BNFlowGraph* BNCreateMediumLevelILImmediateFunctionGraph(
+	    BNMediumLevelILFunction* func, BNDisassemblySettings* settings);
+	BINARYNINJACOREAPI BNFlowGraph* BNCreateHighLevelILImmediateFunctionGraph(
+	    BNHighLevelILFunction* func, BNDisassemblySettings* settings);
 	BINARYNINJACOREAPI BNFlowGraph* BNCreateCustomFlowGraph(BNCustomFlowGraph* callbacks);
 	BINARYNINJACOREAPI BNFlowGraph* BNNewFlowGraphReference(BNFlowGraph* graph);
 	BINARYNINJACOREAPI void BNFreeFlowGraph(BNFlowGraph* graph);

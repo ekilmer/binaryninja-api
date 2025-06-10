@@ -2213,12 +2213,42 @@ class Function:
 	    self, graph_type: FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph,
 	    settings: Optional['DisassemblySettings'] = None
 	) -> flowgraph.CoreFlowGraph:
+		"""
+		Create a flow graph with the disassembly of this function.
+
+		.. note:: This graph waits for function analysis, so Workflow Activities should instead use
+		          :py:func:`create_graph_immediate` to create graphs with the function contents as-is.
+
+		:param graph_type: IL form of the disassembly in the graph
+		:param settings: Optional settings for the disassembly text renderer
+		:return: Flow graph object
+		"""
 		if settings is not None:
 			settings_obj = settings.handle
 		else:
 			settings_obj = None
 		graph_type = FunctionViewType(graph_type)._to_core_struct()
 		return flowgraph.CoreFlowGraph(core.BNCreateFunctionGraph(self.handle, graph_type, settings_obj))
+
+	def create_graph_immediate(
+	    self, graph_type: FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph,
+	    settings: Optional['DisassemblySettings'] = None
+	) -> flowgraph.CoreFlowGraph:
+		"""
+		Create a flow graph with the disassembly of this function, specifically using the
+		instructions as they are in the function when this is called. You probably want to use
+		this if you are creating a Debug Report in a Workflow Activity.
+
+		:param graph_type: IL form of the disassembly in the graph
+		:param settings: Optional settings for the disassembly text renderer
+		:return: Flow graph object
+		"""
+		if settings is not None:
+			settings_obj = settings.handle
+		else:
+			settings_obj = None
+		graph_type = FunctionViewType(graph_type)._to_core_struct()
+		return flowgraph.CoreFlowGraph(core.BNCreateImmediateFunctionGraph(self.handle, graph_type, settings_obj))
 
 	def apply_imported_types(self, sym: 'types.CoreSymbol', type: Optional[StringOrType] = None) -> None:
 		if isinstance(type, str):

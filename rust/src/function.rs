@@ -2435,6 +2435,18 @@ impl Function {
         unsafe { FlowGraph::ref_from_raw(result) }
     }
 
+    pub fn create_graph_immediate(
+        &self,
+        view_type: FunctionViewType,
+        settings: Option<&DisassemblySettings>,
+    ) -> Ref<FlowGraph> {
+        let settings_raw = settings.map(|s| s.handle).unwrap_or(std::ptr::null_mut());
+        let raw_view_type = FunctionViewType::into_raw(view_type);
+        let result = unsafe { BNCreateImmediateFunctionGraph(self.handle, raw_view_type, settings_raw) };
+        FunctionViewType::free_raw(raw_view_type);
+        unsafe { FlowGraph::ref_from_raw(result) }
+    }
+
     pub fn parent_components(&self) -> Array<Component> {
         let mut count = 0;
         let result =

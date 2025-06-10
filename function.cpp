@@ -1292,6 +1292,13 @@ Ref<FlowGraph> Function::CreateFunctionGraph(const FunctionViewType& type, Disas
 }
 
 
+Ref<FlowGraph> Function::CreateFunctionGraphImmediate(const FunctionViewType& type, DisassemblySettings* settings)
+{
+	BNFlowGraph* graph = BNCreateImmediateFunctionGraph(m_object, type.ToAPIObject(), settings ? settings->GetObject() : nullptr);
+	return new CoreFlowGraph(graph);
+}
+
+
 map<int64_t, vector<VariableNameAndType>> Function::GetStackLayout()
 {
 	size_t count;

@@ -11217,6 +11217,7 @@ namespace BinaryNinja {
 		void ApplyAutoDiscoveredType(Type* type);
 
 		Ref<FlowGraph> CreateFunctionGraph(const FunctionViewType& type, DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(const FunctionViewType& type, DisassemblySettings* settings = nullptr);
 
 		std::map<int64_t, std::vector<VariableNameAndType>> GetStackLayout();
 		void CreateAutoStackVariable(int64_t offset, const Confidence<Ref<Type>>& type, const std::string& name);
@@ -13394,6 +13395,7 @@ namespace BinaryNinja {
 		}
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 	};
 
 	/*!
@@ -13786,6 +13788,7 @@ namespace BinaryNinja {
 		}
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 
 		std::set<size_t> GetLiveInstructionsForVariable(const Variable& var, bool includeLastUse = true);
 
@@ -14081,6 +14084,7 @@ namespace BinaryNinja {
 		void VisitAllExprs(const std::function<bool(const HighLevelILInstruction& expr)>& func);
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 
 		size_t GetExprIndexForLabel(uint64_t label);
 		std::set<size_t> GetUsesForLabel(uint64_t label);
