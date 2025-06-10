@@ -4177,12 +4177,12 @@ class LowLevelILFunction:
 			result |= flag.value
 		core.BNSetLowLevelILExprAttributes(self.handle, expr, result)
 
-	def append(self, expr: ExpressionIndex) -> int:
+	def append(self, expr: ExpressionIndex) -> InstructionIndex:
 		"""
 		``append`` adds the ExpressionIndex ``expr`` to the current LowLevelILFunction.
 
 		:param ExpressionIndex expr: the ExpressionIndex to add to the current LowLevelILFunction
-		:return: number of ExpressionIndex in the current function
+		:return: Index of added instruction in the current function
 		:rtype: int
 		"""
 		return core.BNLowLevelILAddInstruction(self.handle, expr)
