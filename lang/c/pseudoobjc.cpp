@@ -4,6 +4,7 @@
 #include "highlevelilinstruction.h"
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace BinaryNinja;
@@ -350,6 +351,11 @@ void PseudoObjCFunction::GetExpr_CONST_PTR(const BinaryNinja::HighLevelILInstruc
 			return;
 	}
 
+	if (shortName.rfind("sel_", 0) == 0
+		&& GetExpr_Selector(
+			std::string_view(shortName).substr(4), constant, instr, tokens, settings, precedence, statement))
+		return;
+
 	DataVariable variable {};
 	auto hasVariable = GetFunction()->GetView()->GetDataVariableAtAddress(constant, variable);
 	if (!hasVariable)
@@ -389,6 +395,21 @@ bool PseudoObjCFunction::GetExpr_OBJC_CLASS(const Symbol& symbol, uint64_t const
 	tokens.Append(DataSymbolToken, ConstDataTokenContext, className, instr.address, constant);
 	if (statement)
 		tokens.AppendSemicolon();
+
+	return true;
+}
+
+bool PseudoObjCFunction::GetExpr_Selector(std::string_view selector, uint64_t constant,
+	const BinaryNinja::HighLevelILInstruction& instr, BinaryNinja::HighLevelILTokenEmitter& tokens,
+	BinaryNinja::DisassemblySettings* settings, BNOperatorPrecedence precedence, bool statement)
+{
+	if (selector.empty())
+		return false;
+
+	tokens.Append(KeywordToken, "@selector");
+	tokens.AppendOpenParen();
+	tokens.Append(DataSymbolToken, ConstDataTokenContext, std::string(selector), instr.address, constant);
+	tokens.AppendCloseParen();
 
 	return true;
 }

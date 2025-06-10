@@ -31,6 +31,9 @@ private:
 	bool GetExpr_OBJC_CLASS(const BinaryNinja::Symbol& symbol, uint64_t constant,
 		const BinaryNinja::HighLevelILInstruction& expr, BinaryNinja::HighLevelILTokenEmitter& tokens,
 		BinaryNinja::DisassemblySettings* settings, BNOperatorPrecedence precedence, bool statement);
+	bool GetExpr_Selector(std::string_view selector, uint64_t constant,
+		const BinaryNinja::HighLevelILInstruction& expr, BinaryNinja::HighLevelILTokenEmitter& tokens,
+		BinaryNinja::DisassemblySettings* settings, BNOperatorPrecedence precedence, bool statement);
 	bool GetExpr_NSConstantString(BinaryNinja::Ref<BinaryNinja::Type> type, uint64_t constant,
 		const BinaryNinja::HighLevelILInstruction& expr, BinaryNinja::HighLevelILTokenEmitter& tokens,
 		BinaryNinja::DisassemblySettings* settings, BNOperatorPrecedence precedence, bool statement);
