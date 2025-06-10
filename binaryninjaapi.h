@@ -11415,6 +11415,7 @@ namespace BinaryNinja {
 		std::map<Variable, std::map<ArchAndAddr, Ref<FieldResolutionInfo>>> GetAllFieldResolutions();
 
 		void RequestDebugReport(const std::string& name);
+		bool CheckForDebugReport(const std::string& name);
 
 		/*! Get the name for a given label ID
 

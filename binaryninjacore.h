@@ -5505,6 +5505,7 @@ extern "C"
 			const BNArchitectureAndAddress* defSite);
 
 	BINARYNINJACOREAPI void BNRequestFunctionDebugReport(BNFunction* func, const char* name);
+	BINARYNINJACOREAPI bool BNFunctionCheckForDebugReport(BNFunction* func, const char* name);
 
 	BINARYNINJACOREAPI BNILReferenceSource* BNGetMediumLevelILVariableReferences(
 	    BNFunction* func, BNVariable* var, size_t* count);

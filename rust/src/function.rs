@@ -2235,6 +2235,19 @@ impl Function {
         self.view().update_analysis()
     }
 
+    ///Checks if a function has had a debug report requested with the given name, and then,
+    /// if one has been requested, clears the request internally so that future calls
+    /// to this function for that report will return False.
+    ///
+    /// If a function has had a debug report requested, it is the caller of this function's
+    /// responsibility to actually generate and show the debug report.
+    /// You can use [crate::interaction::report::ReportCollection::show]
+    /// for showing a debug report from a workflow activity.
+    pub fn check_for_debug_report(&self, name: &str) -> bool {
+        let name = std::ffi::CString::new(name.to_string()).unwrap();
+        unsafe { BNFunctionCheckForDebugReport(self.handle, name.as_ptr()) }
+    }
+
     /// Whether function was automatically discovered s a result of some creation of a 'user' function.
     /// 'user' functions may or may not have been created by a user through the or API. For instance the entry point
     /// into a function is always created a 'user' function. 'user' functions should be considered the root of auto

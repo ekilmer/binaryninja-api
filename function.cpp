@@ -2778,6 +2778,12 @@ void Function::RequestDebugReport(const string& name)
 }
 
 
+bool Function::CheckForDebugReport(const string& name)
+{
+	return BNFunctionCheckForDebugReport(m_object, name.c_str());
+}
+
+
 string Function::GetGotoLabelName(uint64_t labelId)
 {
 	char* name = BNGetGotoLabelName(m_object, labelId);

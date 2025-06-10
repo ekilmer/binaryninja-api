@@ -3040,6 +3040,22 @@ class Function:
 		core.BNRequestFunctionDebugReport(self.handle, name)
 		self.view.update_analysis()
 
+	def check_for_debug_report(self, name: str) -> bool:
+		"""
+		``check_for_debug_report`` checks if a function has had a debug report requested
+		with the given name, and then, if one has been requested, clears the request internally
+		so that future calls to this function for that report will return False.
+
+		If a function has had a debug report requested, it is the caller of this function's
+		responsibility to actually generate and show the debug report.
+		You can use :py:func:`binaryninja.interaction.show_report_collection`
+		for showing a debug report from a workflow activity.
+
+		:param name: Name of the debug report
+		:return: True if the report has been requested (and not checked for yet)
+		"""
+		return core.BNFunctionCheckForDebugReport(self.handle, name)
+
 	@property
 	def call_sites(self) -> List['binaryview.ReferenceSource']:
 		"""
