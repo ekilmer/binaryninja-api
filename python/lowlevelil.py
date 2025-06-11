@@ -1673,13 +1673,13 @@ class LowLevelILFlag(LowLevelILInstruction):
 @dataclass(frozen=True, repr=False, eq=False)
 class LowLevelILGoto(LowLevelILInstruction, Terminal):
 	@property
-	def dest(self) -> int:
-		return self._get_int(0)
+	def dest(self) -> InstructionIndex:
+		return InstructionIndex(self._get_int(0))
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, LowLevelILOperandType, str]]:
 		return [
-			("dest", self.dest, "int"),
+			("dest", self.dest, "InstructionIndex"),
 		]
 
 
@@ -2612,19 +2612,19 @@ class LowLevelILIf(LowLevelILInstruction, ControlFlow):
 		return self._get_expr(0)
 
 	@property
-	def true(self) -> int:
-		return self._get_int(1)
+	def true(self) -> InstructionIndex:
+		return InstructionIndex(self._get_int(1))
 
 	@property
-	def false(self) -> int:
-		return self._get_int(2)
+	def false(self) -> InstructionIndex:
+		return InstructionIndex(self._get_int(2))
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, LowLevelILOperandType, str]]:
 		return [
 			("condition", self.condition, "LowLevelILInstruction"),
-			("true", self.true, "int"),
-			("false", self.false, "int"),
+			("true", self.true, "InstructionIndex"),
+			("false", self.false, "InstructionIndex"),
 		]
 
 
