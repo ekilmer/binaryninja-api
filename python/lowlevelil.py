@@ -3945,7 +3945,7 @@ class LowLevelILFunction:
 			return dest.reg_stack_push(expr.size, expr.stack, sub_expr_handler(expr.src), expr.flags, loc)
 		if expr.operation == LowLevelILOperation.LLIL_SET_FLAG:
 			expr: LowLevelILSetFlag
-			return dest.set_flag(expr.dest.name, sub_expr_handler(expr.src), loc)
+			return dest.set_flag(expr.dest, sub_expr_handler(expr.src), loc)
 		if expr.operation == LowLevelILOperation.LLIL_LOAD:
 			expr: LowLevelILLoad
 			return dest.load(expr.size, sub_expr_handler(expr.src), expr.flags, loc)
@@ -3966,10 +3966,10 @@ class LowLevelILFunction:
 			return dest.reg_stack_pop(expr.size, expr.stack, loc)
 		if expr.operation == LowLevelILOperation.LLIL_FLAG:
 			expr: LowLevelILFlag
-			return dest.flag(expr.src.name, loc)
+			return dest.flag(expr.src, loc)
 		if expr.operation == LowLevelILOperation.LLIL_FLAG_BIT:
 			expr: LowLevelILFlagBit
-			return dest.flag_bit(expr.size, expr.src.name, expr.bit, loc)
+			return dest.flag_bit(expr.size, expr.src, expr.bit, loc)
 		if expr.operation == LowLevelILOperation.LLIL_JUMP:
 			expr: LowLevelILJump
 			return dest.jump(sub_expr_handler(expr.dest), loc)
@@ -4284,7 +4284,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_REG_STACK_PUSH, _reg_stack, value, size=size, flags=flags, source_location=loc)
 
 	def set_flag(
-	    self, flag: 'architecture.FlagName', value: ExpressionIndex,
+	    self, flag: 'architecture.FlagType', value: ExpressionIndex,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4296,10 +4296,18 @@ class LowLevelILFunction:
 		:return: The expression FLAG.flag = value
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_SET_FLAG, ExpressionIndex(self.arch.get_flag_by_name(flag)), value, source_location=loc)
+		if isinstance(flag, str):
+			flag_index = self.arch.get_flag_by_name(flag)
+		elif isinstance(flag, int):
+			flag_index = flag
+		elif isinstance(flag, ILFlag):
+			flag_index = flag.index
+		else:
+			assert False, "Unknown flag type"
+		return self.expr(LowLevelILOperation.LLIL_SET_FLAG, ExpressionIndex(flag_index), value, source_location=loc)
 
 	def load(
-		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagName'] = None,
+		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4307,7 +4315,7 @@ class LowLevelILFunction:
 
 		:param int size: number of bytes to read
 		:param ExpressionIndex addr: the expression to read memory from
-		:param FlagName flags: which flags are set by this operation
+		:param FlagType flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``[addr].size``
 		:rtype: ExpressionIndex
@@ -4315,7 +4323,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_LOAD, addr, size=size, flags=flags, source_location=loc)
 
 	def store(
-	    self, size: int, addr: ExpressionIndex, value: ExpressionIndex, flags: Optional['architecture.FlagName'] = None,
+	    self, size: int, addr: ExpressionIndex, value: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
 	    loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4324,7 +4332,7 @@ class LowLevelILFunction:
 		:param int size: number of bytes to write
 		:param ExpressionIndex addr: the expression to write to
 		:param ExpressionIndex value: the expression to be written
-		:param FlagName flags: which flags are set by this operation
+		:param FlagType flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``[addr].size = value``
 		:rtype: ExpressionIndex
@@ -4492,19 +4500,27 @@ class LowLevelILFunction:
 		"""
 		return self.expr(LowLevelILOperation.LLIL_FLOAT_CONST, struct.unpack("Q", struct.pack("d", value))[0], size=8, source_location=loc)
 
-	def flag(self, flag: 'architecture.FlagName', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def flag(self, flag: 'architecture.FlagType', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
 		``flag`` returns a flag expression for the given flag name.
 
-		:param architecture.FlagName flag: name of the flag expression to retrieve
+		:param architecture.FlagType flag: flag expression to retrieve
 		:param ILSourceLocation loc: location of returned expression
 		:return: A flag expression of given flag name
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FLAG, self.arch.get_flag_by_name(flag), source_location=loc)
+		if isinstance(flag, str):
+			flag_index = self.arch.get_flag_by_name(flag)
+		elif isinstance(flag, int):
+			flag_index = flag
+		elif isinstance(flag, ILFlag):
+			flag_index = flag.index
+		else:
+			assert False, "Unknown flag type"
+		return self.expr(LowLevelILOperation.LLIL_FLAG, ExpressionIndex(flag_index), source_location=loc)
 
 	def flag_bit(
-	    self, size: int, flag: 'architecture.FlagName', bit: int, loc: Optional['ILSourceLocation'] = None
+	    self, size: int, flag: 'architecture.FlagType', bit: int, loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
 		``flag_bit`` sets the flag named ``flag`` and size ``size`` to the constant integer value ``bit``
@@ -4516,7 +4532,15 @@ class LowLevelILFunction:
 		:return: A constant expression of given value and size ``FLAG.flag = bit``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_FLAG_BIT, self.arch.get_flag_by_name(flag), bit, size=size, source_location=loc)
+		if isinstance(flag, str):
+			flag_index = self.arch.get_flag_by_name(flag)
+		elif isinstance(flag, int):
+			flag_index = flag
+		elif isinstance(flag, ILFlag):
+			flag_index = flag.index
+		else:
+			assert False, "Unknown flag type"
+		return self.expr(LowLevelILOperation.LLIL_FLAG_BIT, ExpressionIndex(flag_index), bit, size=size, source_location=loc)
 
 	def add(
 	    self, size: int, a: ExpressionIndex, b: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
