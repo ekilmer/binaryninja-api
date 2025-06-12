@@ -3963,7 +3963,13 @@ class LowLevelILFunction:
 			return dest.reg_stack_top_relative(expr.size, expr.stack, sub_expr_handler(expr.src), loc)
 		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_POP:
 			expr: LowLevelILRegStackPop
-			return dest.reg_stack_pop(expr.size, expr.stack, loc)
+			return dest.reg_stack_pop(expr.size, expr.stack, expr.flags, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_FREE_REG:
+			expr: LowLevelILRegStackFreeReg
+			return dest.reg_stack_free_reg(expr.dest, loc)
+		if expr.operation == LowLevelILOperation.LLIL_REG_STACK_FREE_REL:
+			expr: LowLevelILRegStackFreeRel
+			return dest.reg_stack_free_top_relative(expr.stack, expr.dest, loc)
 		if expr.operation == LowLevelILOperation.LLIL_FLAG:
 			expr: LowLevelILFlag
 			return dest.flag(expr.src, loc)
@@ -3978,7 +3984,7 @@ class LowLevelILFunction:
 			return dest.call(sub_expr_handler(expr.dest), loc)
 		if expr.operation == LowLevelILOperation.LLIL_CALL_STACK_ADJUST:
 			expr: LowLevelILCallStackAdjust
-			return dest.call_stack_adjust(sub_expr_handler(expr.dest), expr.stack_adjustment, loc)
+			return dest.call_stack_adjust(sub_expr_handler(expr.dest), expr.stack_adjustment, expr.reg_stack_adjustments, loc)
 		if expr.operation == LowLevelILOperation.LLIL_TAILCALL:
 			expr: LowLevelILTailcall
 			return dest.tailcall(sub_expr_handler(expr.dest), loc)
@@ -4339,28 +4345,41 @@ class LowLevelILFunction:
 		"""
 		return self.expr(LowLevelILOperation.LLIL_STORE, addr, value, size=size, flags=flags, source_location=loc)
 
-	def push(self, size: int, value: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def push(
+		self,
+		size: int,
+		value: ExpressionIndex,
+		flags: Optional['architecture.FlagType'] = None,
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
 		"""
 		``push`` writes ``size`` bytes from expression ``value`` to the stack, adjusting the stack by ``size``.
 
 		:param int size: number of bytes to write and adjust the stack by
 		:param ExpressionIndex value: the expression to write
+		:param FlagType flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression push(value)
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_PUSH, value, size=size, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_PUSH, value, size=size, flags=flags, source_location=loc)
 
-	def pop(self, size: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def pop(
+		self,
+		size: int,
+		flags: Optional['architecture.FlagType'] = None,
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
 		"""
 		``pop`` reads ``size`` bytes from the stack, adjusting the stack by ``size``.
 
 		:param int size: number of bytes to read from the stack
+		:param FlagType flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``pop``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_POP, size=size, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_POP, size=size, flags=flags, source_location=loc)
 
 	def reg(self, size: int, reg: 'architecture.RegisterType', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -4412,7 +4431,7 @@ class LowLevelILFunction:
 		return self.expr(LowLevelILOperation.LLIL_REG_STACK_REL, _reg_stack, entry, size=size, source_location=loc)
 
 	def reg_stack_pop(
-		self, size: int, reg_stack: 'architecture.RegisterStackType',
+		self, size: int, reg_stack: 'architecture.RegisterStackType', flags: Optional['architecture.FlagType'] = None,
 		loc: Optional['ILSourceLocation'] = None
 	) -> ExpressionIndex:
 		"""
@@ -4421,12 +4440,45 @@ class LowLevelILFunction:
 
 		:param int size: the size of the register in bytes
 		:param str reg_stack: the name of the register stack
+		:param FlagType flags: which flags are set by this operation
 		:param ILSourceLocation loc: location of returned expression
 		:return: The expression ``reg_stack.pop``
 		:rtype: ExpressionIndex
 		"""
 		_reg_stack = ExpressionIndex(self.arch.get_reg_stack_index(reg_stack))
-		return self.expr(LowLevelILOperation.LLIL_REG_STACK_POP, _reg_stack, size=size, source_location=loc)
+		return self.expr(LowLevelILOperation.LLIL_REG_STACK_POP, _reg_stack, size=size, flags=flags, source_location=loc)
+
+	def reg_stack_free_reg(self, reg: 'architecture.RegisterType', loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+		"""
+		``reg_stack_free_reg`` clears the given register ``reg`` from its register stack
+		without affecting the register at the top of the register stack.
+
+		:param str reg: the register being marked free
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``__free_slot(reg)``
+		:rtype: ExpressionIndex
+		"""
+		_reg = ExpressionIndex(self.arch.get_reg_index(reg))
+		return self.expr(LowLevelILOperation.LLIL_REG_STACK_FREE_REG, _reg, source_location=loc)
+
+	def reg_stack_free_top_relative(
+		self,
+		reg_stack: 'architecture.RegisterStackType',
+		entry: ExpressionIndex,
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``reg_stack_free_top_relative`` clears an entry in the register stack ``reg_stack``
+		at a top-relative position specified by the value of ``entry``.
+
+		:param str reg_stack: the register stack name
+		:param ExpressionIndex entry: expression to calculate the top-relative position
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``__free_slot(reg_stack[entry])``
+		:rtype: ExpressionIndex
+		"""
+		_reg_stack = ExpressionIndex(self.arch.get_reg_stack_index(reg_stack))
+		return self.expr(LowLevelILOperation.LLIL_REG_STACK_FREE_REL, _reg_stack, entry, source_location=loc)
 
 	def const(self, size: int, value: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -5118,7 +5170,13 @@ class LowLevelILFunction:
 		"""
 		return self.expr(LowLevelILOperation.LLIL_CALL, dest, source_location=loc)
 
-	def call_stack_adjust(self, dest: ExpressionIndex, stack_adjust: int, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
+	def call_stack_adjust(
+		self,
+		dest: ExpressionIndex,
+		stack_adjust: int,
+		reg_stack_adjustments: Optional[Dict['architecture.RegisterStackType', int]] = None,
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
 		"""
 		``call_stack_adjust`` returns an expression which first pushes the address of the next instruction onto the stack
 		then jumps (branches) to the expression ``dest``. After the function exits, ``stack_adjust`` is added to the
@@ -5129,7 +5187,14 @@ class LowLevelILFunction:
 		:return: The expression ``call(dest), stack += stack_adjust``
 		:rtype: ExpressionIndex
 		"""
-		return self.expr(LowLevelILOperation.LLIL_CALL_STACK_ADJUST, dest, stack_adjust, source_location=loc)
+		list = []
+		if reg_stack_adjustments is not None:
+			for reg_stack, adjustment in reg_stack_adjustments.items():
+				reg_stack_index = self.arch.get_reg_stack_index(reg_stack)
+				list.append(reg_stack_index)
+				list.append(adjustment)
+
+		return self.expr(LowLevelILOperation.LLIL_CALL_STACK_ADJUST, dest, stack_adjust, len(list), self.add_index_list(list), source_location=loc)
 
 	def tailcall(self, dest: ExpressionIndex, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
@@ -5922,6 +5987,24 @@ class LowLevelILFunction:
 			else:
 				raise Exception("Invalid operand type")
 		return ExpressionIndex(core.BNLowLevelILAddOperandList(self.handle, operand_list, len(operands)))
+
+	def add_index_list(self, indices: List[int]) -> ExpressionIndex:
+		"""
+		``add_index_list`` returns an index list expression for the given list of integers.
+
+		:param indices: list of numbers
+		:type indices: List(int)
+		:return: an operand list expression
+		:rtype: ExpressionIndex
+		"""
+		index_list = (ctypes.c_ulonglong * len(indices))()
+		for i in range(len(indices)):
+			index = indices[i]
+			if isinstance(index, int):
+				index_list[i] = ExpressionIndex(index)
+			else:
+				raise Exception("Invalid index type")
+		return ExpressionIndex(core.BNLowLevelILAddOperandList(self.handle, index_list, len(indices)))
 
 	def operand(self, n: int, expr: ExpressionIndex) -> ExpressionIndex:
 		"""
