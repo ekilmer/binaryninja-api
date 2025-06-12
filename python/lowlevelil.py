@@ -3946,6 +3946,12 @@ class LowLevelILFunction:
 		if expr.operation == LowLevelILOperation.LLIL_SET_FLAG:
 			expr: LowLevelILSetFlag
 			return dest.set_flag(expr.dest, sub_expr_handler(expr.src), loc)
+		if expr.operation == LowLevelILOperation.LLIL_ASSERT:
+			expr: LowLevelILAssert
+			return dest.assert_expr(expr.size, expr.src, expr.constraint, loc)
+		if expr.operation == LowLevelILOperation.LLIL_FORCE_VER:
+			expr: LowLevelILForceVer
+			return dest.force_ver(expr.size, expr.dest, loc)
 		if expr.operation == LowLevelILOperation.LLIL_LOAD:
 			expr: LowLevelILLoad
 			return dest.load(expr.size, sub_expr_handler(expr.src), expr.flags, loc)
@@ -4311,6 +4317,45 @@ class LowLevelILFunction:
 		else:
 			assert False, "Unknown flag type"
 		return self.expr(LowLevelILOperation.LLIL_SET_FLAG, ExpressionIndex(flag_index), value, source_location=loc)
+
+	def assert_expr(
+		self,
+		size: int,
+		src: 'architecture.RegisterType',
+		constraint: 'variable.PossibleValueSet',
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``assert_expr`` assert ``constraint`` is the value of the given register ``src``.
+		Used when setting user variable values.
+
+		:param int size: size of value in the constraint
+		:param RegisterType src: register to constrain
+		:param variable.PossibleValueSet constraint: asserted value of register
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``ASSERT(reg, constraint)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(LowLevelILOperation.LLIL_ASSERT, ExpressionIndex(self.arch.get_reg_index(src)), ExpressionIndex(self.cache_possible_value_set(constraint)), size=size, source_location=loc)
+
+	def force_ver(
+		self,
+		size: int,
+		dest: 'architecture.RegisterType',
+		loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``force_ver`` creates a new version of the register ``dest``
+		Effectively, this is like saying r0#2 = r0#1 which MLIL can then use as a new
+		variable definition site.
+
+		:param int size: size of the register
+		:param RegisterType dest: the register to force a new version of
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``FORCE_VER(reg)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(LowLevelILOperation.LLIL_FORCE_VER, ExpressionIndex(self.arch.get_reg_index(dest)), size=size, source_location=loc)
 
 	def load(
 		self, size: int, addr: ExpressionIndex, flags: Optional['architecture.FlagType'] = None,
@@ -6005,6 +6050,14 @@ class LowLevelILFunction:
 			else:
 				raise Exception("Invalid index type")
 		return ExpressionIndex(core.BNLowLevelILAddOperandList(self.handle, index_list, len(indices)))
+
+	def cache_possible_value_set(self, pvs: 'variable.PossibleValueSet') -> int:
+		"""
+		Cache a PossibleValueSet in the IL function, returning its index for use in an expression operand
+		:param pvs: PossibleValueSet to cache
+		:return: Index of the PossibleValueSet in the cache
+		"""
+		return core.BNCacheLowLevelILPossibleValueSet(self.handle, pvs._to_core_struct())
 
 	def operand(self, n: int, expr: ExpressionIndex) -> ExpressionIndex:
 		"""
