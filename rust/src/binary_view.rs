@@ -76,6 +76,7 @@ pub type Result<R> = result::Result<R, ()>;
 pub type BinaryViewEventType = BNBinaryViewEventType;
 pub type AnalysisState = BNAnalysisState;
 pub type ModificationStatus = BNModificationStatus;
+pub type StringType = BNStringType;
 
 #[allow(clippy::len_without_is_empty)]
 pub trait BinaryViewBase: AsRef<BinaryView> {
@@ -1905,6 +1906,38 @@ pub trait BinaryViewExt: BinaryViewBase {
         let name = QualifiedName::from_owned_raw(result_name);
         Some((lib, name))
     }
+
+    /// Retrieve all known strings in the binary.
+    ///
+    /// NOTE: This returns a list of [`StringReference`] as strings may not be representable
+    /// as a [`String`] or even a [`BnString`]. It is the caller's responsibility to read the underlying
+    /// data and convert it to a representable form.
+    fn strings(&self) -> Array<StringReference> {
+        unsafe {
+            let mut count = 0;
+            let strings = BNGetStrings(self.as_ref().handle, &mut count);
+            Array::new(strings, count, ())
+        }
+    }
+
+    /// Retrieve all known strings within the provided `range`.
+    ///
+    /// NOTE: This returns a list of [`StringReference`] as strings may not be representable
+    /// as a [`String`] or even a [`BnString`]. It is the caller's responsibility to read the underlying
+    /// data and convert it to a representable form.
+    fn strings_in_range(&self, range: Range<u64>) -> Array<StringReference> {
+        unsafe {
+            let mut count = 0;
+            let strings = BNGetStringsInRange(
+                self.as_ref().handle,
+                range.start,
+                range.end - range.start,
+                &mut count,
+            );
+            Array::new(strings, count, ())
+        }
+    }
+
     //
     // fn type_archives(&self) -> Array<TypeArchive> {
     //     let mut ids: *mut *mut c_char = std::ptr::null_mut();
@@ -2188,5 +2221,48 @@ where
             Some(on_event::<Handler>),
             raw as *mut ::std::os::raw::c_void,
         );
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct StringReference {
+    pub ty: StringType,
+    pub start: u64,
+    pub length: usize,
+}
+
+impl From<BNStringReference> for StringReference {
+    fn from(raw: BNStringReference) -> Self {
+        Self {
+            ty: raw.type_,
+            start: raw.start,
+            length: raw.length,
+        }
+    }
+}
+
+impl From<StringReference> for BNStringReference {
+    fn from(raw: StringReference) -> Self {
+        Self {
+            type_: raw.ty,
+            start: raw.start,
+            length: raw.length,
+        }
+    }
+}
+
+impl CoreArrayProvider for StringReference {
+    type Raw = BNStringReference;
+    type Context = ();
+    type Wrapped<'a> = Self;
+}
+
+unsafe impl CoreArrayProviderInner for StringReference {
+    unsafe fn free(raw: *mut Self::Raw, _count: usize, _context: &Self::Context) {
+        BNFreeStringReferenceList(raw)
+    }
+
+    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {
+        Self::from(*raw)
     }
 }
