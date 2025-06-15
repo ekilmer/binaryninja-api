@@ -3621,7 +3621,7 @@ class MediumLevelILFunction:
 		:return: Index of added instruction in the current function
 		:rtype: int
 		"""
-		return core.BNMediumLevelILAddInstruction(self.handle, expr)
+		return InstructionIndex(core.BNMediumLevelILAddInstruction(self.handle, expr))
 
 	def nop(self, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""

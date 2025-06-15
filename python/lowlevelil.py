@@ -4010,7 +4010,7 @@ class LowLevelILFunction:
 			expr: LowLevelILGoto
 			label_a = dest.get_label_for_source_instruction(expr.dest)
 			if label_a is None:
-				return dest.jump(dest.const_pointer(expr.function.arch.address_size, expr.function[expr.dest].address))
+				return dest.jump(dest.const_pointer(expr.function.arch.address_size, expr.function[expr.dest].address), loc)
 			return dest.goto(label_a, loc)
 		if expr.operation == LowLevelILOperation.LLIL_IF:
 			expr: LowLevelILIf
@@ -4039,7 +4039,7 @@ class LowLevelILFunction:
 			return dest.extern_pointer(expr.size, expr.constant, expr.offset, loc)
 		if expr.operation == LowLevelILOperation.LLIL_FLOAT_CONST:
 			expr: LowLevelILFloatConst
-			return dest.float_const_raw(expr.size, expr.instr.operands[0], loc)
+			return dest.float_const_raw(expr.size, expr.raw_operands[0], loc)
 		if expr.operation in [
 			LowLevelILOperation.LLIL_POP,
 			LowLevelILOperation.LLIL_NORET,
@@ -4197,7 +4197,7 @@ class LowLevelILFunction:
 		:return: Index of added instruction in the current function
 		:rtype: int
 		"""
-		return core.BNLowLevelILAddInstruction(self.handle, expr)
+		return InstructionIndex(core.BNLowLevelILAddInstruction(self.handle, expr))
 
 	def nop(self, loc: Optional['ILSourceLocation'] = None) -> ExpressionIndex:
 		"""
