@@ -1411,29 +1411,29 @@ class MediumLevelILCallParam(MediumLevelILInstruction):
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILSeparateParamList(MediumLevelILInstruction):
 	def __repr__(self):
-		return f"<MediumLevelILSeparateParamList: {self.src}>"
+		return f"<MediumLevelILSeparateParamList: {self.params}>"
 
 	@property
-	def src(self) -> List[MediumLevelILInstruction]:
+	def params(self) -> List[MediumLevelILInstruction]:
 		return self._get_expr_list(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, MediumLevelILOperandType, str]]:
-		return [("src", self.src, "List[MediumLevelILInstruction]")]
+		return [("params", self.params, "List[MediumLevelILInstruction]")]
 
 
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILSharedParamSlot(MediumLevelILInstruction):
 	def __repr__(self):
-		return f"<MediumLevelILSharedParamSlot: {self.src}>"
+		return f"<MediumLevelILSharedParamSlot: {self.params}>"
 
 	@property
-	def src(self) -> List[MediumLevelILInstruction]:
+	def params(self) -> List[MediumLevelILInstruction]:
 		return self._get_expr_list(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, MediumLevelILOperandType, str]]:
-		return [("src", self.src, "List[MediumLevelILInstruction]")]
+		return [("params", self.params, "List[MediumLevelILInstruction]")]
 
 
 @dataclass(frozen=True, repr=False, eq=False)
@@ -1450,12 +1450,12 @@ class MediumLevelILRet(MediumLevelILInstruction, Return):
 @dataclass(frozen=True, repr=False, eq=False)
 class MediumLevelILGoto(MediumLevelILInstruction, Terminal):
 	@property
-	def dest(self) -> int:
-		return self._get_int(0)
+	def dest(self) -> InstructionIndex:
+		return InstructionIndex(self._get_int(0))
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, MediumLevelILOperandType, str]]:
-		return [("dest", self.dest, "int")]
+		return [("dest", self.dest, "InstructionIndex")]
 
 
 @dataclass(frozen=True, repr=False, eq=False)
@@ -2686,19 +2686,19 @@ class MediumLevelILIf(MediumLevelILInstruction, Terminal):
 		return self._get_expr(0)
 
 	@property
-	def true(self) -> int:
+	def true(self) -> InstructionIndex:
 		return self._get_int(1)
 
 	@property
-	def false(self) -> int:
+	def false(self) -> InstructionIndex:
 		return self._get_int(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, MediumLevelILOperandType, str]]:
 		return [
 			('condition', self.condition, 'MediumLevelILInstruction'),
-			('true', self.true, 'int'),
-			('false', self.false, 'int'),
+			('true', self.true, 'InstructionIndex'),
+			('false', self.false, 'InstructionIndex'),
 		]
 
 
