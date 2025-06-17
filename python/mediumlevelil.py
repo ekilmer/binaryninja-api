@@ -406,6 +406,22 @@ class MediumLevelILInstruction(BaseILInstruction):
 		instr = CoreMediumLevelILInstruction.from_BNMediumLevelILInstruction(inst)
 		return ILInstruction[instr.operation](func, expr_index, instr, instr_index)  # type: ignore
 
+	def copy_to(
+		self, dest: 'MediumLevelILFunction',
+		sub_expr_handler: Optional[Callable[['MediumLevelILInstruction'], ExpressionIndex]] = None
+	) -> ExpressionIndex:
+		"""
+		``copy_to`` deep copies an expression into a new IL function.
+		If provided, the function ``sub_expr_handler`` will be called on every copied sub-expression
+
+		.. warning:: This function should ONLY be called as a part of a lifter or workflow. It will otherwise not do anything useful as analysis will not be running.
+
+		:param MediumLevelILFunction dest: Function to copy the expression to
+		:param sub_expr_handler: Optional function to call on every copied sub-expression
+		:return: Index of the copied expression in the target function
+		"""
+		return self.function.copy_expr_to(self, dest, sub_expr_handler)
+
 	def __str__(self):
 		tokens = self.tokens
 		if tokens is None:
@@ -3900,6 +3916,37 @@ class MediumLevelILFunction:
 		dest.set_expr_attributes(new_index, expr.attributes)
 		dest.set_expr_type(new_index, self.get_expr_type(expr.expr_index))
 		return new_index
+
+	def translate(
+		self, expr_handler: Callable[['MediumLevelILFunction', 'MediumLevelILBasicBlock', 'MediumLevelILInstruction'], ExpressionIndex]
+	) -> 'MediumLevelILFunction':
+		"""
+		``translate`` clones an IL function and modifies its expressions as specified by
+		a given ``expr_handler``, returning the updated IL function.
+
+		:param expr_handler: Function to modify an expression and copy it to the new function.
+		                     The function should have the following signature:
+
+		                     .. function:: expr_handler(new_func: MediumLevelILFunction, old_block: MediumLevelILBasicBlock, old_instr: MediumLevelILInstruction) -> ExpressionIndex
+
+		                     Where:
+		                         - **new_func** (*MediumLevelILFunction*): New function to receive translated instructions
+		                         - **old_block** (*MediumLevelILBasicBlock*): Original block containing old_instr
+		                         - **old_instr** (*MediumLevelILInstruction*): Original instruction
+		                         - **returns** (*ExpressionIndex*): Expression index of newly created instruction in ``new_func``
+		:return: Cloned IL function with modifications
+		"""
+
+		propagated_func = MediumLevelILFunction(self.arch, low_level_il=self.low_level_il)
+		propagated_func.prepare_to_copy_function(self)
+		for block in self.basic_blocks:
+			propagated_func.prepare_to_copy_block(block)
+			for instr_index in range(block.start, block.end):
+				instr: MediumLevelILInstruction = self[InstructionIndex(instr_index)]
+				propagated_func.set_current_address(instr.address, block.arch)
+				propagated_func.append(expr_handler(propagated_func, block, instr))
+
+		return propagated_func
 
 	def set_expr_attributes(self, expr: InstructionOrExpression, value: ILInstructionAttributeSet):
 		"""
