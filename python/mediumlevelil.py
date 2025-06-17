@@ -5292,8 +5292,8 @@ class MediumLevelILFunction:
 		:return: the label list expression
 		:rtype: ExpressionIndex
 		"""
-		label_list = (ctypes.POINTER(core.BNMediumLevelILLabel) * len(labels))()  # type: ignore
-		value_list = (ctypes.POINTER(ctypes.c_ulonglong) * len(labels))()  # type: ignore
+		label_list = (ctypes.POINTER(core.BNMediumLevelILLabel) * len(labels))()
+		value_list = (ctypes.c_ulonglong * len(labels))()
 		for i, (key, value) in enumerate(labels.items()):
 			value_list[i] = key
 			label_list[i] = value.handle
