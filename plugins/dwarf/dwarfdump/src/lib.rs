@@ -20,6 +20,7 @@ use binaryninja::{
 };
 use dwarfreader::is_valid;
 
+use binaryninja::binary_view::StringType;
 use gimli::{
     AttributeValue::{Encoding, Flag, UnitRef},
     // BigEndian,
@@ -32,7 +33,6 @@ use gimli::{
     Unit,
     UnitSectionOffset,
 };
-use binaryninja::binary_view::StringType;
 
 static PADDING: [&str; 23] = [
     "",

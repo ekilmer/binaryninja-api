@@ -23,6 +23,7 @@ use crate::{
     calling_convention::CoreCallingConvention,
     data_buffer::DataBuffer,
     disassembly::InstructionTextToken,
+    function::Function,
     platform::Platform,
     rc::*,
     relocation::CoreRelocationHandler,
@@ -30,7 +31,6 @@ use crate::{
     string::*,
     types::{NameAndType, Type},
     Endianness,
-    function::Function,
 };
 use std::ops::Deref;
 use std::{
@@ -477,10 +477,7 @@ pub trait Architecture: 'static + Sized + AsRef<CoreArchitecture> {
         context: *mut BNBasicBlockAnalysisContext,
     ) {
         unsafe {
-            BNArchitectureDefaultAnalyzeBasicBlocks(
-                function.handle,
-                context,
-            );
+            BNArchitectureDefaultAnalyzeBasicBlocks(function.handle, context);
         };
     }
 
@@ -1553,11 +1550,7 @@ impl Architecture for CoreArchitecture {
         context: *mut BNBasicBlockAnalysisContext,
     ) {
         unsafe {
-            BNArchitectureAnalyzeBasicBlocks(
-                self.handle,
-                function.handle,
-                context,
-            );
+            BNArchitectureAnalyzeBasicBlocks(self.handle, function.handle, context);
         };
     }
 
@@ -2269,8 +2262,7 @@ where
         ctxt: *mut c_void,
         function: *mut BNFunction,
         context: *mut BNBasicBlockAnalysisContext,
-    )
-    where
+    ) where
         A: 'static + Architecture<Handle = CustomArchitectureHandle<A>> + Send + Sync,
     {
         let custom_arch = unsafe { &*(ctxt as *mut A) };
