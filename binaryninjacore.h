@@ -1110,8 +1110,9 @@ extern "C"
 
 	typedef enum BNDataFlowQueryOption
 	{
-		FromAddressesInLookupTableQueryOption  // Use addresses instead of index in the from list within
+		FromAddressesInLookupTableQueryOption, // Use addresses instead of index in the from list within
 		                                       // LookupTableValue results
+		AllowReadingWritableMemoryQueryOption,
 	} BNDataFlowQueryOption;
 
 	typedef enum BNPluginOrigin
