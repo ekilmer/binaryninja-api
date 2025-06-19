@@ -3490,7 +3490,7 @@ class MediumLevelILFunction:
 	def hlil(self) -> Optional[highlevelil.HighLevelILFunction]:
 		return self.high_level_il
 
-	def get_instruction_start(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> Optional[int]:
+	def get_instruction_start(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> Optional[InstructionIndex]:
 		_arch = arch
 		if _arch is None:
 			if self._arch is None:
@@ -3499,7 +3499,7 @@ class MediumLevelILFunction:
 		result = core.BNMediumLevelILGetInstructionStart(self.handle, _arch.handle, addr)
 		if result >= core.BNGetMediumLevelILInstructionCount(self.handle):
 			return None
-		return result
+		return InstructionIndex(result)
 
 	def expr(
 	    self, operation: MediumLevelILOperation, a: int = 0, b: int = 0, c: int = 0, d: int = 0, e: int = 0,

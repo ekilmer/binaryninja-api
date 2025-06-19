@@ -3784,13 +3784,13 @@ class LowLevelILFunction:
 		`LowLevelILFunction.ssa_reg_stacks_without_versions`, and `LowLevelILFunction.ssa_flags_without_versions`"""
 		return self.ssa_regs_without_versions + self.ssa_reg_stacks_without_versions + self.ssa_flags_without_versions
 
-	def get_instruction_start(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> Optional[int]:
+	def get_instruction_start(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> Optional[InstructionIndex]:
 		if arch is None:
 			arch = self.arch
 		result = core.BNLowLevelILGetInstructionStart(self.handle, arch.handle, addr)
 		if result >= core.BNGetLowLevelILInstructionCount(self.handle):
 			return None
-		return result
+		return InstructionIndex(result)
 
 	def clear_indirect_branches(self) -> None:
 		core.BNLowLevelILClearIndirectBranches(self.handle)
