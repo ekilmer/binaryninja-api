@@ -17022,8 +17022,9 @@ namespace BinaryNinja {
 			"readOnly"           bool                                     None                 Yes        Only enforced by UI elements
 			"optional"           bool                                     None                 Yes        Indicates setting can be null
 			"hidden"             bool                                     "type" is "string"   Yes        Indicates the UI should conceal the content. The "ignore" property is required to specify the applicable storage scopes
-			"requiresRestart     bool                                     None                 Yes        Enable restart notification in the UI upon change
+			"requiresRestart"    bool                                     None                 Yes        Enable restart notification in the UI upon change
 			"uiSelectionAction"  string                                   "type" is "string"   Yes        {"file", "directory", <Registered UIAction Name>} Informs the UI to add a button to open a selection dialog or run a registered UIAction
+			"quickSettingsGroup" string                                   None                 Yes        Informs the submenu name in the UI when added to quick settings context menu
 			==================   ======================================   ==================   ========   =======================================================================
 
 		\note In order to facilitate deterministic analysis results, settings from the <em><tt>default</tt></em> schema that impact analysis are serialized

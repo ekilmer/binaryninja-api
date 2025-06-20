@@ -62,9 +62,9 @@ class Settings:
 	:func:`register_group` method allows for specifying a UI friendly title for use in the Binary Ninja UI. Defining a new setting requires a \
 	unique setting key and a JSON string of property, value pairs. The following table describes the available properties and values.
 
-		===================   ======================================   ==================   ========   =======================================================================
+		====================  ======================================   ==================   ========   =======================================================================
 		Property              JSON Data Type                           Prerequisite         Optional   {Allowed Values} and Notes
-		===================   ======================================   ==================   ========   =======================================================================
+		====================  ======================================   ==================   ========   =======================================================================
 		"title"               string                                   None                 No         Concise Setting Title
 		"type"                string                                   None                 No         {"array", "boolean", "number", "string", "object"}
 		"sorted"              boolean                                  "type" is "array"    Yes        Automatically sort list items (default is false)
@@ -82,9 +82,10 @@ class Settings:
 		"readOnly"            boolean                                  None                 Yes        Only enforced by UI elements
 		"optional"            boolean                                  None                 Yes        Indicates setting can be null
 		"hidden"              bool                                     "type" is "string"   Yes        Indicates the UI should conceal the content. The "ignore" property is required to specify the applicable storage scopes
-		"requiresRestart      boolean                                  None                 Yes        Enable restart notification in the UI upon change
+		"requiresRestart"     boolean                                  None                 Yes        Enable restart notification in the UI upon change
 		"uiSelectionAction"   string                                   "type" is "string"   Yes        {"file", "directory", <Registered UIAction Name>} Informs the UI to add a button to open a selection dialog or run a registered UIAction
-		===================   ======================================   ==================   ========   =======================================================================
+		"quickSettingsGroup"  string                                   None                 Yes        Informs the submenu name in the UI when added to quick settings context menu
+		====================  ======================================   ==================   ========   =======================================================================
 
 	.. note:: In order to facilitate deterministic analysis results, settings from the *'default'* schema that impact analysis are serialized \
 	from Default, User, and Project scope into Resource scope during initial BinaryView analysis. This allows an analysis database to be opened \
