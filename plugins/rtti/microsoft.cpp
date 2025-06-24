@@ -601,18 +601,17 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
             auto redirectTypeId = Type::GenerateAutoDebugTypeId(rootRedirectName);
             // This will now create the redirect type MyClass::VTable for uninformed analysis to use.
             // MyClass -> MyBase::MyClass::VTable (when MyBase offset is 0).
-            m_view->DefineType(redirectTypeId, rootRedirectName, rootRedirectType);
-        }
-        m_view->DefineType(typeId, vftTypeName,
-                           Confidence(TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize(), RTTI_CONFIDENCE));
-    }
+			m_view->DefineType(redirectTypeId, rootRedirectName, rootRedirectType.GetValue());
+		}
+		m_view->DefineType(typeId, vftTypeName, TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize());
+	}
 
-    auto vftName = fmt::format("{}::`vftable'", classInfo.className);
-    if (baseClassInfo.has_value())
-        vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
-    m_view->DefineAutoSymbol(new Symbol{DataSymbol, vftName, vftAddr});
-    m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
-    return vftInfo;
+	auto vftName = fmt::format("{}::`vftable'", classInfo.className);
+	if (baseClassInfo.has_value())
+		vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
+	m_view->DefineAutoSymbol(new Symbol {DataSymbol, vftName, vftAddr});
+	m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
+	return vftInfo;
 }
 
 

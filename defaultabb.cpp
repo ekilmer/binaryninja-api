@@ -337,9 +337,9 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 						{
 							// Deal with direct pointers into the extern section
 							DataVariable dataVar;
-							if (data->GetDataVariableAtAddress(info.branchTarget[i], dataVar) &&
-								(dataVar.address == info.branchTarget[i]) && dataVar.type &&
-								(dataVar.type->GetClass() == FunctionTypeClass))
+							if (data->GetDataVariableAtAddress(info.branchTarget[i], dataVar)
+								&& (dataVar.address == info.branchTarget[i]) && dataVar.type.GetValue()
+								&& (dataVar.type->GetClass() == FunctionTypeClass))
 							{
 								directRefs[info.branchTarget[i]].emplace(location);
 								if (!dataVar.type->CanReturn())
@@ -414,9 +414,9 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 						{
 							// Deal with direct pointers into the extern section
 							DataVariable dataVar;
-							if (data->GetDataVariableAtAddress(info.branchTarget[i], dataVar) &&
-								(dataVar.address == info.branchTarget[i]) && dataVar.type &&
-								(dataVar.type->GetClass() == FunctionTypeClass))
+							if (data->GetDataVariableAtAddress(info.branchTarget[i], dataVar)
+								&& (dataVar.address == info.branchTarget[i]) && dataVar.type.GetValue()
+								&& (dataVar.type->GetClass() == FunctionTypeClass))
 							{
 								directRefs[info.branchTarget[i]].emplace(location);
 								if (!dataVar.type->CanReturn())

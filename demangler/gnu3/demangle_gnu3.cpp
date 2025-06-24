@@ -1960,7 +1960,7 @@ TypeBuilder DemangleGNU3::DemangleSymbol(QualifiedName& varName)
 	bool isReturnTypeUnknown = false;
 	TypeBuilder type;
 	vector<FunctionParameter> params;
-	bool cnst = false, vltl = false, rstrct = false;
+	Confidence<bool> cnst = false, vltl = false, rstrct = false;
 	bool oldTopLevel;
 	QualifiedName name;
 
@@ -2222,7 +2222,7 @@ TypeBuilder DemangleGNU3::DemangleSymbol(QualifiedName& varName)
 	type.SetPointerSuffix(suffix);
 	type.SetConst(cnst);
 	type.SetVolatile(vltl);
-	if (rstrct)
+	if (rstrct.GetValue())
 		type.SetPointerSuffix({RestrictSuffix});
 
 	// PrintTables();

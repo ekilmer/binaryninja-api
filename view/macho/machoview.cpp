@@ -2478,7 +2478,7 @@ Ref<Symbol> MachoView::DefineMachoSymbol(
 
 	if (deferred)
 	{
-		m_symbolQueue->Append(process, [this](Symbol* symbol, Type* type) {
+		m_symbolQueue->Append(process, [this](Symbol* symbol, const Confidence<Ref<Type>>& type) {
 			DefineAutoSymbolAndVariableOrFunction(GetDefaultPlatform(), symbol, type);
 		});
 		return nullptr;

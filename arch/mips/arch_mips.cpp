@@ -2726,7 +2726,7 @@ private:
 			DataVariable var;
 			if (data->GetDataVariableAtAddress(extSym.front()->GetAddress(), var))
 			{
-				func->ApplyImportedTypes(funcSym, var.type);
+				func->ApplyImportedTypes(funcSym, var.type.GetValue());
 			}
 			return true;
 		}
@@ -2799,7 +2799,7 @@ private:
 				DataVariable var;
 				if (data->GetDataVariableAtAddress(extSym.front()->GetAddress(), var))
 				{
-					func->ApplyImportedTypes(pltSym, var.type);
+					func->ApplyImportedTypes(pltSym, var.type.GetValue());
 				}
 				return true;
 			}
@@ -2924,7 +2924,7 @@ private:
 			DataVariable var;
 			if (data->GetDataVariableAtAddress(extSym.front()->GetAddress(), var))
 			{
-				func->ApplyImportedTypes(funcSym, var.type);
+				func->ApplyImportedTypes(funcSym, var.type.GetValue());
 			}
 			return true;
 		}

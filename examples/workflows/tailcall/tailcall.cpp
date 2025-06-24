@@ -74,8 +74,8 @@ extern "C"
 					DataVariable var;
 					if (data->GetDataVariableAtAddress(target.value, var))
 					{
-						if (var.type && (var.type->GetClass() == PointerTypeClass)
-						    && (var.type->GetChildType()->GetClass() == FunctionTypeClass))
+						if (var.type.GetValue() && (var.type->GetClass() == PointerTypeClass)
+							&& (var.type->GetChildType()->GetClass() == FunctionTypeClass))
 							canReturn = var.type->GetChildType()->CanReturn().GetValue();
 					}
 				}

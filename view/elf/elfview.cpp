@@ -2396,7 +2396,8 @@ bool ElfView::Init()
 		);
 
 		/* create type, associate it with RTL_Resolve */
-		Ref<Type> ptr_type = Type::PointerType(m_arch, Type::VoidType())->WithConfidence(BN_FULL_CONFIDENCE);
+		Confidence<Ref<Type>> ptr_type =
+			Type::PointerType(m_arch, Type::VoidType())->WithConfidence(BN_FULL_CONFIDENCE);
 
 		Ref<CallingConvention> cc = m_arch->GetCallingConventionByName("linux-rtlresolve");
 
@@ -2452,20 +2453,20 @@ bool ElfView::Init()
 
 
 void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uint64_t addr, bool gotEntry,
-	BNSymbolBinding binding, size_t size, Ref<Type> typeObj)
+	BNSymbolBinding binding, size_t size, const Confidence<Ref<Type>>& typeObj)
 {
 	// Ensure symbol is within the executable
 	if (type != ExternalSymbol && !IsValidOffset(addr))
 		return;
 
 	string name = incomingName;
-	Ref<Type> symbolTypeRef;
+	Confidence<Ref<Type>> symbolTypeRef;
 	if ((type == ExternalSymbol) || (type == ImportAddressSymbol) || (type == ImportedDataSymbol))
 	{
 		QualifiedName n(name);
 		Ref<TypeLibrary> lib = nullptr;
 		symbolTypeRef = ImportTypeLibraryObject(lib, n);
-		if (symbolTypeRef)
+		if (symbolTypeRef.GetValue())
 		{
 			m_logger->LogDebug("elf: type Library '%s' found hit for '%s'", lib->GetName().c_str(), name.c_str());
 			if (type != ExternalSymbol || addr != 0)

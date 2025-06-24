@@ -976,7 +976,7 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	returnValueConf.confidence = returnValue.GetConfidence();
 
 	BNCallingConventionWithConfidence callingConventionConf;
-	callingConventionConf.convention = callingConvention ? callingConvention->GetObject() : nullptr;
+	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
 	callingConventionConf.confidence = callingConvention.GetConfidence();
 
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
@@ -1036,7 +1036,7 @@ Ref<Type> Type::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	returnValueConf.confidence = returnValue.GetConfidence();
 
 	BNCallingConventionWithConfidence callingConventionConf;
-	callingConventionConf.convention = callingConvention ? callingConvention->GetObject() : nullptr;
+	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
 	callingConventionConf.confidence = callingConvention.GetConfidence();
 
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];
@@ -1981,7 +1981,7 @@ TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	returnValueConf.confidence = returnValue.GetConfidence();
 
 	BNCallingConventionWithConfidence callingConventionConf;
-	callingConventionConf.convention = callingConvention ? callingConvention->GetObject() : nullptr;
+	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
 	callingConventionConf.confidence = callingConvention.GetConfidence();
 
 	size_t paramCount = 0;
@@ -2032,7 +2032,7 @@ TypeBuilder TypeBuilder::FunctionType(const Confidence<Ref<Type>>& returnValue,
 	returnValueConf.confidence = returnValue.GetConfidence();
 
 	BNCallingConventionWithConfidence callingConventionConf;
-	callingConventionConf.convention = callingConvention ? callingConvention->GetObject() : nullptr;
+	callingConventionConf.convention = callingConvention.GetValue() ? callingConvention->GetObject() : nullptr;
 	callingConventionConf.confidence = callingConvention.GetConfidence();
 
 	BNFunctionParameter* paramArray = new BNFunctionParameter[params.size()];

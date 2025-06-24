@@ -60,11 +60,11 @@ BNSymbolDisplayResult PseudoCFunction::AppendPointerTextToken(const HighLevelILI
 	vector<InstructionTextToken>& tokens, DisassemblySettings* settings, BNSymbolDisplayType symbolDisplay, BNOperatorPrecedence precedence)
 {
 	Confidence<Ref<Type>> type = instr.GetType();
-	if (type && (type->GetClass() == PointerTypeClass) && type->IsConst())
+	if (type.GetValue() && (type->GetClass() == PointerTypeClass) && type->IsConst())
 	{
 		string stringValue;
 		size_t childWidth = 0;
-		if (auto child = type->GetChildType(); child)
+		if (auto child = type->GetChildType(); child.GetValue())
 			childWidth = child->GetWidth();
 		if (auto strType = GetFunction()->GetView()->CheckForStringAnnotationType(val, stringValue, false, false, childWidth); strType.has_value())
 		{
@@ -87,8 +87,9 @@ BNSymbolDisplayResult PseudoCFunction::AppendPointerTextToken(const HighLevelILI
 	{
 		// If the pointer has a value of 0, check if it points to a valid address by
 		// 1. If the binary is relocatable, assign the pointer as nullptr
-		// 2. else, check if the constant zero which being referenced is a pointer(display as symbol) or not(display as nullptr)
-		if(val == 0x0 && type && (type->GetClass() == PointerTypeClass))
+		// 2. else, check if the constant zero which being referenced is a pointer(display as symbol) or not(display as
+		// nullptr)
+		if (val == 0x0 && type.GetValue() && (type->GetClass() == PointerTypeClass))
 		{
 			if (GetFunction()->GetView()->IsRelocatable())
 			{
@@ -292,10 +293,10 @@ void PseudoCFunction::AppendTwoOperand(const string& operand, const HighLevelILI
 		if (leftExpr.operation == HLIL_VAR && (operand == " + " || operand == " - "))
 		{
 			const auto variableType = GetFunction()->GetVariableType(leftExpr.GetVariable());
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				const auto childType = variableType->GetChildType();
-				if (variableType->IsPointer() && childType && childType->GetWidth() != 1)
+				if (variableType->IsPointer() && childType.GetValue() && childType->GetWidth() != 1)
 				{
 					emitter.AppendOpenParen();
 					emitter.Append(TypeNameToken, "char");
@@ -542,12 +543,12 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 	// complex expression can cause the process to crash from a stack overflow.
 	auto exprGuard = tokens.SetCurrentExpr(instr);
 
-	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType())
+	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType().GetValue())
 	{
 		tokens.AppendOpenParen();
 		tokens.AppendOpenParen();
 		auto typeTokens = GetTypePrinter()->GetTypeTokens(
-			instr.GetType(), GetArchitecture()->GetStandalonePlatform(), QualifiedName());
+			instr.GetType().GetValue(), GetArchitecture()->GetStandalonePlatform(), QualifiedName());
 		for (auto& token: typeTokens)
 		{
 			tokens.Append(token);
@@ -1004,11 +1005,13 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(destExpr);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
-			const auto prevTypeTokens = variableType ?
-				GetTypePrinter()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
+			const auto prevTypeTokens = variableType.GetValue() ?
+				GetTypePrinter()->GetTypeTokensBeforeName(
+					variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
-			const auto postTypeTokens = variableType ?
-				GetTypePrinter()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
+			const auto postTypeTokens = variableType.GetValue() ?
+				GetTypePrinter()->GetTypeTokensAfterName(
+					variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
 
 			// Check to see if the variable appears live
@@ -1023,7 +1026,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			if (appearsDead)
 				tokens.BeginForceZeroConfidence();
 
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: prevTypeTokens)
 				{
@@ -1034,7 +1037,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				tokens.Append(TextToken, " ");
 			}
 			tokens.AppendVarTextToken(destExpr, instr, instr.size);
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: postTypeTokens)
 				{
@@ -1068,14 +1071,16 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(variable);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
-			const auto prevTypeTokens = variableType ?
-				GetTypePrinter()->GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
+			const auto prevTypeTokens = variableType.GetValue() ?
+				GetTypePrinter()->GetTypeTokensBeforeName(
+					variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
-			const auto postTypeTokens = variableType ?
-				GetTypePrinter()->GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
+			const auto postTypeTokens = variableType.GetValue() ?
+				GetTypePrinter()->GetTypeTokensAfterName(
+					variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
 
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: prevTypeTokens)
 				{
@@ -1086,7 +1091,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				tokens.Append(TextToken, " ");
 			}
 			tokens.AppendVarTextToken(variable, instr, instr.size);
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: postTypeTokens)
 				{
@@ -1549,7 +1554,8 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				}
 				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
 				{
-					if (srcExpr.GetType() && srcExpr.GetType()->GetClass() != StructureTypeClass && srcExpr.size > instr.size)
+					if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
+						&& srcExpr.size > instr.size)
 					{
 						tokens.AppendOpenParen();
 						AppendSizeToken(instr.size, false, tokens);
@@ -1603,7 +1609,8 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				if (AppendPointerTextToken(instr, constant, pointerTokens, settings, DereferenceNonDataSymbols, precedence) == DataSymbolResult)
 				{
 					const auto type = srcExpr.GetType();
-					if (type && type->GetClass() == PointerTypeClass && instr.size != type->GetChildType()->GetWidth())
+					if (type.GetValue() && type->GetClass() == PointerTypeClass
+						&& instr.size != type->GetChildType()->GetWidth())
 					{
 						if (!settings || settings->IsOptionSet(ShowTypeCasts))
 						{
@@ -1948,9 +1955,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				auto var = left.GetVariable<HLIL_VAR>();
 				auto srcOffset = right.GetConstant<HLIL_CONST>();
 				auto varType = GetFunction()->GetVariableType(var);
-				if (varType
-					&& varType->GetClass() == PointerTypeClass
-					&& varType->GetNamedTypeReference()
+				if (varType.GetValue() && varType->GetClass() == PointerTypeClass && varType->GetNamedTypeReference()
 					&& varType->GetOffset() == srcOffset)
 				{
 					// Yes
@@ -2743,7 +2748,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 		break;
 	}
 
-	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType())
+	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType().GetValue())
 	{
 		tokens.AppendCloseParen();
 	}
@@ -2757,7 +2762,7 @@ void PseudoCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelILIns
 	const auto parameterExprs = instr.GetParameterExprs();
 
 	vector<FunctionParameter> namedParams;
-	Ref<Type> functionType = destExpr.GetType();
+	Ref<Type> functionType = destExpr.GetType().GetValue();
 	if (functionType && (functionType->GetClass() == PointerTypeClass)
 		&& (functionType->GetChildType()->GetClass() == FunctionTypeClass))
 		namedParams = functionType->GetChildType()->GetParameters();
@@ -2777,9 +2782,9 @@ void PseudoCFunction::GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelILIns
 		if (index < namedParams.size() && parameterExprs[index].operation == HLIL_CONST_PTR)
 		{
 			auto exprType = namedParams[index].type;
-			if (exprType && (exprType->GetClass() == PointerTypeClass))
+			if (exprType.GetValue() && (exprType->GetClass() == PointerTypeClass))
 			{
-				if (auto child = exprType->GetChildType(); child)
+				if (auto child = exprType->GetChildType(); child.GetValue())
 				{
 					if ((child->IsInteger() && child->IsSigned() && child->GetWidth() == 1) || child->IsWideChar())
 					{

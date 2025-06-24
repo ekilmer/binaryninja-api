@@ -2358,7 +2358,7 @@ class Arm64ImportedFunctionRecognizer : public FunctionRecognizer
 			DataVariable var;
 			if (data->GetDataVariableAtAddress(extSym.front()->GetAddress(), var))
 			{
-				func->ApplyImportedTypes(funcSym, var.type);
+				func->ApplyImportedTypes(funcSym, var.type.GetValue());
 			}
 			return true;
 		}
@@ -2431,12 +2431,12 @@ class Arm64ImportedFunctionRecognizer : public FunctionRecognizer
 			data->GetDataVariableAtAddress(loadAddrConstant.value, target);
 
 			Ref<Type> funcType = nullptr;
-			if (target.type && target.type->GetClass() == PointerTypeClass &&
-					target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
+			if (target.type.GetValue() && target.type->GetClass() == PointerTypeClass
+				&& target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
 			{
 				target.type = target.type->GetChildType();
-				if (target.type && target.type->GetClass() == FunctionTypeClass &&
-						target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
+				if (target.type.GetValue() && target.type->GetClass() == FunctionTypeClass
+					&& target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
 					funcType = target.type.GetValue();
 			}
 
@@ -2522,12 +2522,12 @@ class Arm64ImportedFunctionRecognizer : public FunctionRecognizer
 			data->GetDataVariableAtAddress(loadAddrConstant.value, target);
 
 			Ref<Type> funcType = nullptr;
-			if (target.type && target.type->GetClass() == PointerTypeClass &&
-					target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
+			if (target.type.GetValue() && target.type->GetClass() == PointerTypeClass
+				&& target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
 			{
 				target.type = target.type->GetChildType();
-				if (target.type && target.type->GetClass() == FunctionTypeClass &&
-						target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
+				if (target.type.GetValue() && target.type->GetClass() == FunctionTypeClass
+					&& target.type.GetConfidence() >= BN_MINIMUM_CONFIDENCE)
 					funcType = target.type.GetValue();
 			}
 

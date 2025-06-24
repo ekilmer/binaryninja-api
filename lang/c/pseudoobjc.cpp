@@ -21,7 +21,7 @@ bool ParameterIsString(const HighLevelILInstruction& expr)
 	if (!exprType || exprType->GetClass() != PointerTypeClass)
 		return false;
 
-	if (auto child = exprType->GetChildType(); child)
+	if (auto child = exprType->GetChildType(); child.GetValue())
 	{
 		child = child->IsArray() ? child->GetChildType() : child;
 		return child->IsInteger() && child->IsSigned() && child->GetWidth() == 1;
@@ -215,7 +215,7 @@ bool VariableIsObjCSuperStruct(const Variable& variable, Function& function)
 	if (variableName != "super")
 		return false;
 
-	const auto variableType = TypeResolvingNamedTypeReference(function.GetVariableType(variable), function);
+	const auto variableType = TypeResolvingNamedTypeReference(function.GetVariableType(variable).GetValue(), function);
 	if (!variableType || variableType->GetClass() != StructureTypeClass)
 		return false;
 
@@ -453,7 +453,7 @@ void PseudoObjCFunction::GetExpr_CONST_PTR(const BinaryNinja::HighLevelILInstruc
 	if (!hasVariable)
 		return PseudoCFunction::GetExpr_CONST_PTR(instr, tokens, settings, precedence, statement);
 
-	auto type = TypeResolvingNamedTypeReference(variable.type, *GetFunction());
+	auto type = TypeResolvingNamedTypeReference(variable.type.GetValue(), *GetFunction());
 	if (!type || type->GetClass() != StructureTypeClass)
 		return PseudoCFunction::GetExpr_CONST_PTR(instr, tokens, settings, precedence, statement);
 

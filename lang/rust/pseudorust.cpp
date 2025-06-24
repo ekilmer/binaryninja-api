@@ -62,11 +62,11 @@ BNSymbolDisplayResult PseudoRustFunction::AppendPointerTextToken(const HighLevel
 	vector<InstructionTextToken>& tokens, DisassemblySettings* settings, BNSymbolDisplayType symbolDisplay, BNOperatorPrecedence precedence)
 {
 	Confidence<Ref<Type>> type = instr.GetType();
-	if (type && (type->GetClass() == PointerTypeClass) && type->IsConst())
+	if (type.GetValue() && (type->GetClass() == PointerTypeClass) && type->IsConst())
 	{
 		string stringValue;
 		size_t childWidth = 0;
-		if (auto child = type->GetChildType(); child)
+		if (auto child = type->GetChildType(); child.GetValue())
 			childWidth = child->GetWidth();
 		if (auto strType = GetFunction()->GetView()->CheckForStringAnnotationType(val, stringValue, false, false, childWidth); strType.has_value())
 		{
@@ -89,8 +89,9 @@ BNSymbolDisplayResult PseudoRustFunction::AppendPointerTextToken(const HighLevel
 	{
 		// If the pointer has a value of 0, check if it points to a valid address by
 		// 1. If the binary is relocatable, assign the pointer as nullptr
-		// 2. else, check if the constant zero which being referenced is a pointer(display as symbol) or not(display as nullptr)
-		if(val == 0x0 && type && (type->GetClass() == PointerTypeClass))
+		// 2. else, check if the constant zero which being referenced is a pointer(display as symbol) or not(display as
+		// nullptr)
+		if (val == 0x0 && type.GetValue() && (type->GetClass() == PointerTypeClass))
 		{
 			if (GetFunction()->GetView()->IsRelocatable())
 			{
@@ -312,7 +313,7 @@ void PseudoRustFunction::AppendTwoOperand(const string& operand, const HighLevel
 	if (operand == " + " || operand == " - ")
 	{
 		const auto exprType = leftExpr.GetType();
-		if (exprType && exprType->IsPointer())
+		if (exprType.GetValue() && exprType->IsPointer())
 		{
 			GetExprText(leftExpr, emitter, settings, MemberAndFunctionOperatorPrecedence);
 			emitter.Append(TextToken, ".");
@@ -597,16 +598,13 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 	// complex expression can cause the process to crash from a stack overflow.
 	auto exprGuard = tokens.SetCurrentExpr(instr);
 
-	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType())
+	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType().GetValue())
 	{
 		tokens.AppendOpenParen();
 		tokens.AppendOpenParen();
 		RustTypePrinter printer;
 		auto typeTokens = printer.GetTypeTokens(
-			instr.GetType(),
-			GetArchitecture()->GetStandalonePlatform(),
-			QualifiedName()
-		);
+			instr.GetType().GetValue(), GetArchitecture()->GetStandalonePlatform(), QualifiedName());
 		for (auto& token: typeTokens)
 		{
 			tokens.Append(token);
@@ -1035,7 +1033,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			tokens.AppendOpenParen();
 
 			vector<FunctionParameter> namedParams;
-			Ref<Type> functionType = instr.GetDestExpr<HLIL_CALL>().GetType();
+			Ref<Type> functionType = instr.GetDestExpr<HLIL_CALL>().GetType().GetValue();
 			if (functionType && (functionType->GetClass() == PointerTypeClass)
 				&& (functionType->GetChildType()->GetClass() == FunctionTypeClass))
 				namedParams = functionType->GetChildType()->GetParameters();
@@ -1051,9 +1049,9 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				if (index < namedParams.size() && parameterExprs[index].operation == HLIL_CONST_PTR)
 				{
 					auto exprType = namedParams[index].type;
-					if (exprType && (exprType->GetClass() == PointerTypeClass))
+					if (exprType.GetValue() && (exprType->GetClass() == PointerTypeClass))
 					{
-						if (auto child = exprType->GetChildType(); child)
+						if (auto child = exprType->GetChildType(); child.GetValue())
 						{
 							if ((child->IsInteger() && child->IsSigned() && child->GetWidth() == 1)
 								|| child->IsWideChar())
@@ -1118,11 +1116,11 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(destExpr);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
 			RustTypePrinter printer;
-			const auto prevTypeTokens = variableType ?
-				printer.GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
+			const auto prevTypeTokens = variableType.GetValue() ?
+				printer.GetTypeTokensBeforeName(variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
-			const auto postTypeTokens = variableType ?
-				printer.GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
+			const auto postTypeTokens = variableType.GetValue() ?
+				printer.GetTypeTokensAfterName(variableType.GetValue(), platform, variableType.GetConfidence()) :
 				vector<InstructionTextToken> {};
 
 			// Check to see if the variable appears live
@@ -1143,7 +1141,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			if (IsMutable(destExpr))
 				tokens.Append(KeywordToken, "mut ");
 
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken : prevTypeTokens)
 				{
@@ -1153,7 +1151,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				}
 			}
 			tokens.AppendVarTextToken(destExpr, instr, instr.size);
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken : postTypeTokens)
 				{
@@ -1188,14 +1186,12 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			const auto variableType = GetHighLevelILFunction()->GetFunction()->GetVariableType(variable);
 			const auto platform = GetHighLevelILFunction()->GetFunction()->GetPlatform();
 			RustTypePrinter printer;
-			const auto prevTypeTokens =
-					variableType ?
-					printer.GetTypeTokensBeforeName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
-			const auto postTypeTokens =
-					variableType ?
-					printer.GetTypeTokensAfterName(variableType, platform, variableType.GetConfidence()) :
-					vector<InstructionTextToken>{};
+			const auto prevTypeTokens = variableType.GetValue() ?
+				printer.GetTypeTokensBeforeName(variableType.GetValue(), platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
+			const auto postTypeTokens = variableType.GetValue() ?
+				printer.GetTypeTokensAfterName(variableType.GetValue(), platform, variableType.GetConfidence()) :
+				vector<InstructionTextToken> {};
 
 			tokens.Append(KeywordToken, "let ");
 
@@ -1203,7 +1199,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			if (IsMutable(variable))
 				tokens.Append(KeywordToken, "mut ");
 
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: prevTypeTokens)
 				{
@@ -1213,7 +1209,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				}
 			}
 			tokens.AppendVarTextToken(variable, instr, instr.size);
-			if (variableType)
+			if (variableType.GetValue())
 			{
 				for (auto typeToken: postTypeTokens)
 				{
@@ -1628,7 +1624,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				{
 					tokens.Append(KeywordToken, " as ");
 					tokens.Append(TextToken, "*");
-					Ref<Type> srcType = srcExpr.GetType();
+					Ref<Type> srcType = srcExpr.GetType().GetValue();
 					if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
 						tokens.Append(KeywordToken, "const ");
 					else
@@ -1658,7 +1654,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				{
 					tokens.Append(KeywordToken, " as ");
 					tokens.Append(TextToken, "*");
-					Ref<Type> srcType = srcExpr.GetType();
+					Ref<Type> srcType = srcExpr.GetType().GetValue();
 					if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
 						tokens.Append(KeywordToken, "const ");
 					else
@@ -1691,7 +1687,8 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				}
 				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
 				{
-					if (srcExpr.GetType() && srcExpr.GetType()->GetClass() != StructureTypeClass && srcExpr.size > instr.size)
+					if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
+						&& srcExpr.size > instr.size)
 					{
 						GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
 						tokens.Append(KeywordToken, " as ");
@@ -1745,14 +1742,16 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 
 				const auto type = srcExpr.GetType();
 				BNOperatorPrecedence srcPrecedence = UnaryOperatorPrecedence;
-				if (type && type->GetClass() == PointerTypeClass && instr.size != type->GetChildType()->GetWidth() &&
-					(!settings || settings->IsOptionSet(ShowTypeCasts)))
+				if (type.GetValue() && type->GetClass() == PointerTypeClass
+					&& instr.size != type->GetChildType()->GetWidth()
+					&& (!settings || settings->IsOptionSet(ShowTypeCasts)))
 					srcPrecedence = LowUnaryOperatorPrecedence;
 
 				vector<InstructionTextToken> pointerTokens{};
 				if (AppendPointerTextToken(instr, constant, pointerTokens, settings, DereferenceNonDataSymbols, srcPrecedence) == DataSymbolResult)
 				{
-					if (type && type->GetClass() == PointerTypeClass && instr.size != type->GetChildType()->GetWidth())
+					if (type.GetValue() && type->GetClass() == PointerTypeClass
+						&& instr.size != type->GetChildType()->GetWidth())
 					{
 						tokens.Append(OperationToken, "*");
 						if (!settings || settings->IsOptionSet(ShowTypeCasts))
@@ -1767,7 +1766,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 						{
 							tokens.Append(KeywordToken, " as ");
 							tokens.Append(TextToken, "*");
-							Ref<Type> srcType = srcExpr.GetType();
+							Ref<Type> srcType = srcExpr.GetType().GetValue();
 							if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
 								tokens.Append(KeywordToken, "const ");
 							else
@@ -2052,7 +2051,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			const auto leftType = instr.GetLeftExpr().GetType();
 			bool parens;
 			BNOperatorPrecedence opPrecedence = AddOperatorPrecedence;
-			if (leftType && leftType->IsPointer())
+			if (leftType.GetValue() && leftType->IsPointer())
 			{
 				parens = false;
 				opPrecedence = MemberAndFunctionOperatorPrecedence;
@@ -2084,9 +2083,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				auto var = left.GetVariable<HLIL_VAR>();
 				auto srcOffset = right.GetConstant<HLIL_CONST>();
 				auto varType = GetFunction()->GetVariableType(var);
-				if (varType
-					&& varType->GetClass() == PointerTypeClass
-					&& varType->GetNamedTypeReference()
+				if (varType.GetValue() && varType->GetClass() == PointerTypeClass && varType->GetNamedTypeReference()
 					&& varType->GetOffset() == srcOffset)
 				{
 					// Yes
@@ -2101,7 +2098,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			const auto leftType = instr.GetLeftExpr().GetType();
 			bool parens;
 			BNOperatorPrecedence opPrecedence = SubOperatorPrecedence;
-			if (leftType && leftType->IsPointer())
+			if (leftType.GetValue() && leftType->IsPointer())
 			{
 				parens = false;
 				opPrecedence = MemberAndFunctionOperatorPrecedence;
@@ -2659,7 +2656,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 				{
 					tokens.Append(KeywordToken, " as ");
 					tokens.Append(TextToken, "*");
-					Ref<Type> srcType = srcExpr.GetType();
+					Ref<Type> srcType = srcExpr.GetType().GetValue();
 					if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
 						tokens.Append(KeywordToken, "const ");
 					else
@@ -2839,7 +2836,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 		break;
 	}
 
-	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType())
+	if (settings && settings->IsOptionSet(ShowILTypes) && instr.GetType().GetValue())
 	{
 		tokens.AppendCloseParen();
 	}

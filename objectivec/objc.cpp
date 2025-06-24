@@ -343,7 +343,7 @@ void ObjCProcessor::DefineObjCSymbol(
 			new Symbol(type, shortName, fullName, name, addr, LocalBinding, nameSpace), typeRef);
 	};
 
-	auto defineSymbol = [this](Ref<Symbol> symbol, Ref<Type> type) {
+	auto defineSymbol = [this](Ref<Symbol> symbol, const Confidence<Ref<Type>>& type) {
 		uint64_t symbolAddress = symbol->GetAddress();
 		// Armv7/Thumb: This will rewrite the symbol's address.
 		// e.g. We pass in 0xc001, it will rewrite it to 0xc000 and create the function w/ the "thumb2" arch.
@@ -354,8 +354,8 @@ void ObjCProcessor::DefineObjCSymbol(
 		{
 			// For thumb2 we want to get the adjusted address, we can do that using the target function.
 			Ref<Function> targetFunction = m_data->GetAnalysisFunction(targetPlatform, symbolAddress);
-			if (targetFunction && type)
-				targetFunction->ApplyAutoDiscoveredType(type);
+			if (targetFunction && type.GetValue())
+				targetFunction->ApplyAutoDiscoveredType(type.GetValue());
 
 			auto adjustedSym = new Symbol(FunctionSymbol, symbol->GetShortName(), symbol->GetFullName(), symbol->GetRawName(), symbolAddress);
 			m_data->DefineAutoSymbol(adjustedSym);

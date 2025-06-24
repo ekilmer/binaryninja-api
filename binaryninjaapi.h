@@ -366,6 +366,24 @@ namespace BinaryNinja {
 		T* GetPtr() const { return m_obj; }
 	};
 
+	template <class T>
+	bool operator==(T* a, const Ref<T>& b)
+	{
+		return a == b.GetPtr();
+	}
+
+	template <class T>
+	bool operator!=(T* a, const Ref<T>& b)
+	{
+		return a != b.GetPtr();
+	}
+
+	template <class T>
+	bool operator<(T* a, const Ref<T>& b)
+	{
+		return a < b.GetPtr();
+	}
+
 	/*!
 	    \ingroup refcount
 	*/
@@ -389,8 +407,26 @@ namespace BinaryNinja {
 		T* GetPtr() const { return m_obj; }
 	};
 
+	template <class T>
+	bool operator==(T* a, const CallbackRef<T>& b)
+	{
+		return a == b.GetPtr();
+	}
+
+	template <class T>
+	bool operator!=(T* a, const CallbackRef<T>& b)
+	{
+		return a != b.GetPtr();
+	}
+
+	template <class T>
+	bool operator<(T* a, const CallbackRef<T>& b)
+	{
+		return a < b.GetPtr();
+	}
+
 	/*!
-		\ingroup confidence
+	    \ingroup confidence
 	*/
 	class ConfidenceBase
 	{
@@ -499,8 +535,6 @@ namespace BinaryNinja {
 
 		Confidence(const Confidence<Ref<T>>& v) : ConfidenceBase(v.m_confidence), m_value(v.m_value) {}
 
-		operator Ref<T>() const { return m_value; }
-		operator T*() const { return m_value.GetPtr(); }
 		T* operator->() const { return m_value.GetPtr(); }
 		bool operator!() const { return !m_value; }
 
@@ -4281,7 +4315,7 @@ namespace BinaryNinja {
 	struct DataVariable
 	{
 		DataVariable() {}
-		DataVariable(uint64_t a, Type* t, bool d) : address(a), type(t), autoDiscovered(d) {}
+		DataVariable(uint64_t a, const Confidence<Ref<Type>>& t, bool d) : address(a), type(t), autoDiscovered(d) {}
 
 		uint64_t address;
 		Confidence<Ref<Type>> type;

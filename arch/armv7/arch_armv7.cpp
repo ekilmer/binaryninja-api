@@ -2231,7 +2231,7 @@ public:
 							return false;
 
 						Confidence<Ref<Type>> type = entryFunc->GetType();
-						data->DefineImportedFunction(sym, func, type);
+						data->DefineImportedFunction(sym, func, type.GetValue());
 						return true;
 					}
 				}

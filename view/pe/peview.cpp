@@ -3003,7 +3003,7 @@ void PEView::AddPESymbol(BNSymbolType type, const string& dll, const string& nam
 				new Symbol(type, shortName, fullName, rawName, address, binding, ns, ordinal),
 				typeRef);
 		},
-		[this](Symbol* symbol, Type* type) {
+		[this](Symbol* symbol, const Confidence<Ref<Type>>& type) {
 			DefineAutoSymbolAndVariableOrFunction(GetDefaultPlatform(), symbol, type);
 		});
 }

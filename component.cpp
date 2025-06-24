@@ -155,7 +155,7 @@ std::vector<DataVariable> Component::GetContainedDataVariables()
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(variables[i].address,
-			Confidence(new Type(BNNewTypeReference(variables[i].type)), variables[i].typeConfidence),
+			Confidence<Ref<Type>>(new Type(BNNewTypeReference(variables[i].type)), variables[i].typeConfidence),
 			variables[i].autoDiscovered);
 	}
 
@@ -196,7 +196,7 @@ std::vector<DataVariable> Component::GetReferencedDataVariables()
 	for (size_t i = 0; i < count; ++i)
 	{
 		result.emplace_back(variables[i].address,
-			Confidence(new Type(BNNewTypeReference(variables[i].type)), variables[i].typeConfidence),
+			Confidence<Ref<Type>>(new Type(BNNewTypeReference(variables[i].type)), variables[i].typeConfidence),
 			variables[i].autoDiscovered);
 	}
 

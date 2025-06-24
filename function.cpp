@@ -1031,7 +1031,7 @@ void Function::SetAutoType(Type* type)
 void Function::SetAutoReturnType(const Confidence<Ref<Type>>& type)
 {
 	BNTypeWithConfidence tc;
-	tc.type = type ? type->GetObject() : nullptr;
+	tc.type = type.GetValue() ? type->GetObject() : nullptr;
 	tc.confidence = type.GetConfidence();
 	BNSetAutoFunctionReturnType(m_object, &tc);
 }
@@ -1053,7 +1053,7 @@ void Function::SetAutoReturnRegisters(const Confidence<std::vector<uint32_t>>& r
 void Function::SetAutoCallingConvention(const Confidence<Ref<CallingConvention>>& convention)
 {
 	BNCallingConventionWithConfidence cc;
-	cc.convention = convention ? convention->GetObject() : nullptr;
+	cc.convention = convention.GetValue() ? convention->GetObject() : nullptr;
 	cc.confidence = convention.GetConfidence();
 	BNSetAutoFunctionCallingConvention(m_object, &cc);
 }
@@ -1160,7 +1160,7 @@ bool Function::HasUserType() const
 void Function::SetReturnType(const Confidence<Ref<Type>>& type)
 {
 	BNTypeWithConfidence tc;
-	tc.type = type ? type->GetObject() : nullptr;
+	tc.type = type.GetValue() ? type->GetObject() : nullptr;
 	tc.confidence = type.GetConfidence();
 	BNSetUserFunctionReturnType(m_object, &tc);
 }
@@ -1182,7 +1182,7 @@ void Function::SetReturnRegisters(const Confidence<std::vector<uint32_t>>& retur
 void Function::SetCallingConvention(const Confidence<Ref<CallingConvention>>& convention)
 {
 	BNCallingConventionWithConfidence cc;
-	cc.convention = convention ? convention->GetObject() : nullptr;
+	cc.convention = convention.GetValue() ? convention->GetObject() : nullptr;
 	cc.confidence = convention.GetConfidence();
 	BNSetUserFunctionCallingConvention(m_object, &cc);
 }
@@ -1872,9 +1872,9 @@ bool Function::HasUnresolvedIndirectBranches()
 void Function::SetAutoCallTypeAdjustment(Architecture* arch, uint64_t addr, const Confidence<Ref<Type>>& adjust)
 {
 	BNTypeWithConfidence apiObject;
-	apiObject.type = adjust ? adjust->GetObject() : nullptr;
+	apiObject.type = adjust.GetValue() ? adjust->GetObject() : nullptr;
 	apiObject.confidence = adjust.GetConfidence();
-	BNSetAutoCallTypeAdjustment(m_object, arch->GetObject(), addr, adjust ? &apiObject : nullptr);
+	BNSetAutoCallTypeAdjustment(m_object, arch->GetObject(), addr, adjust.GetValue() ? &apiObject : nullptr);
 }
 
 
@@ -1912,9 +1912,9 @@ void Function::SetAutoCallRegisterStackAdjustment(
 void Function::SetUserCallTypeAdjustment(Architecture* arch, uint64_t addr, const Confidence<Ref<Type>>& adjust)
 {
 	BNTypeWithConfidence apiObject;
-	apiObject.type = adjust ? adjust->GetObject() : nullptr;
+	apiObject.type = adjust.GetValue() ? adjust->GetObject() : nullptr;
 	apiObject.confidence = adjust.GetConfidence();
-	BNSetUserCallTypeAdjustment(m_object, arch->GetObject(), addr, adjust ? &apiObject : nullptr);
+	BNSetUserCallTypeAdjustment(m_object, arch->GetObject(), addr, adjust.GetValue() ? &apiObject : nullptr);
 }
 
 
