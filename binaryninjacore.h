@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 113
+#define BN_CURRENT_CORE_ABI_VERSION 114
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -5111,6 +5111,12 @@ extern "C"
 	    BNArchitectureAndAddress* branches, size_t count);
 	BINARYNINJACOREAPI void BNSetUserIndirectBranches(BNFunction* func, BNArchitecture* sourceArch, uint64_t source,
 	    BNArchitectureAndAddress* branches, size_t count);
+
+	BINARYNINJACOREAPI void BNSetGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
+	BINARYNINJACOREAPI void BNAddGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
+	BINARYNINJACOREAPI void BNRemoveGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
+	BINARYNINJACOREAPI BNArchitectureAndAddress* BNGetGuidedSourceBlocks(BNFunction* func, size_t* count);
+	BINARYNINJACOREAPI void BNFreeArchitectureAndAddressList(BNArchitectureAndAddress* addresses);
 
 	BINARYNINJACOREAPI BNIndirectBranchInfo* BNGetIndirectBranches(BNFunction* func, size_t* count);
 	BINARYNINJACOREAPI BNIndirectBranchInfo* BNGetIndirectBranchesAt(

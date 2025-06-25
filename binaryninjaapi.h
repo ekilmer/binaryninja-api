@@ -11435,6 +11435,12 @@ namespace BinaryNinja {
 		void SetUserIndirectBranches(
 		    Architecture* sourceArch, uint64_t source, const std::vector<ArchAndAddr>& branches);
 
+		// Guided Disassembly Support
+		void SetGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		void AddGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		void RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		std::vector<ArchAndAddr> GetGuidedSourceBlocks();
+
 		std::vector<IndirectBranchInfo> GetIndirectBranches();
 		std::vector<IndirectBranchInfo> GetIndirectBranchesAt(Architecture* arch, uint64_t addr);
 

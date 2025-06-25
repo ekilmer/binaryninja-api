@@ -2295,6 +2295,51 @@ class Function:
 			branch_list[i].address = branches[i][1]
 		core.BNSetUserIndirectBranches(self.handle, source_arch.handle, source, branch_list, len(branches))
 
+	def set_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNSetGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def add_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNAddGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def remove_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNRemoveGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def get_guided_source_blocks(
+	    self
+	) -> List[Tuple['architecture.Architecture', int]]:
+		count = ctypes.c_ulonglong()
+		addresses = core.BNGetGuidedSourceBlocks(self.handle, count)
+		try:
+			assert addresses is not None, "core.BNGetGuidedSourceBlocks returned None"
+			result = []
+			for i in range(count.value):
+				result.append((
+					architecture.CoreArchitecture._from_cache(addresses[i].arch),
+					addresses[i].address
+				))
+			return result
+		finally:
+			if addresses is not None:
+				core.BNFreeArchitectureAndAddressList(addresses)
+
 	def get_indirect_branches_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
 	) -> List['variable.IndirectBranchInfo']:

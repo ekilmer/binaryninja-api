@@ -76,6 +76,13 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 	auto& directNoReturnCalls = context.GetDirectNoReturnCalls();
 	auto& haltedDisassemblyAddresses = context.GetHaltedDisassemblyAddresses();
 
+	bool hasInvalidInstructions = false;
+	set<ArchAndAddr> guidedSourceBlockTargets;
+	auto guidedSourceBlocks = function->GetGuidedSourceBlocks();
+	set<ArchAndAddr> guidedSourceBlocksSet;
+	for (const auto& block : guidedSourceBlocks)
+		guidedSourceBlocksSet.insert(block);
+
 	BNStringReference strRef;
 	auto targetExceedsByteLimit = [](const BNStringReference& strRef) {
 			size_t byteLimit = 8;
@@ -163,6 +170,8 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 		ArchAndAddr location = blocksToProcess.front();
 		ArchAndAddr instructionGroupStart = location;
 		blocksToProcess.pop();
+
+		bool isGuidedSourceBlock = guidedSourceBlocksSet.count(location) ? true : false;
 
 		// Create a new basic block
 		Ref<BasicBlock> block = context.CreateBasicBlock(location.arch, location.address);
@@ -385,6 +394,8 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 							}
 							else
 							{
+								if (isGuidedSourceBlock)
+									guidedSourceBlockTargets.insert(target);
 
 								block->AddPendingOutgoingEdge(info.branchType[i], target.address, target.arch);
 								// Add the block to the list of blocks to process if it is not already processed
@@ -506,6 +517,9 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 								// Normal analysis should not inline indirect targets that are function starts
 								if (translateTailCalls && data->GetAnalysisFunction(targetPlatform, branch.address))
 									continue;
+
+								if (isGuidedSourceBlock)
+									guidedSourceBlockTargets.insert(branch);
 
 								block->AddPendingOutgoingEdge(IndirectBranch, branch.address, branch.arch);
 								if (seenBlocks.count(branch) == 0)
@@ -644,13 +658,21 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 			break;
 
 		if (haltOnInvalidInstructions && block->HasInvalidInstructions())
+			hasInvalidInstructions = true;
+
+		if (hasInvalidInstructions)
 		{
+			queue<ArchAndAddr> guidedBlocksToProcess;
 			while (!blocksToProcess.empty())
 			{
 				auto i = blocksToProcess.front();
 				blocksToProcess.pop();
-				haltedDisassemblyAddresses.emplace(i);
+				if (guidedSourceBlockTargets.count(i))
+					guidedBlocksToProcess.emplace(i);
+				else
+					haltedDisassemblyAddresses.emplace(i);
 			}
+			blocksToProcess = guidedBlocksToProcess;
 		}
 	}
 

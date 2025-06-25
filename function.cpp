@@ -1741,6 +1741,62 @@ void Function::SetUserIndirectBranches(
 }
 
 
+void Function::SetGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses)
+{
+	BNArchitectureAndAddress* addressList = new BNArchitectureAndAddress[addresses.size()];
+	for (size_t i = 0; i < addresses.size(); i++)
+	{
+		addressList[i].arch = addresses[i].arch->GetObject();
+		addressList[i].address = addresses[i].address;
+	}
+	BNSetGuidedSourceBlocks(m_object, addressList, addresses.size());
+	delete[] addressList;
+}
+
+
+void Function::AddGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses)
+{
+	BNArchitectureAndAddress* addressList = new BNArchitectureAndAddress[addresses.size()];
+	for (size_t i = 0; i < addresses.size(); i++)
+	{
+		addressList[i].arch = addresses[i].arch->GetObject();
+		addressList[i].address = addresses[i].address;
+	}
+	BNAddGuidedSourceBlocks(m_object, addressList, addresses.size());
+	delete[] addressList;
+}
+
+
+void Function::RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses)
+{
+	BNArchitectureAndAddress* addressList = new BNArchitectureAndAddress[addresses.size()];
+	for (size_t i = 0; i < addresses.size(); i++)
+	{
+		addressList[i].arch = addresses[i].arch->GetObject();
+		addressList[i].address = addresses[i].address;
+	}
+	BNRemoveGuidedSourceBlocks(m_object, addressList, addresses.size());
+	delete[] addressList;
+}
+
+
+std::vector<ArchAndAddr> Function::GetGuidedSourceBlocks()
+{
+	size_t count;
+	BNArchitectureAndAddress* addresses = BNGetGuidedSourceBlocks(m_object, &count);
+
+	std::vector<ArchAndAddr> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		result.push_back({new CoreArchitecture(addresses[i].arch), addresses[i].address});
+	}
+
+	delete[] addresses;
+	return result;
+}
+
+
 vector<IndirectBranchInfo> Function::GetIndirectBranches()
 {
 	size_t count;
