@@ -1792,7 +1792,7 @@ std::vector<ArchAndAddr> Function::GetGuidedSourceBlocks()
 		result.push_back({new CoreArchitecture(addresses[i].arch), addresses[i].address});
 	}
 
-	delete[] addresses;
+	BNFreeArchitectureAndAddressList(addresses);
 	return result;
 }
 
