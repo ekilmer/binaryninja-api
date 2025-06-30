@@ -2524,6 +2524,18 @@ vector<uint64_t> BinaryView::GetDataReferencesFrom(uint64_t addr, uint64_t len)
 }
 
 
+void BinaryView::AddDataReference(uint64_t fromAddr, uint64_t toAddr)
+{
+	BNAddDataReference(m_object, fromAddr, toAddr);
+}
+
+
+void BinaryView::RemoveDataReference(uint64_t fromAddr, uint64_t toAddr)
+{
+	BNRemoveDataReference(m_object, fromAddr, toAddr);
+}
+
+
 void BinaryView::AddUserDataReference(uint64_t fromAddr, uint64_t toAddr)
 {
 	BNAddUserDataReference(m_object, fromAddr, toAddr);

@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 117
+#define BN_CURRENT_CORE_ABI_VERSION 118
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -5014,6 +5014,8 @@ extern "C"
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesFrom(BNBinaryView* view, uint64_t addr, size_t* count);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesFromInRange(
 	    BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count);
+	BINARYNINJACOREAPI void BNAddDataReference(BNBinaryView* view, uint64_t fromAddr, uint64_t toAddr);
+	BINARYNINJACOREAPI void BNRemoveDataReference(BNBinaryView* view, uint64_t fromAddr, uint64_t toAddr);
 	BINARYNINJACOREAPI void BNAddUserDataReference(BNBinaryView* view, uint64_t fromAddr, uint64_t toAddr);
 	BINARYNINJACOREAPI void BNRemoveUserDataReference(BNBinaryView* view, uint64_t fromAddr, uint64_t toAddr);
 	BINARYNINJACOREAPI void BNFreeDataReferences(uint64_t* refs);

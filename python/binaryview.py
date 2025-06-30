@@ -5735,6 +5735,33 @@ class BinaryView:
 				core.BNFreeTypeReferences(refs, count.value)
 		return result
 
+	def add_data_ref(self, from_addr: int, to_addr: int) -> None:
+		"""
+		``add_data_ref`` adds an auto data cross-reference (xref) from the address ``from_addr`` to the address ``to_addr``.
+
+		:param int from_addr: the reference's source virtual address.
+		:param int to_addr: the reference's destination virtual address.
+		:rtype: None
+
+		.. note:: It is intended to be used from within workflows or binary view initialization.
+		"""
+		core.BNAddUserDataReference(self.handle, from_addr, to_addr)
+
+	def remove_data_ref(self, from_addr: int, to_addr: int) -> None:
+		"""
+		``remove_data_ref`` removes an  auto data cross-reference (xref) from the address ``from_addr`` to the address ``to_addr``.
+		This function will only remove ones generated during autoanalysis.
+		If the reference does not exist, no action is performed.
+
+		:param int from_addr: the reference's source virtual address.
+		:param int to_addr: the reference's destination virtual address.
+		:rtype: None
+
+		.. note:: It is intended to be used from within workflows or other reoccurring analysis tasks. Removed \
+		  references will be re-created whenever auto analysis is re-run for the
+		"""
+		core.BNRemoveDataReference(self.handle, from_addr, to_addr)
+
 	def add_user_data_ref(self, from_addr: int, to_addr: int) -> None:
 		"""
 		``add_user_data_ref`` adds a user-specified data cross-reference (xref) from the address ``from_addr`` to the address ``to_addr``.

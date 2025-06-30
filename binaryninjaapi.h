@@ -5548,6 +5548,21 @@ namespace BinaryNinja {
 		*/
 		std::vector<uint64_t> GetDataReferencesFrom(uint64_t addr, uint64_t len);
 
+
+		/*! Add an auto Data Reference from a virtual address to another virtual address
+
+			\param fromAddr Address referencing the toAddr value
+			\param toAddr virtual address being referenced
+		*/
+		void AddDataReference(uint64_t fromAddr, uint64_t toAddr);
+
+		/*! Remove an auto Data Reference from a virtual address to another virtual address
+
+			\param fromAddr Address referencing the toAddr value
+			\param toAddr virtual address being referenced
+		*/
+		void RemoveDataReference(uint64_t fromAddr, uint64_t toAddr);
+
 		/*! Add a user Data Reference from a virtual address to another virtual address
 
 		    \param fromAddr Address referencing the toAddr value

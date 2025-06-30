@@ -970,9 +970,9 @@ void ObjCProcessor::ReadMethodList(ObjCReader* reader, ClassBase& cls, std::stri
 			m_localMethods[cursor] = method;
 
 			if (selAddr)
-				m_data->AddUserDataReference(selAddr, meth.imp);
+				m_data->AddDataReference(selAddr, meth.imp);
 			if (selRefAddr)
-				m_data->AddUserDataReference(selRefAddr, meth.imp);
+				m_data->AddDataReference(selRefAddr, meth.imp);
 		}
 		catch (...)
 		{
