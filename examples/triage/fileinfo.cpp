@@ -75,7 +75,7 @@ FileInfoWidget::FileInfoWidget(QWidget* parent, BinaryViewRef bv)
 
 	const auto file = bv->GetFile();
 	const auto filePath = file->GetOriginalFilename();
-	this->addCopyableField("Path: ", filePath.c_str());
+	this->addCopyableField("Path on disk: ", filePath.c_str());
 
 	// If triage view is opened from a project, show both actual filepath and path relative to project
 	if (const auto fileProjectRef = file->GetProjectFile())
