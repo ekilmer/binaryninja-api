@@ -5516,6 +5516,16 @@ class MediumLevelILFunction:
 		result = variable.RegisterValue.from_BNRegisterValue(value, self._arch)
 		return result
 
+	def get_instruction_index_for_expr(self, expr: ExpressionIndex) -> Optional[InstructionIndex]:
+		result = core.BNGetMediumLevelILInstructionForExpr(self.handle, expr)
+		if result >= core.BNGetMediumLevelILInstructionCount(self.handle):
+			return None
+		return InstructionIndex(result)
+
+	def get_expr_index_for_instruction(self, instr: InstructionIndex) -> ExpressionIndex:
+		result = core.BNGetMediumLevelILIndexForInstruction(self.handle, instr)
+		return ExpressionIndex(result)
+
 	def get_low_level_il_instruction_index(self, instr: InstructionIndex) -> Optional['lowlevelil.InstructionIndex']:
 		low_il = self.low_level_il
 		if low_il is None:

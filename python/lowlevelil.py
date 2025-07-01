@@ -6230,7 +6230,7 @@ class LowLevelILFunction:
 		return InstructionIndex(result)
 
 	def get_expr_index_for_instruction(self, instr: InstructionIndex) -> ExpressionIndex:
-		result = core.BNGetLowLevelILInstructionForExpr(self.handle, instr)
+		result = core.BNGetLowLevelILIndexForInstruction(self.handle, instr)
 		return ExpressionIndex(result)
 
 	def get_medium_level_il_instruction_index(self,

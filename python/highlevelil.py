@@ -4713,6 +4713,16 @@ class HighLevelILFunction:
 
 		return []
 
+	def get_instruction_index_for_expr(self, expr: ExpressionIndex) -> Optional[InstructionIndex]:
+		result = core.BNGetHighLevelILInstructionForExpr(self.handle, expr)
+		if result >= core.BNGetHighLevelILInstructionCount(self.handle):
+			return None
+		return InstructionIndex(result)
+
+	def get_expr_index_for_instruction(self, instr: InstructionIndex) -> ExpressionIndex:
+		result = core.BNGetHighLevelILIndexForInstruction(self.handle, instr)
+		return ExpressionIndex(result)
+
 	def get_medium_level_il_expr_index(self, expr: ExpressionIndex) -> Optional['mediumlevelil.ExpressionIndex']:
 		medium_il = self.medium_level_il
 		if medium_il is None:
