@@ -348,6 +348,8 @@ where
     Ceil(Operation<'func, M, F, operation::UnaryOp>),
     Ftrunc(Operation<'func, M, F, operation::UnaryOp>),
 
+    FloatConst(Operation<'func, M, F, operation::FloatConst>),
+
     FcmpE(Operation<'func, M, F, operation::Condition>),
     FcmpNE(Operation<'func, M, F, operation::Condition>),
     FcmpLT(Operation<'func, M, F, operation::Condition>),
@@ -513,6 +515,10 @@ where
             LLIL_FCMP_O => LowLevelILExpressionKind::FcmpO(Operation::new(function, op, index)),
             LLIL_FCMP_UO => LowLevelILExpressionKind::FcmpUO(Operation::new(function, op, index)),
 
+            LLIL_FLOAT_CONST => {
+                LowLevelILExpressionKind::FloatConst(Operation::new(function, op, index))
+            }
+
             LLIL_SEPARATE_PARAM_LIST_SSA => {
                 LowLevelILExpressionKind::SeparateParamListSsa(Operation::new(function, op, index))
             }
@@ -524,7 +530,7 @@ where
                 LowLevelILExpressionKind::UnimplMem(Operation::new(function, op, index))
             }
 
-            // TODO TEST_BIT ADD_OVERFLOW LLIL_REG_STACK_PUSH 
+            // TODO TEST_BIT ADD_OVERFLOW LLIL_REG_STACK_PUSH
             _ => {
                 #[cfg(debug_assertions)]
                 log::error!(
@@ -698,7 +704,7 @@ where
             Pop(_) | Reg(_) | RegSsa(_) | RegPartialSsa(_) | RegSplit(_) | RegSplitSsa(_)
             | Const(_) | ConstPtr(_) | Flag(_) | FlagBit(_) | ExternPtr(_) | FlagCond(_)
             | FlagGroup(_) | Unimpl(_) | Undef(_) | RegStackPop(_) | CallOutputSsa(_)
-            | CallStackSsa(_) => {}
+            | CallStackSsa(_) | FloatConst(_) => {}
         }
 
         VisitorAction::Sibling
@@ -741,6 +747,8 @@ where
             FlagBit(ref op) => &op.op,
 
             Const(ref op) | ConstPtr(ref op) => &op.op,
+
+            FloatConst(ref op) => &op.op,
 
             ExternPtr(ref op) => &op.op,
 
@@ -811,6 +819,8 @@ impl LowLevelILExpressionKind<'_, Mutable, NonSSA> {
             FlagBit(ref op) => op.flag_write(),
 
             Const(ref op) | ConstPtr(ref op) => op.flag_write(),
+
+            FloatConst(ref op) => op.flag_write(),
 
             ExternPtr(ref op) => op.flag_write(),
 

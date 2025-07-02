@@ -1653,6 +1653,61 @@ where
     }
 }
 
+// LLIL_FLOAT_CONST
+pub struct FloatConst;
+
+impl<M, F> Operation<'_, M, F, FloatConst>
+where
+    M: FunctionMutability,
+    F: FunctionForm,
+{
+    pub fn size(&self) -> usize {
+        self.op.size
+    }
+
+    pub fn raw_value(&self) -> u64 {
+        self.op.operands[0]
+    }
+
+    pub fn float_value(&self) -> f64 {
+        let raw_bits = self.raw_value();
+        match self.op.size {
+            4 => {
+                // For f32, take the lower 32 bits and convert to f32
+                let bits32 = (raw_bits & 0xFFFFFFFF) as u32;
+                f32::from_bits(bits32) as f64
+            }
+            8 => {
+                // For f64, use all 64 bits
+                f64::from_bits(raw_bits)
+            }
+            _ => {
+                // Log error for unexpected sizes
+                log::error!(
+                    "il expr @ {:x} has invalid float size {} (expected 4 or 8 bytes)",
+                    self.op.address,
+                    self.op.size
+                );
+                f64::NAN
+            }
+        }
+    }
+}
+
+impl<M, F> Debug for Operation<'_, M, F, FloatConst>
+where
+    M: FunctionMutability,
+    F: FunctionForm,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FloatConst")
+            .field("size", &self.size())
+            .field("float_value", &self.float_value())
+            .field("raw_value", &self.raw_value())
+            .finish()
+    }
+}
+
 // LLIL_EXTERN_PTR
 pub struct Extern;
 
@@ -2186,6 +2241,7 @@ impl OperationArguments for RegPhi {}
 impl OperationArguments for FlagPhi {}
 impl OperationArguments for MemPhi {}
 impl OperationArguments for Const {}
+impl OperationArguments for FloatConst {}
 impl OperationArguments for Extern {}
 impl OperationArguments for BinaryOp {}
 impl OperationArguments for BinaryOpCarry {}
