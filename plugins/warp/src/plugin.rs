@@ -67,18 +67,21 @@ pub extern "C" fn CorePluginInit() -> bool {
         workflow::RunMatcher {},
     );
 
+    #[cfg(debug_assertions)]
     register_command(
         "WARP\\Debug\\Cache",
         "Debug cache sizes... because...",
         debug::DebugCache {},
     );
 
+    #[cfg(debug_assertions)]
     register_command(
         "WARP\\Debug\\Invalidate Caches",
         "Invalidate all WARP caches",
         debug::DebugInvalidateCache {},
     );
 
+    #[cfg(debug_assertions)]
     register_command_for_function(
         "WARP\\Debug\\Function Signature",
         "Print the entire signature for the function",
@@ -92,19 +95,19 @@ pub extern "C" fn CorePluginInit() -> bool {
     );
 
     register_command_for_function(
-        "WARP\\Function\\Include",
+        "WARP\\Include Function",
         "Add current function to the list of functions to add to the signature file",
         function::IncludeFunction {},
     );
 
     register_command_for_function(
-        "WARP\\Function\\Copy GUID",
+        "WARP\\Copy GUID",
         "Copy the computed GUID for the function",
         function::CopyFunctionGUID {},
     );
 
     register_command(
-        "WARP\\Function\\Find GUID",
+        "WARP\\Find GUID",
         "Locate the function in the view using a GUID",
         function::FindFunctionFromGUID {},
     );
