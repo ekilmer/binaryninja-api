@@ -31,13 +31,14 @@ BINARYNINJAPLUGIN bool CorePluginInit()
     BinaryNinja::LogRegistry::CreateLogger(PluginLoggerName);
 
     auto settings = BinaryNinja::Settings::Instance();
-    settings->RegisterSetting("core.function.objectiveC.rewriteMessageSendTarget",
+    settings->RegisterSetting("analysis.objectiveC.resolveDynamicDispatch",
         R"({
-		"title" : "Rewrite objc_msgSend calls in IL",
-		"type" : "boolean",
-		"default" : false,
-		"description" : "Message sends of selectors with any visible implementation are replaced with a direct call to the first visible implementation. Note that this can produce false positives if the selector is implemented by more than one class, or shares a name with a method from a system framework."
-		})");
+        "title" : "Resolve Dynamic Dispatch Calls",
+        "type" : "boolean",
+        "default" : false,
+        "aliases": ["core.function.objectiveC.assumeMessageSendTarget", "core.function.objectiveC.rewriteMessageSendTarget"],
+        "description" : "Replaces objc_msgSend calls with direct calls to the first found implementation when the target method is visible. May produce false positives when multiple classes implement the same selector or when selectors conflict with system framework methods."
+        })");
 
     return true;
 }
