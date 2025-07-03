@@ -138,6 +138,7 @@ impl TagType {
         let tag_type = unsafe { Self::ref_from_raw(BNCreateTagType(view.handle)) };
         tag_type.set_name(name);
         tag_type.set_icon(icon);
+        tag_type.set_type(TagTypeType::UserTagType);
         tag_type
     }
 
@@ -179,10 +180,9 @@ impl TagType {
         unsafe { BNTagTypeGetType(self.handle) }
     }
 
-    pub fn set_type(&self, t: &str) {
-        let t = t.to_cstr();
+    pub fn set_type(&self, ty: TagTypeType) {
         unsafe {
-            BNTagTypeSetName(self.handle, t.as_ptr());
+            BNTagTypeSetType(self.handle, ty);
         }
     }
 

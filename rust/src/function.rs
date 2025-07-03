@@ -1146,8 +1146,7 @@ impl Function {
 
         // Create tag
         let tag = Tag::new(tag_type, data);
-        let binaryview = unsafe { BinaryView::ref_from_raw(BNGetFunctionData(self.handle)) };
-        unsafe { BNAddTag(binaryview.handle, tag.handle, user) };
+        unsafe { BNAddTag(self.view().handle, tag.handle, user) };
 
         unsafe {
             match (user, addr) {
