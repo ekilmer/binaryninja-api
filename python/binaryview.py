@@ -10141,11 +10141,12 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		"""
 		return MemoryMap(handle=self.handle)
 
-	def stringify_unicode_data(self, arch: Optional['architecture.Architecture'], buffer: 'databuffer.DataBuffer', allow_short_strings: bool = False) -> Tuple[Optional[str], Optional[StringType]]:
+	def stringify_unicode_data(self, arch: Optional['architecture.Architecture'], buffer: 'databuffer.DataBuffer', null_terminates: bool = True, allow_short_strings: bool = False) -> Tuple[Optional[str], Optional[StringType]]:
 		"""
 		``stringify_unicode_data`` converts a buffer of unicode data into a string representation.
 		:param arch: The architecture to use for stringification, or None to use the current architecture of the BinaryView
 		:param buffer: The DataBuffer containing the unicode data to stringify
+		:param null_terminates: If True, stops stringification at the first null character, otherwise continues until the end of the buffer
 		:param allow_short_strings: If True, allows short strings to be returned, otherwise only long strings are returned
 		:return: A tuple containing the string representation and its type, or (None, None) if the stringification fails
 		:rtype: Tuple[Optional[str], Optional[StringType]]
@@ -10156,7 +10157,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		string_type = ctypes.c_int()
 		if arch is not None:
 			arch = arch.handle
-		if not core.BNStringifyUnicodeData(self.handle, arch, buffer.handle, allow_short_strings, ctypes.byref(string), ctypes.byref(string_type)):
+		if not core.BNStringifyUnicodeData(self.handle, arch, buffer.handle, null_terminates, allow_short_strings, ctypes.byref(string), ctypes.byref(string_type)):
 			return None, None
 		result = string.value.decode('utf-8')
 		core.free_string(string)

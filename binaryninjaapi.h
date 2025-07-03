@@ -7127,8 +7127,7 @@ namespace BinaryNinja {
 		void ClearUserGlobalPointerValue();
 		void SetUserGlobalPointerValue(const Confidence<RegisterValue>& value);
 
-		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(
-			Architecture* arch, const DataBuffer& buffer, bool allowShortStrings = false);
+		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(Architecture* arch, const DataBuffer& buffer, bool nullTerminates = true, bool allowShortStrings = false);
 	};
 
 	class MemoryMap

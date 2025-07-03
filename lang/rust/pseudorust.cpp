@@ -1278,6 +1278,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			const ConstantData& data = instr.GetConstantData<HLIL_CONST_DATA>();
 			if (auto [db, builtin] = data.ToDataBuffer(); db.GetLength())
 			{
+				bool nullTerminates = true;
 				switch (builtin)
 				{
 					case BuiltinStrcpy:
@@ -1302,9 +1303,12 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 						tokens.Append(BraceToken, "}");
 						break;
 					}
+					case BuiltinWmemcpy:
+						nullTerminates = false;
+						// FALL_THROUGH
 					default:
 					{
-						if (auto unicode = GetFunction()->GetView()->StringifyUnicodeData(instr.function->GetArchitecture(), db); unicode.has_value())
+						if (auto unicode = GetFunction()->GetView()->StringifyUnicodeData(instr.function->GetArchitecture(), db, nullTerminates); unicode.has_value())
 						{
 							auto wideStringPrefix = (builtin == BuiltinWcscpy) ? "L" : "";
 							auto tokenContext = (builtin == BuiltinWcscpy) ? ConstStringDataTokenContext : ConstDataTokenContext;

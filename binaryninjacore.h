@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 115
+#define BN_CURRENT_CORE_ABI_VERSION 116
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 115
+#define BN_MINIMUM_CORE_ABI_VERSION 116
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -3582,7 +3582,8 @@ extern "C"
 		BuiltinMemset,
 		BuiltinStrncpy,
 		BuiltinStrcpy,
-		BuiltinWcscpy
+		BuiltinWcscpy,
+		BuiltinWmemcpy
 	} BNBuiltinType;
 
 	typedef struct BNSegmentInfo {
@@ -4394,8 +4395,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNClearUserGlobalPointerValue(BNBinaryView* view);
 	BINARYNINJACOREAPI void BNSetUserGlobalPointerValue(BNBinaryView* view, BNRegisterValueWithConfidence value);
 
-	BINARYNINJACOREAPI bool BNStringifyUnicodeData(BNBinaryView* data, BNArchitecture* arch, const BNDataBuffer* buffer,
-		bool allowShortStrings, char** string, BNStringType* type);
+	BINARYNINJACOREAPI bool BNStringifyUnicodeData(BNBinaryView* data, BNArchitecture* arch, const BNDataBuffer* buffer, bool nullTerminates, bool allowShortStrings, char** string, BNStringType* type);
 
 	// Raw binary data view
 	BINARYNINJACOREAPI BNBinaryView* BNCreateBinaryDataView(BNFileMetadata* file);
