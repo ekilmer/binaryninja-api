@@ -132,6 +132,7 @@ void DSCTriageView::loadImagesWithAddr(const std::vector<uint64_t>& addresses, b
 
 			// Run analysis.
 			this->m_data->AddAnalysisOption("linearsweep");
+			this->m_data->AddAnalysisOption("pointersweep");
 			this->m_data->UpdateAnalysis();
 		}
 	});

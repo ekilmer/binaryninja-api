@@ -47,6 +47,7 @@ void DisplayDSCPicker(UIContext* ctx, Ref<BinaryView> dscView)
 			{
 				controller->ApplyImage(*dscView, *selectedImage);
 				dscView->AddAnalysisOption("linearsweep");
+				dscView->AddAnalysisOption("pointersweep");
 				dscView->UpdateAnalysis();
 			}
 		}
