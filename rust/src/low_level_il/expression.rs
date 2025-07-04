@@ -301,14 +301,14 @@ where
     Divu(Operation<'func, M, F, operation::BinaryOp>),
     Divs(Operation<'func, M, F, operation::BinaryOp>),
 
-    DivuDp(Operation<'func, M, F, operation::DoublePrecDivOp>),
-    DivsDp(Operation<'func, M, F, operation::DoublePrecDivOp>),
+    DivuDp(Operation<'func, M, F, operation::BinaryOp>),
+    DivsDp(Operation<'func, M, F, operation::BinaryOp>),
 
     Modu(Operation<'func, M, F, operation::BinaryOp>),
     Mods(Operation<'func, M, F, operation::BinaryOp>),
 
-    ModuDp(Operation<'func, M, F, operation::DoublePrecDivOp>),
-    ModsDp(Operation<'func, M, F, operation::DoublePrecDivOp>),
+    ModuDp(Operation<'func, M, F, operation::BinaryOp>),
+    ModsDp(Operation<'func, M, F, operation::BinaryOp>),
 
     Neg(Operation<'func, M, F, operation::UnaryOp>),
     Not(Operation<'func, M, F, operation::UnaryOp>),
@@ -538,7 +538,6 @@ where
                 LowLevelILExpressionKind::UnimplMem(Operation::new(function, op, index))
             }
 
-            // TODO: LLIL_REG_STACK_PUSH
             _ => {
                 // #[cfg(debug_assertions)]
                 log::error!(
@@ -568,7 +567,6 @@ where
             }
 
             _ => Some(self.raw_struct().size),
-            //TestBit(Operation<'func, M, F, operation::TestBit>), // TODO
         }
     }
 
@@ -607,7 +605,8 @@ where
             Add(ref op) | Sub(ref op) | And(ref op) | Or(ref op) | Xor(ref op) | Lsl(ref op)
             | Lsr(ref op) | Asr(ref op) | Rol(ref op) | Ror(ref op) | Mul(ref op)
             | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op) | Modu(ref op)
-            | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op) | Fdiv(ref op) => Some(op),
+            | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op) | Fdiv(ref op)
+            | DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => Some(op),
             _ => None,
         }
     }
@@ -617,17 +616,6 @@ where
 
         match *self {
             Adc(ref op) | Sbb(ref op) | Rlc(ref op) | Rrc(ref op) => Some(op),
-            _ => None,
-        }
-    }
-
-    pub fn as_double_prec_div_op(
-        &self,
-    ) -> Option<&Operation<'func, M, F, operation::DoublePrecDivOp>> {
-        use self::LowLevelILExpressionKind::*;
-
-        match *self {
-            DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => Some(op),
             _ => None,
         }
     }
@@ -675,13 +663,9 @@ where
             | Xor(ref op) | Lsl(ref op) | Lsr(ref op) | Asr(ref op) | Rol(ref op) | Ror(ref op)
             | Mul(ref op) | MulsDp(ref op) | MuluDp(ref op) | Divu(ref op) | Divs(ref op)
             | Modu(ref op) | Mods(ref op) | Fadd(ref op) | Fsub(ref op) | Fmul(ref op)
-            | Fdiv(ref op) | TestBit(ref op) => {
+            | DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) | Fdiv(ref op)
+            | TestBit(ref op) => {
                 visit!(op.left());
-                visit!(op.right());
-            }
-            DivuDp(ref op) | DivsDp(ref op) | ModuDp(ref op) | ModsDp(ref op) => {
-                visit!(op.high());
-                visit!(op.low());
                 visit!(op.right());
             }
             Neg(ref op) | Not(ref op) | Sx(ref op) | Zx(ref op) | LowPart(ref op)

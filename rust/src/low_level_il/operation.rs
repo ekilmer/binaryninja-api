@@ -1893,57 +1893,6 @@ where
     }
 }
 
-// LLIL_DIVS_DP, LLIL_DIVU_DP, LLIL_MODU_DP, LLIL_MODS_DP
-pub struct DoublePrecDivOp;
-
-impl<'func, M, F> Operation<'func, M, F, DoublePrecDivOp>
-where
-    M: FunctionMutability,
-    F: FunctionForm,
-{
-    pub fn size(&self) -> usize {
-        self.op.size
-    }
-
-    pub fn high(&self) -> LowLevelILExpression<'func, M, F, ValueExpr> {
-        LowLevelILExpression::new(
-            self.function,
-            LowLevelExpressionIndex(self.op.operands[0] as usize),
-        )
-    }
-
-    pub fn low(&self) -> LowLevelILExpression<'func, M, F, ValueExpr> {
-        LowLevelILExpression::new(
-            self.function,
-            LowLevelExpressionIndex(self.op.operands[1] as usize),
-        )
-    }
-
-    // TODO: I don't think this actually exists?
-    pub fn right(&self) -> LowLevelILExpression<'func, M, F, ValueExpr> {
-        LowLevelILExpression::new(
-            self.function,
-            LowLevelExpressionIndex(self.op.operands[2] as usize),
-        )
-    }
-}
-
-impl<M, F> Debug for Operation<'_, M, F, DoublePrecDivOp>
-where
-    M: FunctionMutability,
-    F: FunctionForm,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DoublePrecDivOp")
-            .field("size", &self.size())
-            .field("high", &self.high())
-            .field("low", &self.low())
-            // TODO: I don't think this actually is used...
-            .field("right", &self.right())
-            .finish()
-    }
-}
-
 // LLIL_PUSH, LLIL_NEG, LLIL_NOT, LLIL_SX,
 // LLIL_ZX, LLIL_LOW_PART, LLIL_BOOL_TO_INT, LLIL_UNIMPL_MEM
 pub struct UnaryOp;
@@ -2281,7 +2230,6 @@ impl OperationArguments for FloatConst {}
 impl OperationArguments for Extern {}
 impl OperationArguments for BinaryOp {}
 impl OperationArguments for BinaryOpCarry {}
-impl OperationArguments for DoublePrecDivOp {}
 impl OperationArguments for UnaryOp {}
 impl OperationArguments for Condition {}
 impl OperationArguments for UnimplMem {}
