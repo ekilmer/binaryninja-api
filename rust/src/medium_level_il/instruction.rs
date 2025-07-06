@@ -1162,7 +1162,7 @@ impl MediumLevelILInstruction {
         let value = unsafe {
             BNGetMediumLevelILPossibleExprValues(
                 self.function.handle,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1185,7 +1185,7 @@ impl MediumLevelILInstruction {
                 self.function.handle,
                 &raw_var,
                 ssa_var.version,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1200,7 +1200,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILSSAVarVersionAtILInstruction(
                 self.function.handle,
                 &raw_var,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         SSAVariable::new(var, version)
@@ -1213,7 +1213,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILSSAVarVersionAfterILInstruction(
                 self.function.handle,
                 &raw_var,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         SSAVariable::new(var, version)
@@ -1225,7 +1225,7 @@ impl MediumLevelILInstruction {
         let deps = unsafe {
             BNGetAllMediumLevelILBranchDependence(
                 self.function.handle,
-                self.expr_index.0,
+                self.instr_index.0,
                 &mut count,
             )
         };
@@ -1233,16 +1233,19 @@ impl MediumLevelILInstruction {
         unsafe { Array::new(deps, count, self.function.clone()) }
     }
 
-    pub fn branch_dependence_at(&self, instruction: MediumLevelILInstruction) -> BranchDependence {
+    pub fn branch_dependence_at(
+        &self,
+        branch_instruction: MediumLevelILInstruction,
+    ) -> BranchDependence {
         let deps = unsafe {
             BNGetMediumLevelILBranchDependence(
                 self.function.handle,
-                self.expr_index.0,
-                instruction.expr_index.0,
+                self.instr_index.0,
+                branch_instruction.instr_index.0,
             )
         };
         BranchDependence {
-            instruction,
+            instruction: branch_instruction,
             dependence: deps,
         }
     }
@@ -1252,7 +1255,7 @@ impl MediumLevelILInstruction {
         unsafe {
             BNGetMediumLevelILSSAMemoryVersionAtILInstruction(
                 self.function.handle,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
     }
@@ -1262,7 +1265,7 @@ impl MediumLevelILInstruction {
         unsafe {
             BNGetMediumLevelILSSAMemoryVersionAfterILInstruction(
                 self.function.handle,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
     }
@@ -1289,7 +1292,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForRegisterAtInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1300,7 +1303,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForRegisterAfterInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1311,7 +1314,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForFlagAtInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1322,7 +1325,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForFlagAfterInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1333,7 +1336,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForStackLocationAtInstruction(
                 self.function.handle,
                 offset,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1344,7 +1347,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILVariableForStackLocationAfterInstruction(
                 self.function.handle,
                 offset,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::from(result)
@@ -1355,7 +1358,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILRegisterValueAtInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1366,7 +1369,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILRegisterValueAfterInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1385,7 +1388,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILPossibleRegisterValuesAtInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1406,7 +1409,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILPossibleRegisterValuesAfterInstruction(
                 self.function.handle,
                 reg_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1419,7 +1422,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILFlagValueAtInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1430,7 +1433,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILFlagValueAfterInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1449,7 +1452,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILPossibleFlagValuesAtInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1466,7 +1469,7 @@ impl MediumLevelILInstruction {
             BNGetMediumLevelILPossibleFlagValuesAfterInstruction(
                 self.function.handle,
                 flag_id.0,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1480,7 +1483,7 @@ impl MediumLevelILInstruction {
                 self.function.handle,
                 offset,
                 size,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1492,7 +1495,7 @@ impl MediumLevelILInstruction {
                 self.function.handle,
                 offset,
                 size,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         }
         .into()
@@ -1509,7 +1512,7 @@ impl MediumLevelILInstruction {
                 self.function.handle,
                 offset,
                 size,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1528,7 +1531,7 @@ impl MediumLevelILInstruction {
                 self.function.handle,
                 offset,
                 size,
-                self.expr_index.0,
+                self.instr_index.0,
                 options.as_ptr() as *mut _,
                 options.len(),
             )
@@ -1547,7 +1550,7 @@ impl MediumLevelILInstruction {
             BNGetDefaultIndexForMediumLevelILVariableDefinition(
                 self.function.handle,
                 &raw_var,
-                self.expr_index.0,
+                self.instr_index.0,
             )
         };
         Variable::new(var.ty, index, var.storage)
