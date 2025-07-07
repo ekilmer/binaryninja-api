@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(bin-info CXX C)
 
@@ -16,7 +16,7 @@ if (NOT WIN32)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_VISIBILITY_PRESET hidden
     CXX_STANDARD_REQUIRED ON
     VISIBILITY_INLINES_HIDDEN ON

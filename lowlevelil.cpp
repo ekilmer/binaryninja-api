@@ -389,6 +389,7 @@ ExprId LowLevelILFunction::AddLabelMap(const map<uint64_t, BNLowLevelILLabel*>& 
 		i++;
 	}
 	ExprId result = (ExprId)BNLowLevelILAddLabelMap(m_object, valueList, labelList, labels.size());
+	delete[] valueList;
 	delete[] labelList;
 	return result;
 }
@@ -1035,5 +1036,12 @@ size_t LowLevelILFunction::GetMappedMediumLevelILExprIndex(size_t expr) const
 Ref<FlowGraph> LowLevelILFunction::CreateFunctionGraph(DisassemblySettings* settings)
 {
 	BNFlowGraph* graph = BNCreateLowLevelILFunctionGraph(m_object, settings ? settings->GetObject() : nullptr);
+	return new CoreFlowGraph(graph);
+}
+
+
+Ref<FlowGraph> LowLevelILFunction::CreateFunctionGraphImmediate(DisassemblySettings* settings)
+{
+	BNFlowGraph* graph = BNCreateLowLevelILImmediateFunctionGraph(m_object, settings ? settings->GetObject() : nullptr);
 	return new CoreFlowGraph(graph);
 }

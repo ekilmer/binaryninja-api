@@ -49,6 +49,7 @@ void UINotifications::OnViewChange(UIContext* context, ViewFrame* frame, const Q
 			if (!controller->ApplyRegion(view, *foundRegion))
 				return;
 			view.AddAnalysisOption("linearsweep");
+			view.AddAnalysisOption("pointersweep");
 			view.UpdateAnalysis();
 		}
 	};
@@ -63,6 +64,7 @@ void UINotifications::OnViewChange(UIContext* context, ViewFrame* frame, const Q
 			if (!controller->ApplyImage(view, *foundImage))
 				return;
 			view.AddAnalysisOption("linearsweep");
+			view.AddAnalysisOption("pointersweep");
 			view.UpdateAnalysis();
 		}
 	};

@@ -84,7 +84,7 @@ target_compile_definitions(kernelcachecore PRIVATE KERNELCACHE_LIBRARY ${COMPILE
 target_include_directories(kernelcachecore PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/transformers)
 
 set_target_properties(kernelcachecore PROPERTIES
-        CXX_STANDARD 17
+        CXX_STANDARD 20
         CXX_VISIBILITY_PRESET hidden
         CXX_STANDARD_REQUIRED ON
         VISIBILITY_INLINES_HIDDEN ON

@@ -151,7 +151,7 @@ A "Compact Mode" exists which presents only file paths. This can be enabled and 
 
 Recent files can be opened on double click. They can also be navigated using the arrow keys, and opened via pressing enter. Opening a recent file using `[SHIFT+ENTER]` will open that file with the Open With Options dialog.
 
-The Recent files list can be cleared via using the Command Palette (`[CTRL] + P`) action `Clear Recently Opened`.
+The Recent files list can be cleared via using the Command Palette (`[CTRL] + P`) action `Clear All Recent Files`.
 
 Hotkeys (macOS: `[CMD] + 0` - `[CMD] + 9`, Windows/Linux: `[CTRL] + 0` - `[CTRL + 9]`) can also be used to quickly open a file. The hotkey for a given entry will be shown on the right.
 
@@ -240,7 +240,7 @@ Once you have a file open, the sidebar lets you quickly access the most common f
  - 5-6: Primarily for horizontal content, the bottom-most panel icon regions behave much like sections 1-2 except they are applied to two regions in the bottom of the window. Clicking a different icon in this region will switch to that panel, or hide that panel entirely if it is already selected.
 
 ???+ Info "Tip"
-    Note that you can also right-click on sidebar icons and choose from `Docked`, `Floating`, and `Window` options to expose even more possible layout options.
+    Note that you can also right-click on sidebar icons and choose from `Docked`, `Floating`, and `Window` options to expose even more possible layout options. From the right-click menu, you can also control if and when a sidebar icon is hidden.
 
 Here's a more detailed look into each of those panels:
 
@@ -423,7 +423,7 @@ The Stack sidebar panel shows the currently selected function's stack layout. Yo
 
 The History sidebar panel shows all annotations made during the history of a database. Note that even changes made prior to the introduction of the UI will be shown. This not only makes it easier to see what changes have been made, but allows you to right-click and revert to a particular point in analysis. Additionally, the right-click menu includes a toggle to hide or show the date of the change.
 
-Note that when plugins or the UI batch multiple changes in one action, they wil be summarized with a count of actions but no further details are possible. 
+Note that when plugins or the UI batch multiple changes in one action, they wil be summarized with a count of actions but no further details are possible.
 
 There is currently no support for branching/forking style of history at this time.
 
@@ -455,6 +455,17 @@ The search types are available from a drop-down next to the text input field and
 ![Logs](../img/logs.png "Logs"){ width="700" }
 
 The log window lets you search and filter through logs. You can search by text or filter by loggers to identify messages of interest. By default, only the logs for a specific BinaryView that's open as well as any Global logs will show up but this setting can either be changed through the right-click menu or the drop down menu in the upper-right of the log window.
+
+### Hidden Sidebar Icons
+
+Some sidebar icons are hidden when they are not relevant, and some containing information for plugin debugging are
+hidden by default. You can also choose to hide any sidebar icon by right-clicking on it.
+
+If a sidebar icon is hidden and you want to open it or change the visibility of the icon, you can click the `More...`
+icon in the sidebar (the icon with three dots) and choose the sidebar you want to open from the popup menu. Once it is
+open, right-clicking on the icon and choosing `Show` from the menu will make the icon stay visible at all times.
+
+![More](../img/more.png "More"){ width="300" }
 
 ## Tiling Panes
 
@@ -650,7 +661,7 @@ Note that you can cancel the analysis at any time and the current results will b
 large files or files with many pointers being analyzed.
 
 If the file format has a header that can be identified before analysis that may help BASE identify the proper load
-address, otherwise the alignment would need to account for the header. 
+address, otherwise the alignment would need to account for the header.
 
 |Setting|Description|Default|
 |--- |--- |--- |
@@ -669,7 +680,7 @@ libraries linked will be listed in this section and are available in the [API as
 ### 6. Imports / Exports
 
 The Imports and Exports sections show any imports and exports. The lists are sortable by clicking
-the table headers. 
+the table headers.
 
 ### 7. Sections
 
@@ -806,6 +817,41 @@ In this case, these variables are actually unused and can be eliminated. You can
 Performing this action on both variables in the example results in the following output:
 
 ![Dead Store Elimination Results](../img/dead-store-after.png "Dead Store Elimination Results"){ width="500" }
+
+## High Level Optimization Overrides
+
+Binary Ninja automatically performs optimization passes on high level code. One of these optimizations is to fold
+assignments with a single use into the statement that uses it. An example of a function call being folded into another
+is shown below:
+
+![Expression Folding](../img/folding-before.png "Expression Folding"){ width="500" }
+
+Binary Ninja uses heuristics to determine if optimizatoins will improve readability, but sometimes it doesn't make the
+preferred choice. In the case above, you can override the heuristic by right-clicking the inner call expression and
+choosing "Allow" or "Prevent" from the "Expression Folding" submenu.
+
+![Expression Folding Menu](../img/folding-menu.png "Expression Folding Menu"){ width="500" }
+
+These options will only appear if the given optimizations are applied or can be applied. If Binary Ninja's analysis
+determines that it is not sound to perform an optimization, the submenus will not be present.
+
+Choosing "Prevent" from the "Expression Folding" menu on the call to `_strlen` in the example above results in the
+following output:
+
+![Expression Folding Results](../img/folding-after.png "Expression Folding Results"){ width="500" }
+
+The heuristics can sometimes choose to not apply an optimization. You can override the heuristic to apply the
+optimization using the same right-click submenus.
+
+Several optimizations offer the option to override heuristics. The optimizations that support
+this feature are shown in the table below:
+
+| Optimization               | Description                                                                                                                                                    | Valid Locations                                                                                    |
+|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| Early Return               | Rewrites trailing `if`/`else` constructs to return early from one side. Avoids large indented `if` blocks.                                                     | `if` statements                                                                                    |
+| Expression Folding         | Folds a store of an expression into another expression. Heuristics try to reduce lines of code and number of active variables.                                 | Inner expressions (when optimization is applied) or assignments (when optimization is not applied) |
+| Show Condition as Inverted | Heuristics try to pick the best condition for `if`/`else` constructs, but an override can invert the chosen condition and rearrange the `if`/`else` construct. | `if` statements                                                                                    |
+| Switch Recovery            | Heuristics try to avoid tiny switch constructs. Overrides can choose to display the code as a `switch` or a chain of `if`/`else` constructs.                   | `if` or `switch` statements                                                                        |
 
 ## Merging and Splitting Variables
 
@@ -1003,7 +1049,7 @@ When you launch Binary Ninja from the command-line, you can control whether or n
 
 * Running Binary Ninja from the command line will try to find a running instance of the same version in which to open any files or URLs passed on the command line, or activate the main window if no arguments are provided.
 * For users whose workflow involves running Binary Ninja from a shell, just running `binaryninja` will try to activate a running instance, and if it does, return you to your shell. Otherwise it will launch a new instance of Binary Ninja.
-* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will 
+* Running `binaryninja` with a file path (or paths), like `binaryninja /bin/ls /bin/cat`, will
     1. Try to activate and focus existing tabs for those files in a running instance, or failing that,
     2. Try to open those files in new tabs in a running instance, or failing that,
     3. Open those files in a new instance of Binary Ninja.
@@ -1016,6 +1062,8 @@ Binary Ninja now comes with a debugger plugin that can debug executables on Wind
 For more detailed information on plugins, see the [debugger guide](debugger/index.md).
 
 ## Updates
+
+![Update Dialog >](../img/update-dialog.png "Update Dialog"){ width="600" }
 
 Binary Ninja automatically updates itself by default. This functionality can be disabled in the `Update Channel` dialog (`[CMD/CTRL] p`, `Update Channel`, or under the `Preferences` sub menu available under `Edit` on Linux and Windows, and the Application menu on macOS) preferences by turning off the `Update to latest version automatically` option. Regardless of whether automatic updates are enabled, it is always possible to check for updates by selecting `Check for Updates...` from either the command palette or under `Help` menu on Linux and Windows, and the Application menu on macOS.
 

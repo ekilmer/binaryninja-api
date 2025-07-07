@@ -546,7 +546,7 @@ impl DebugInfoBuilder {
             assert!(debug_info.add_data_variable(
                 address,
                 &self.get_type(*type_uid).unwrap().ty,
-                name.clone(),
+                name.as_deref(),
                 &[] // TODO : Components
             ));
         }
@@ -622,7 +622,7 @@ impl DebugInfoBuilder {
                                 .items
                                 .len()
                         {
-                            func.full_name = Some(symbol_full_name.to_string());
+                            func.full_name = Some(symbol_full_name.to_string_lossy().to_string());
                         }
                     }
                 }

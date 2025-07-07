@@ -359,6 +359,12 @@ std::vector<BaseClassInfo> MicrosoftRTTIProcessor::ProcessClassHierarchyDescript
         auto baseClassDesc = BaseClassDescriptor(m_view, baseClassDescAddr);
 
         auto baseClassTypeDescAddr = resolveAddr(baseClassDesc.pTypeDescriptor);
+        if (baseClassTypeDescAddr == 0)
+        {
+            // Fixes issue https://github.com/Vector35/binaryninja-api/issues/6837
+            m_logger->LogWarn("Skipping BaseClassDescriptor with null pTypeDescriptor %llx", baseClassDescAddr);
+            continue;
+        }
         auto baseClassTypeDesc = TypeDescriptor(m_view, baseClassTypeDescAddr);
         auto baseClassName = DemangleNameMS(m_view, allowMangledClassNames, baseClassTypeDesc.name);
         if (!baseClassName.has_value())
@@ -425,6 +431,16 @@ std::optional<ClassInfo> MicrosoftRTTIProcessor::ProcessRTTI(uint64_t coLocatorA
     auto classInfo = ClassInfo{RTTIProcessorType::Microsoft, className.value()};
 
     auto classHierarchyDescAddr = resolveAddr(coLocator->pClassHierarchyDescriptor);
+
+    // Verify the class hierarchy descriptor signature is zero.
+    auto reader = BinaryReader(m_view);
+    reader.Seek(classHierarchyDescAddr);
+    if (auto signature = reader.Read32(); signature != 0)
+    {
+        m_logger->LogWarn("Skipping CompleteObjectorLocator with non-zero hierarchy descriptor signature %llx", coLocatorAddr);
+        return std::nullopt;
+    }
+
     classInfo.baseClasses = ProcessClassHierarchyDescriptor(classHierarchyDescAddr, coLocator.value(), classInfo);
 
     // Locate the current base class if we are in one.
@@ -471,6 +487,9 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
     std::vector<std::pair<uint64_t, std::optional<Ref<Function>>>> virtualFunctions = {};
     while (true)
     {
+        uint64_t readOffset = reader.GetOffset();
+        if (!m_view->IsValidOffset(readOffset))
+            break;
         uint64_t vFuncAddr = reader.ReadPointer();
         auto funcs = m_view->GetAnalysisFunctionsForAddress(vFuncAddr);
         if (funcs.empty())
@@ -483,7 +502,8 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
             }
             // TODO: Is likely a function check here?
             m_logger->LogDebug("Discovered function from virtual function table... %llx", vFuncAddr);
-            auto vFunc = m_view->AddFunctionForAnalysis(m_view->GetDefaultPlatform(), vFuncAddr, true);
+            auto vftPlatform = m_view->GetDefaultPlatform()->GetAssociatedPlatformByAddress(vFuncAddr);
+            auto vFunc = m_view->AddFunctionForAnalysis(vftPlatform, vFuncAddr, true);
             virtualFunctions.emplace_back(vFuncAddr, vFunc ? std::optional(vFunc) : std::nullopt);
         }
         else
@@ -585,18 +605,17 @@ std::optional<VirtualFunctionTableInfo> MicrosoftRTTIProcessor::ProcessVFT(uint6
             auto redirectTypeId = Type::GenerateAutoDebugTypeId(rootRedirectName);
             // This will now create the redirect type MyClass::VTable for uninformed analysis to use.
             // MyClass -> MyBase::MyClass::VTable (when MyBase offset is 0).
-            m_view->DefineType(redirectTypeId, rootRedirectName, rootRedirectType);
-        }
-        m_view->DefineType(typeId, vftTypeName,
-                           Confidence(TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize(), RTTI_CONFIDENCE));
-    }
+			m_view->DefineType(redirectTypeId, rootRedirectName, rootRedirectType.GetValue());
+		}
+		m_view->DefineType(typeId, vftTypeName, TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize());
+	}
 
-    auto vftName = fmt::format("{}::`vftable'", classInfo.className);
-    if (baseClassInfo.has_value())
-        vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
-    m_view->DefineAutoSymbol(new Symbol{DataSymbol, vftName, vftAddr});
-    m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
-    return vftInfo;
+	auto vftName = fmt::format("{}::`vftable'", classInfo.className);
+	if (baseClassInfo.has_value())
+		vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
+	m_view->DefineAutoSymbol(new Symbol {DataSymbol, vftName, vftAddr});
+	m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
+	return vftInfo;
 }
 
 
@@ -790,8 +809,8 @@ void MicrosoftRTTIProcessor::ProcessVFT()
         }
 
         vftFinished.insert(vftAddr);
-        auto vftInfo = ProcessVFT(vftAddr, classInfo, baseClassInfo);
-        classInfo.vft = vftInfo.value();
+        if (auto vftInfo = ProcessVFT(vftAddr, classInfo, baseClassInfo))
+            classInfo.vft = vftInfo.value();
     };
 
     size_t processedNum = 0;

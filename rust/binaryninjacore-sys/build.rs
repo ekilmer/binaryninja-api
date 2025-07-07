@@ -42,6 +42,7 @@ fn link_path() -> PathBuf {
 }
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=BINARYNINJADIR");
     println!("cargo:rerun-if-changed=../../binaryninjacore.h");
 
     //Cargo's output directory
@@ -87,7 +88,7 @@ fn main() {
 
     bindgen::builder()
         .header("../../binaryninjacore.h")
-        .clang_arg("-std=c++17")
+        .clang_arg("-std=c++20")
         .clang_arg("-x")
         .clang_arg("c++")
         .size_t_is_usize(true)

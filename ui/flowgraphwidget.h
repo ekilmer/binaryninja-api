@@ -166,6 +166,14 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	void recenterUpdatedGraph(FlowGraphRef oldGraph, int oldXOfs, int oldYOfs);
 
 	BNDeadStoreElimination getCurrentVariableDeadStoreElimination();
+	std::optional<uint64_t> getCurrentFoldableExprAddress();
+	BNExprFolding getCurrentExprFolding();
+	std::optional<uint64_t> getCurrentInvertableConditionAddress();
+	bool getCurrentConditionInverted();
+	std::optional<uint64_t> getCurrentEarlyReturnAddress();
+	BNEarlyReturn getCurrentEarlyReturn();
+	std::optional<uint64_t> getCurrentSwitchRecoveryAddress();
+	BNSwitchRecovery getCurrentSwitchRecovery();
 	std::optional<std::pair<BinaryNinja::Variable, BinaryNinja::Variable>> getMergeVariablesAtCurrentLocation();
 
   protected:
@@ -216,6 +224,7 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	bool isFunctionHeader();
 
 	bool m_enableBlockIndicators = false;
+	float m_blockIndicatorStrokeWidth = 1.0f;
 
   public:
 	FlowGraphWidget(QWidget* parent, BinaryViewRef view, FlowGraphRef graph = FlowGraphRef());
@@ -394,6 +403,10 @@ class BINARYNINJAUIAPI FlowGraphWidget :
 	void instrEditDoneEvent();
 
 	void setCurrentVariableDeadStoreElimination(BNDeadStoreElimination elimination);
+	void setCurrentExprFolding(BNExprFolding folding);
+	void toggleConditionInverted();
+	void setCurrentEarlyReturn(BNEarlyReturn earlyReturn);
+	void setCurrentSwitchRecovery(BNSwitchRecovery recovery);
 	void splitToNewTabAndNavigateFromCursorPosition();
 	void splitToNewWindowAndNavigateFromCursorPosition();
 	void splitToNewPaneAndNavigateFromCursorPosition();

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "binaryninjaapi.h"
+#include "highlevelilinstruction.h"
 
 class PseudoCFunction: public BinaryNinja::LanguageRepresentationFunction
 {
 	BinaryNinja::Ref<BinaryNinja::HighLevelILFunction> m_highLevelIL;
+	BinaryNinja::Ref<BinaryNinja::TypePrinter> m_typePrinter;
 
 	enum FieldDisplayType
 	{
@@ -13,6 +15,23 @@ class PseudoCFunction: public BinaryNinja::LanguageRepresentationFunction
 		FieldDisplayMemberOffset,
 		FieldDisplayNone
 	};
+
+	struct TernaryInfo
+	{
+		BinaryNinja::HighLevelILInstruction conditional;
+		BinaryNinja::HighLevelILInstruction assignDest;
+		BinaryNinja::HighLevelILInstruction trueAssign;
+		BinaryNinja::HighLevelILInstruction falseAssign;
+	};
+
+	std::optional<PseudoCFunction::TernaryInfo> CanSimplifyToTernary(
+		const BinaryNinja::HighLevelILInstruction& instr
+	) const;
+	bool TryEmitSimplifiedTernary(
+		const BinaryNinja::HighLevelILInstruction& instr,
+		BinaryNinja::DisassemblySettings* settings,
+		BinaryNinja::HighLevelILTokenEmitter& emitter
+	);
 
 	BinaryNinja::Ref<BinaryNinja::Type> GetFieldType(const BinaryNinja::HighLevelILInstruction& var, bool deref);
 	FieldDisplayType GetFieldDisplayType(BinaryNinja::Ref<BinaryNinja::Type> type, uint64_t offset, size_t memberIndex, bool deref);
@@ -52,6 +71,19 @@ protected:
 	void EndLines(
 		const BinaryNinja::HighLevelILInstruction& instr, BinaryNinja::HighLevelILTokenEmitter& tokens) override;
 
+	BinaryNinja::TypePrinter* GetTypePrinter() const;
+
+	virtual bool ShouldSkipStatement(const BinaryNinja::HighLevelILInstruction& instr);
+	virtual void GetExpr_CALL_OR_TAILCALL(const BinaryNinja::HighLevelILInstruction& instr,
+		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
+		BNOperatorPrecedence precedence, bool statement);
+	virtual void GetExpr_CONST_PTR(const BinaryNinja::HighLevelILInstruction& instr,
+		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
+		BNOperatorPrecedence precedence, bool statement);
+	virtual void GetExpr_IMPORT(const BinaryNinja::HighLevelILInstruction& instr,
+		BinaryNinja::HighLevelILTokenEmitter& tokens, BinaryNinja::DisassemblySettings* settings,
+		BNOperatorPrecedence precedence, bool statement);
+
 public:
 	PseudoCFunction(BinaryNinja::LanguageRepresentationFunctionType* type, BinaryNinja::Architecture* arch,
 		BinaryNinja::Function* owner, BinaryNinja::HighLevelILFunction* highLevelILFunction);
@@ -66,4 +98,7 @@ public:
 	PseudoCFunctionType();
 	BinaryNinja::Ref<BinaryNinja::LanguageRepresentationFunction> Create(BinaryNinja::Architecture* arch,
 		BinaryNinja::Function* owner, BinaryNinja::HighLevelILFunction* highLevelILFunction) override;
+
+protected:
+	PseudoCFunctionType(const std::string& name);
 };

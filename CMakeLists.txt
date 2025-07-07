@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(BinaryNinjaAPI CXX C)
 
@@ -53,7 +53,7 @@ if(BinaryNinjaAPI_REF_COUNT_DEBUG)
     target_compile_definitions(binaryninjaapi PUBLIC BN_REF_COUNT_DEBUG)
 endif()
 
-target_compile_features(binaryninjaapi PUBLIC cxx_std_17)
+target_compile_features(binaryninjaapi PUBLIC cxx_std_20)
 
 if(NOT TARGET binaryninjacore)
     find_package(BinaryNinjaCore)

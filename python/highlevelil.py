@@ -215,8 +215,8 @@ class HighLevelILInstruction(BaseILInstruction):
 	        ("constant", "int"), ("offset", "int")
 	    ], HighLevelILOperation.HLIL_FLOAT_CONST: [("constant", "float")], HighLevelILOperation.HLIL_IMPORT: [
 	        ("constant", "int")
-	    ], HighLevelILOperation.HLIL_CONST_DATA: [("constant_data", "constant_data")], HighLevelILOperation.HLIL_CONST_DATA: [
-	        ("constant_data", "constant_data")
+	    ], HighLevelILOperation.HLIL_CONST_DATA: [("constant", "ConstantData")], HighLevelILOperation.HLIL_CONST_DATA: [
+	        ("constant", "ConstantData")
 	    ], HighLevelILOperation.HLIL_ADD: [("left", "expr"), ("right", "expr")], HighLevelILOperation.HLIL_ADC: [
 	        ("left", "expr"), ("right", "expr"), ("carry", "expr")
 	    ], HighLevelILOperation.HLIL_SUB: [("left", "expr"), ("right", "expr")], HighLevelILOperation.HLIL_SBB: [
@@ -942,6 +942,36 @@ class HighLevelILInstruction(BaseILInstruction):
 				yield function.DisassemblyTextLine(tokens, addr, il_instr, color)
 		finally:
 			core.BNFreeDisassemblyTextLines(lines, count.value)
+
+	@property
+	def can_collapse(self) -> bool:
+		"""If this instruction can be collapsed in rendered lines"""
+		return self.operation in [
+			HighLevelILOperation.HLIL_IF,
+			HighLevelILOperation.HLIL_WHILE,
+			HighLevelILOperation.HLIL_WHILE_SSA,
+			HighLevelILOperation.HLIL_DO_WHILE,
+			HighLevelILOperation.HLIL_DO_WHILE_SSA,
+			HighLevelILOperation.HLIL_FOR,
+			HighLevelILOperation.HLIL_FOR_SSA,
+			HighLevelILOperation.HLIL_SWITCH,
+			HighLevelILOperation.HLIL_CASE
+		]
+
+	def get_instruction_hash(self, discriminator: int) -> int:
+		"""
+		Hash of instruction matching the C++ HighLevelILInstruction::GetInstructionHash,
+		used for collapsed region matching.
+		:param discriminator: Extra value to include in the hash to differentiate regions
+		"""
+
+		def rotl(value, shift):
+			return ((value << shift) & 0xffffffffffffffff) | (value >> (64 - shift))
+
+		hash = self.operation.value
+		hash ^= rotl(self.address, 23)
+		hash ^= rotl(discriminator, 47)
+		return hash
 
 
 @dataclass(frozen=True, repr=False, eq=False)
@@ -1782,13 +1812,17 @@ class HighLevelILImport(HighLevelILInstruction, Constant):
 @dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILConstData(HighLevelILInstruction, Constant):
 	@property
+	def constant(self) -> variable.ConstantData:
+		return self.get_constant_data(0, 1)
+
+	@property
 	def constant_data(self) -> variable.ConstantData:
 		return self.get_constant_data(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
 		return [
-			("constant_data", self.constant_data, "ConstantData"),
+			("constant", self.constant, "ConstantData"),
 		]
 
 
@@ -2392,7 +2426,7 @@ ILInstruction = {
     HighLevelILOperation.HLIL_EXTERN_PTR: HighLevelILExternPtr,  #  ("constant", "int"), ("offset", "int"),
     HighLevelILOperation.HLIL_FLOAT_CONST: HighLevelILFloatConst,  #  ("constant", "float"),
     HighLevelILOperation.HLIL_IMPORT: HighLevelILImport,  #  ("constant", "int"),
-    HighLevelILOperation.HLIL_CONST_DATA: HighLevelILConstData,  # [("constant_data", "constant_data")],
+    HighLevelILOperation.HLIL_CONST_DATA: HighLevelILConstData,  # [("constant", "ConstantData")],
     HighLevelILOperation.HLIL_ADD: HighLevelILAdd,  #  ("left", "expr"), ("right", "expr"),
     HighLevelILOperation.HLIL_ADC: HighLevelILAdc,  #  ("left", "expr"), ("right", "expr"), ("carry", "expr"),
     HighLevelILOperation.HLIL_SUB: HighLevelILSub,  #  ("left", "expr"), ("right", "expr"),
@@ -2518,10 +2552,13 @@ class HighLevelILFunction:
 
 	def __repr__(self):
 		arch = self.source_function.arch
+		form = ""
+		if self.il_form == FunctionGraphType.HighLevelILSSAFormFunctionGraph:
+			form += " ssa form"
 		if arch:
-			return "<hlil func: %s@%#x>" % (arch.name, self.source_function.start)
+			return f"<HighLevelILFunction{form}: {arch.name}@{self.source_function.start:#x}>"
 		else:
-			return "<hlil func: %#x>" % self.source_function.start
+			return f"<HighLevelILFunction{form}: {self.source_function.start:#x}>"
 
 	def __eq__(self, other):
 		if not isinstance(other, self.__class__):
@@ -4574,6 +4611,13 @@ class HighLevelILFunction:
 			settings_obj = None
 		return flowgraph.CoreFlowGraph(core.BNCreateHighLevelILFunctionGraph(self.handle, settings_obj))
 
+	def create_graph_immediate(self, settings: Optional['function.DisassemblySettings'] = None) -> 'flowgraph.CoreFlowGraph':
+		if settings is not None:
+			settings_obj = settings.handle
+		else:
+			settings_obj = None
+		return flowgraph.CoreFlowGraph(core.BNCreateHighLevelILImmediateFunctionGraph(self.handle, settings_obj))
+
 	@property
 	def il_form(self) -> FunctionGraphType:
 		if len(list(self.basic_blocks)) < 1:
@@ -4668,6 +4712,16 @@ class HighLevelILFunction:
 			return self.ssa_form.ssa_vars
 
 		return []
+
+	def get_instruction_index_for_expr(self, expr: ExpressionIndex) -> Optional[InstructionIndex]:
+		result = core.BNGetHighLevelILInstructionForExpr(self.handle, expr)
+		if result >= core.BNGetHighLevelILInstructionCount(self.handle):
+			return None
+		return InstructionIndex(result)
+
+	def get_expr_index_for_instruction(self, instr: InstructionIndex) -> ExpressionIndex:
+		result = core.BNGetHighLevelILIndexForInstruction(self.handle, instr)
+		return ExpressionIndex(result)
 
 	def get_medium_level_il_expr_index(self, expr: ExpressionIndex) -> Optional['mediumlevelil.ExpressionIndex']:
 		medium_il = self.medium_level_il

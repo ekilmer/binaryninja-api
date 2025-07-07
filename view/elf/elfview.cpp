@@ -54,7 +54,7 @@ ElfView::ElfView(BinaryView* data, bool parseOnly): BinaryView("ELF", data->GetF
 	CreateLogger("BinaryView");
 	m_logger = CreateLogger("BinaryView.ElfView");
 	m_elf32 = m_ident.fileClass == 1;
-	m_addressSize = (m_ident.fileClass == 1) ? 4 : 8;
+	m_addressSize = (m_ident.fileClass == 1 || (m_plat && m_plat->GetName() == "linux-32")) ? 4 : 8;
 	m_endian = endian;
 	m_relocatable = m_commonHeader.type == ET_DYN || m_commonHeader.type == ET_REL;
 	m_objectFile = m_commonHeader.type == ET_REL;
@@ -451,16 +451,15 @@ bool ElfView::Init()
 	bool initialImageBaseSet = false;
 	for (const auto& i : m_programHeaders)
 	{
-		if ((i.type != ELF_PT_LOAD) || (!i.fileSize))
+		// Skip segments that are not loadable or have no memory size
+		if ((i.type != ELF_PT_LOAD) || (i.memorySize == 0))
 			continue;
 
-		if (!initialImageBaseSet)
+		if (!initialImageBaseSet || (i.virtualAddress < initialImageBase))
 		{
 			initialImageBase = i.virtualAddress;
 			initialImageBaseSet = true;
 		}
-		else if (i.virtualAddress < initialImageBase)
-			initialImageBase = i.virtualAddress;
 	}
 
 	SetOriginalImageBase(initialImageBase);
@@ -632,7 +631,7 @@ bool ElfView::Init()
 		}
 
 		// Add sections that aren't in the virtual address space only to the raw parent view
-		if (!(m_elfSections[i].flags & ELF_SHF_ALLOC))
+		if (!(m_elfSections[i].flags & ELF_SHF_ALLOC) || m_elfSections[i].type == ELF_SHT_NOTE)
 		{
 			if (m_elfSections[i].size != 0 && m_elfSections[i].type != ELF_SHT_NOBITS)
 				GetParentView()->AddAutoSection(sectionNames[i], m_elfSections[i].offset, m_elfSections[i].size, DefaultSectionSemantics,
@@ -2396,7 +2395,8 @@ bool ElfView::Init()
 		);
 
 		/* create type, associate it with RTL_Resolve */
-		Ref<Type> ptr_type = Type::PointerType(m_arch, Type::VoidType())->WithConfidence(BN_FULL_CONFIDENCE);
+		Confidence<Ref<Type>> ptr_type =
+			Type::PointerType(m_arch, Type::VoidType())->WithConfidence(BN_FULL_CONFIDENCE);
 
 		Ref<CallingConvention> cc = m_arch->GetCallingConventionByName("linux-rtlresolve");
 
@@ -2452,20 +2452,20 @@ bool ElfView::Init()
 
 
 void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uint64_t addr, bool gotEntry,
-	BNSymbolBinding binding, size_t size, Ref<Type> typeObj)
+	BNSymbolBinding binding, size_t size, const Confidence<Ref<Type>>& typeObj)
 {
 	// Ensure symbol is within the executable
 	if (type != ExternalSymbol && !IsValidOffset(addr))
 		return;
 
 	string name = incomingName;
-	Ref<Type> symbolTypeRef;
+	Confidence<Ref<Type>> symbolTypeRef;
 	if ((type == ExternalSymbol) || (type == ImportAddressSymbol) || (type == ImportedDataSymbol))
 	{
 		QualifiedName n(name);
 		Ref<TypeLibrary> lib = nullptr;
 		symbolTypeRef = ImportTypeLibraryObject(lib, n);
-		if (symbolTypeRef)
+		if (symbolTypeRef.GetValue())
 		{
 			m_logger->LogDebug("elf: type Library '%s' found hit for '%s'", lib->GetName().c_str(), name.c_str());
 			if (type != ExternalSymbol || addr != 0)
@@ -2510,7 +2510,7 @@ void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uin
 	if (gotEntry)
 		m_gotEntryLocations.emplace(addr);
 
-	auto process = [=]() {
+	auto process = [=, this]() {
 		NameSpace nameSpace = GetInternalNameSpace();
 		if (type == ExternalSymbol)
 		{
@@ -2526,13 +2526,12 @@ void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uin
 		// Try to demangle any C++ symbols
 		string shortName = rawName;
 		string fullName = rawName;
-		Ref<Type> typeRef = symbolTypeRef;
+		Confidence<Ref<Type>> typeRef = symbolTypeRef;
 		if (m_arch)
 		{
 			QualifiedName demangledName;
 			Ref<Type> demangledType;
-			bool simplify = Settings::Instance()->Get<bool>("analysis.types.templateSimplifier", this);
-			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, simplify))
+			if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, m_simplifyTemplates))
 			{
 				shortName = demangledName.GetString();
 				fullName = shortName;
@@ -2543,18 +2542,19 @@ void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uin
 			}
 		}
 
+		// If unable to extract type information, create a default type with the given size and heuristic confidence
 		if (!typeRef && (size > 0 && size <= 8))
 		{
-			typeRef = Type::IntegerType(size, false);
+			typeRef = Type::IntegerType(size, false)->WithConfidence(BN_HEURISTIC_CONFIDENCE);
 		}
 
-		return std::pair<Ref<Symbol>, Ref<Type>>(
+		return std::pair<Ref<Symbol>, Confidence<Ref<Type>>>(
 			new Symbol(type, shortName, fullName, rawName, addr, binding, nameSpace), typeRef);
 	};
 
 	if (m_symbolQueue)
 	{
-		m_symbolQueue->Append(process, [this](Symbol* symbol, Type* type) {
+		m_symbolQueue->Append(process, [this](Symbol* symbol, const Confidence<Ref<Type>>& type) {
 			DefineAutoSymbolAndVariableOrFunction(GetDefaultPlatform(), symbol, type);
 		});
 	}
@@ -2874,15 +2874,7 @@ uint64_t ElfViewType::ParseHeaders(BinaryView* data, ElfIdent& ident, ElfCommonH
 	commonHeader.arch = reader.Read16();
 	commonHeader.version = reader.Read32();
 
-	// Promote the file class to 64-bit
-	// TODO potentially add a setting to allow the user to override header interpretation
-	if ((commonHeader.type == ET_EXEC) && (commonHeader.arch == EM_X86_64) && (ident.fileClass == 1))
-	{
-		ident.fileClass = 2;
-		m_logger->LogWarn(
-			"Executable file claims to be 32-bit but specifies a 64-bit architecture. It is likely malformed or "
-			"malicious. Treating it as 64-bit.");
-	}
+	bool is32bit = ident.fileClass == 1;
 
 	// parse Elf64Header
 	if (ident.fileClass == 1) // 32-bit ELF
@@ -2917,6 +2909,37 @@ uint64_t ElfViewType::ParseHeaders(BinaryView* data, ElfIdent& ident, ElfCommonH
 		return 0;
 	}
 
+	// This is some disgusting code duplication, the PowerPC ELF recognizer
+	// needs some section information passed to it:
+	// (1) contents of the .ppc.EMB.apuinfo to figure out additional
+	//     processor information (SPE, Altivec, etc.)
+	// (2) whether any sections have VLE flags
+	//
+	// But this function doesn't have a handle to the ElfView, so we
+	// duplicate the section iteration/parsing logic
+	//
+	// We're early enough in the process that if sizes aren't what we expect
+	// them to be, we just don't pass section info to the ELF recognizer
+	// function, but pass everything else to aid troubleshooting
+	uint16_t sectionHeaderSize = header.sectionHeaderSize;
+	uint32_t sectionCount = header.sectionHeaderCount;
+	if (is32bit && (sectionHeaderSize != sizeof(Elf32SectionHeader)))
+	{
+		m_logger->LogWarn(
+			"The section header size reported by e_shentsize (0x%lx) is different from the size of Elf32_Shdr (0x%lx). "
+			"Won't do first pass section header parsing.",
+			sectionHeaderSize, sizeof(Elf32SectionHeader));
+		sectionCount = 0;
+	}
+	else if (!is32bit && (sectionHeaderSize != sizeof(Elf64SectionHeader)))
+	{
+		m_logger->LogWarn(
+			"The section header size reported by e_shentsize (0x%lx) is different from the size of Elf64_Shdr (0x%lx). "
+			"Won't do first pass section header parsing.",
+			sectionHeaderSize, sizeof(Elf64SectionHeader));
+		sectionCount = 0;
+	}
+
 	map<string, Ref<Metadata>> metadataMap = {
 		{"EI_CLASS",    new Metadata((uint64_t) ident.fileClass)},
 		{"EI_DATA",     new Metadata((uint64_t) ident.encoding)},
@@ -2925,6 +2948,43 @@ uint64_t ElfViewType::ParseHeaders(BinaryView* data, ElfIdent& ident, ElfCommonH
 		{"e_machine",   new Metadata((uint64_t) commonHeader.arch)},
 		{"e_flags",     new Metadata((uint64_t) header.flags)},
 	};
+
+	BinaryReader sectionReader(data);
+	sectionReader.SetEndianness(endianness);
+	uint64_t flagsOffset = header.sectionHeaderOffset;
+	if (is32bit)
+		flagsOffset += offsetof(Elf32SectionHeader, flags);
+	else
+		flagsOffset += offsetof(Elf64SectionHeader, flags);
+
+	for (unsigned int i=0; i < sectionCount; ++i)
+	{
+		sectionReader.Seek(flagsOffset);
+		uint64_t flags;
+		try
+		{
+			if (is32bit)
+				flags = sectionReader.Read32();
+			else
+				flags = sectionReader.Read64();
+		}
+		catch (ReadException&)
+		{
+			m_logger->LogWarn("Failed to read section flags at offset %" PRIx64, flagsOffset);
+			// Note that any previously read flags values will
+			// still persist in the metadata map
+			sectionCount = 0;
+			break;
+		}
+
+		char metaname[0x20];
+		snprintf(metaname, sizeof metaname, "sectionFlags[%d]", i);
+
+		metadataMap[metaname] = new Metadata((uint64_t)flags);
+		flagsOffset += header.sectionHeaderSize;
+	}
+
+	metadataMap["numSections"] = new Metadata((uint64_t) sectionCount);
 
 	Ref<Metadata> metadata = new Metadata(metadataMap);
 	// retrieve architecture

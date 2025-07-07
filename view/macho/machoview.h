@@ -144,6 +144,7 @@ typedef int vm_prot_t;
 #define S_THREAD_LOCAL_VARIABLES              0x13
 #define S_THREAD_LOCAL_VARIABLE_POINTERS      0x14
 #define S_THREAD_LOCAL_INIT_FUNCTION_POINTERS 0x15
+#define S_INIT_FUNC_OFFSETS                   0x16
 
 //Mach-O Commands
 #define LC_REQ_DYLD              0x80000000
@@ -1365,6 +1366,15 @@ namespace BinaryNinja
 	};
 #endif
 
+	struct fileset_entry_command {
+		uint32_t cmd;
+		uint32_t cmdsize;
+		uint64_t vmaddr;
+		uint64_t fileoff;
+		uint32_t nameEntryOffsetFromBaseOfCommand;
+		uint32_t reserved;
+	};
+
 	struct MachOHeader {
 		bool isMainHeader = false;
 
@@ -1483,6 +1493,7 @@ namespace BinaryNinja
 		void ParseFunctionStarts(Platform* platform, uint64_t textBase, function_starts_command functionStarts);
 		bool ParseRelocationEntry(const relocation_info& info, uint64_t start, BNRelocationInfo& result);
 
+		bool AddExportTerminalSymbol(const std::string& symbolName, uint64_t symbolFlags, uint64_t imageOffset);
 		void ParseExportTrie(BinaryReader& reader, linkedit_data_command exportTrie);
 		void ReadExportNode(uint64_t viewStart, DataBuffer& buffer, const std::string& currentText,
 			size_t cursor, uint32_t endGuard);

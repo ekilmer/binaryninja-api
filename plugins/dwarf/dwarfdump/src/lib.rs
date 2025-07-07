@@ -20,7 +20,7 @@ use binaryninja::{
 };
 use dwarfreader::is_valid;
 
-use binaryninja::disassembly::StringType;
+use binaryninja::binary_view::StringType;
 use gimli::{
     AttributeValue::{Encoding, Flag, UnitRef},
     // BigEndian,

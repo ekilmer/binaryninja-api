@@ -1,5 +1,4 @@
 #include "binaryninjaapi.h"
-#include "json/json.h"
 #include "rapidjsonwrapper.h"
 #include <string>
 #include <variant>
@@ -8,12 +7,10 @@ using namespace BinaryNinja;
 using namespace std;
 
 
-AnalysisContext::AnalysisContext(BNAnalysisContext* analysisContext) :
-    m_reader(Json::CharReaderBuilder().newCharReader())
+AnalysisContext::AnalysisContext(BNAnalysisContext* analysisContext)
 {
 	// LogError("API-Side AnalysisContext Constructed!");
 	m_object = analysisContext;
-	m_builder["indentation"] = "";
 }
 
 
@@ -38,6 +35,15 @@ Ref<Function> AnalysisContext::GetFunction()
 	if (!func)
 		return nullptr;
 	return new Function(func);
+}
+
+
+Ref<LowLevelILFunction> AnalysisContext::GetLiftedILFunction()
+{
+	BNLowLevelILFunction* func = BNAnalysisContextGetLiftedILFunction(m_object);
+	if (!func)
+		return nullptr;
+	return new LowLevelILFunction(func);
 }
 
 
@@ -94,13 +100,20 @@ void AnalysisContext::SetLowLevelILFunction(Ref<LowLevelILFunction> lowLevelIL)
 
 void AnalysisContext::SetMediumLevelILFunction(Ref<MediumLevelILFunction> mediumLevelIL)
 {
-	BNSetMediumLevelILFunction(m_object, mediumLevelIL->m_object);
+	// TODO: Mappings FFI
+	BNSetMediumLevelILFunction(m_object, mediumLevelIL->m_object, nullptr, 0, nullptr, 0);
 }
 
 
 void AnalysisContext::SetHighLevelILFunction(Ref<HighLevelILFunction> highLevelIL)
 {
 	BNSetHighLevelILFunction(m_object, highLevelIL->m_object);
+}
+
+
+bool AnalysisContext::Inform(const char* request)
+{
+	return BNAnalysisContextInform(m_object, request);
 }
 
 

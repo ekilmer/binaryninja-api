@@ -407,7 +407,7 @@ def load(*args, **kwargs) -> BinaryView:
 
 	.. note:: The progress_func callback **must** return True to continue the load operation, False will abort the load operation.
 
-	.. warning:: The progress_func will **only** be called for BNDB files, not for any other file format due to a `design limitation <https://docs.binary.ninja/guide/debugger/index.html#navigating-the-binary>`_.
+	.. warning:: The progress_func will **only** be called for BNDB files, not for any other file format due to a `design limitation <https://github.com/Vector35/binaryninja-api/issues/4116#issuecomment-1479496712>`_.
 
 	:Example:
 		>>> from binaryninja import *
@@ -431,7 +431,7 @@ def connect_pycharm_debugger(port=5678):
 	"""
 	Connect to PyCharm (Professional Edition) for debugging.
 
-	.. note:: See the `user documentation <https://docs.binary.ninja/dev/plugins.html#remote-debugging-with-intellij-pycharm>`_ for step-by-step instructions on how to set up Python debugging.
+	.. note:: See the user documentation `pycharm note <https://docs.binary.ninja/dev/plugins.html#remote-debugging-with-intellij-pycharm>`_ for step-by-step instructions on how to set up Python debugging.
 
 	:param port: Port number for connecting to the debugger.
 	"""
@@ -447,7 +447,7 @@ def connect_vscode_debugger(port=5678):
 	Connect to Visual Studio Code for debugging. This function blocks until the debugger
 	is connected! Not recommended for use in startup.py
 
-	.. note:: See the `user documentation <https://docs.binary.ninja/dev/plugins.html#remote-debugging-with-vscode>`_ for step-by-step instructions on how to set up Python debugging.
+	.. note:: See the user documentation `vscode note <https://docs.binary.ninja/dev/plugins.html#remote-debugging-with-vscode>`_ for step-by-step instructions on how to set up Python debugging.
 
 	:param port: Port number for connecting to the debugger.
 	"""

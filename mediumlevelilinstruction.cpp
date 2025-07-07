@@ -1116,7 +1116,7 @@ char* MediumLevelILInstructionBase::Dump() const
 		{
 			text += "[instr " + to_string(instructionIndex) + "] ";
 		}
-		Ref<Type> type = GetType();
+		Ref<Type> type = GetType().GetValue();
 		if (type)
 		{
 			text += "[type: " + type->GetString() + "] ";
@@ -3196,7 +3196,7 @@ fmt::format_context::iterator fmt::formatter<MediumLevelILInstruction>::format(c
 			{
 				fmt::format_to(ctx.out(), "[instr {}] ", obj.instructionIndex);
 			}
-			Ref<Type> type = obj.GetType();
+			Ref<Type> type = obj.GetType().GetValue();
 			if (type)
 			{
 				fmt::format_to(ctx.out(), "[type: {}] ", type->GetString());

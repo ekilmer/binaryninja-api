@@ -53,7 +53,7 @@ class AnalysisContext:
 		self.handle = handle
 
 	@property
-	def view(self) -> 'binaryview.BinaryView':
+	def view(self) -> Optional['binaryview.BinaryView']:
 		"""
 		BinaryView for the current AnalysisContext (writable)
 		"""
@@ -63,7 +63,7 @@ class AnalysisContext:
 		return binaryview.BinaryView(handle=result)
 
 	@property
-	def function(self) -> '_function.Function':
+	def function(self) -> Optional['_function.Function']:
 		"""
 		Function for the current AnalysisContext (read-only)
 		"""
@@ -73,18 +73,21 @@ class AnalysisContext:
 		return _function.Function(handle=result)
 
 	@property
-	def lifted_il(self) -> lowlevelil.LowLevelILFunction:
+	def lifted_il(self) -> Optional[lowlevelil.LowLevelILFunction]:
 		"""
 		LowLevelILFunction used to represent lifted IL (writable)
 		"""
-		return self.function.lifted_il
+		result = core.BNAnalysisContextGetLiftedILFunction(self.handle)
+		if not result:
+			return None
+		return lowlevelil.LowLevelILFunction(handle=result)
 
 	@lifted_il.setter
 	def lifted_il(self, lifted_il: lowlevelil.LowLevelILFunction) -> None:
 		core.BNSetLiftedILFunction(self.handle, lifted_il.handle)
 
 	@property
-	def llil(self) -> lowlevelil.LowLevelILFunction:
+	def llil(self) -> Optional[lowlevelil.LowLevelILFunction]:
 		"""
 		LowLevelILFunction used to represent Low Level IL (writable)
 		"""
@@ -98,7 +101,7 @@ class AnalysisContext:
 		core.BNSetLowLevelILFunction(self.handle, value.handle)
 
 	@property
-	def mlil(self) -> mediumlevelil.MediumLevelILFunction:
+	def mlil(self) -> Optional[mediumlevelil.MediumLevelILFunction]:
 		"""
 		MediumLevelILFunction used to represent Medium Level IL (writable)
 		"""
@@ -109,10 +112,56 @@ class AnalysisContext:
 
 	@mlil.setter
 	def mlil(self, value: mediumlevelil.MediumLevelILFunction) -> None:
-		core.BNSetMediumLevelILFunction(self.handle, value.handle)
+		self.set_mlil_function(value)
+
+	def set_mlil_function(
+		self,
+		new_func: mediumlevelil.MediumLevelILFunction,
+		llil_ssa_to_mlil_instr_map: Optional['mediumlevelil.LLILSSAToMLILInstructionMapping'] = None,
+		llil_ssa_to_mlil_expr_map: Optional['mediumlevelil.LLILSSAToMLILExpressionMapping'] = None,
+	) -> None:
+		"""
+		Set the Medium Level IL function in the current analysis, giving updated
+		Low Level IL (SSA) to Medium Level IL instruction and expression mappings.
+		:param new_func: New MLIL function
+		:param llil_ssa_to_mlil_instr_map: Mapping from every LLIL SSA instruction to \
+		                                   every MLIL instruction
+		:param llil_ssa_to_mlil_expr_map: Mapping from every LLIL SSA expression to \
+		                                  one or more MLIL expressions (first expression \
+		                                  will be the primary)
+		"""
+		if llil_ssa_to_mlil_instr_map is None or llil_ssa_to_mlil_expr_map is None:
+			# Build up maps from existing data in the function
+			llil_ssa_to_mlil_instr_map = new_func._get_llil_ssa_to_mlil_instr_map(True)
+			llil_ssa_to_mlil_expr_map = new_func._get_llil_ssa_to_mlil_expr_map(True)
+
+		# Number of instructions
+		instr_count = 0
+		if len(llil_ssa_to_mlil_instr_map) > 0:
+			instr_count = max(llil_ssa_to_mlil_instr_map.keys()) + 1
+		ffi_instr_map = (ctypes.c_size_t * instr_count)()
+		for i in range(instr_count):
+			ffi_instr_map[i] = 0xffffffffffffffff
+		for (key, value) in llil_ssa_to_mlil_instr_map.items():
+			ffi_instr_map[key] = value
+
+		# Number of map entries, not highest index
+		expr_count = len(llil_ssa_to_mlil_expr_map)
+		ffi_expr_map = (core.BNExprMapInfo * expr_count)()
+		for i, map in enumerate(llil_ssa_to_mlil_expr_map):
+			ffi_expr_map[i] = map._to_core_struct()
+
+		core.BNSetMediumLevelILFunction(
+			self.handle,
+			new_func.handle,
+			ffi_instr_map,
+			instr_count,
+			ffi_expr_map,
+			expr_count
+		)
 
 	@property
-	def hlil(self) -> highlevelil.HighLevelILFunction:
+	def hlil(self) -> Optional[highlevelil.HighLevelILFunction]:
 		"""
 		HighLevelILFunction used to represent High Level IL (writable)
 		"""

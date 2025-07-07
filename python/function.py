@@ -29,7 +29,7 @@ from . import _binaryninjacore as core
 from .enums import (
 	AnalysisSkipReason, FunctionGraphType, SymbolType, InstructionTextTokenType, HighlightStandardColor,
 	HighlightColorStyle, DisassemblyOption, IntegerDisplayType, FunctionAnalysisSkipOverride, FunctionUpdateType,
-	BuiltinType
+	BuiltinType, ExprFolding, EarlyReturn, SwitchRecovery
 )
 
 from . import associateddatastore  # Required in the main scope due to being an argument for _FunctionAssociatedDataStore
@@ -47,7 +47,9 @@ from . import callingconvention
 from . import workflow
 from . import languagerepresentation
 from . import deprecation
+from . import metadata
 from . import __version__
+from .commonil import Localcall
 
 # we define the following as such so the linter doesn't confuse 'highlight' the module with the
 # property of the same name. There is probably some other work around but it eludes me.
@@ -82,7 +84,6 @@ FunctionViewTypeOrName = Union['FunctionViewType', FunctionGraphType, str]
 
 def _function_name_():
 	return inspect.stack()[1][0].f_code.co_name
-
 
 @dataclass(frozen=True)
 class ArchAndAddr:
@@ -977,21 +978,27 @@ class Function:
 			core.BNRemoveAutoFunctionTagsOfType(self.handle, tag_type.handle)
 
 	@property
-	def low_level_il(self) -> 'lowlevelil.LowLevelILFunction':
+	def low_level_il(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function low level IL (read-only)
+		returns LowLevelILFunction used to represent low level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+
+		.. note::
+			This function causes low level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.llil
 
 	@property
-	def llil(self) -> 'lowlevelil.LowLevelILFunction':
+	def llil(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function low level IL, or None if an error occurs while loading
-		the IL (read-only)
+		returns LowLevelILFunction used to represent low level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+		.. note::
+			This function causes low level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionLowLevelIL(self.handle)
 		if not result:
@@ -1000,19 +1007,26 @@ class Function:
 
 	@property
 	def llil_if_available(self) -> Optional['lowlevelil.LowLevelILFunction']:
-		"""returns LowLevelILFunction used to represent Function low level IL, or None if not loaded (read-only)"""
+		"""
+		returns LowLevelILFunction used to represent low level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if low level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionLowLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
-	def lifted_il(self) -> 'lowlevelil.LowLevelILFunction':
+	def lifted_il(self) -> Optional['lowlevelil.LowLevelILFunction']:
 		"""
-		returns LowLevelILFunction used to represent Function lifted IL, or None if an error occurs while loading the IL
+		returns LowLevelILFunction used to represent lifted IL, or None if an error occurs while loading the IL
 		(read-only)
 
-		:rtype: lowlevelil.LowLevelILFunction
+		.. note::
+			This function causes lifted IL to be generated if it has not been already. It is recommended to generate IL
+			on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionLiftedIL(self.handle)
 		if not result:
@@ -1021,28 +1035,38 @@ class Function:
 
 	@property
 	def lifted_il_if_available(self) -> Optional['lowlevelil.LowLevelILFunction']:
-		"""returns LowLevelILFunction used to represent lifted IL, or None if not loaded (read-only)"""
+		"""
+		returns LowLevelILFunction used to represent lifted IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if lifted IL is available without generating it.
+		"""
 		result = core.BNGetFunctionLiftedILIfAvailable(self.handle)
 		if not result:
 			return None
 		return lowlevelil.LowLevelILFunction(self.arch, result, self)
 
 	@property
-	def medium_level_il(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def medium_level_il(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function medium level IL (read-only)
+		returns MediumLevelILFunction used to represent medium level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.mlil
 
 	@property
-	def mlil(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mlil(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function medium level IL, or None if an error occurs while
-		loading the IL (read-only)
+		returns MediumLevelILFunction used to represent medium level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionMediumLevelIL(self.handle)
 		if not result:
@@ -1051,19 +1075,26 @@ class Function:
 
 	@property
 	def mlil_if_available(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
-		"""Function medium level IL, or None if not loaded (read-only)"""
+		"""
+		returns MediumLevelILFunction used to represent medium level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if medium level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionMediumLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def mmlil(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mmlil(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function mapped medium level IL, or None if an error occurs
-		while loading the IL (read-only)
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes mapped medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionMappedMediumLevelIL(self.handle)
 		if not result:
@@ -1071,38 +1102,51 @@ class Function:
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def mapped_medium_level_il(self) -> 'mediumlevelil.MediumLevelILFunction':
+	def mapped_medium_level_il(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
 		"""
-		returns MediumLevelILFunction used to represent Function mapped medium level IL (read-only)
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if an error occurs while loading
+		the IL (read-only)
 
-		:rtype: mediumlevelil.MediumLevelILFunction
+		.. note::
+			This function causes mapped medium level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.mmlil
 
 	@property
 	def mmlil_if_available(self) -> Optional['mediumlevelil.MediumLevelILFunction']:
-		"""Function mapped medium level IL, or None if not loaded (read-only)"""
+		"""
+		returns MediumLevelILFunction used to represent mapped medium level IL, or None if not loaded or it cannot be
+		generated (read-only)
+
+		.. note:: This function can be used to check if mapped medium level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionMappedMediumLevelILIfAvailable(self.handle)
 		if not result:
 			return None
 		return mediumlevelil.MediumLevelILFunction(self.arch, result, self)
 
 	@property
-	def high_level_il(self) -> 'highlevelil.HighLevelILFunction':
+	def high_level_il(self) -> Optional['highlevelil.HighLevelILFunction']:
 		"""
-		returns HighLevelILFunction used to represent Function high level IL (read-only)
+		returns HighLevelILFunction used to represent high level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: highlevelil.HighLevelILFunction
+		.. note::
+			This function causes high level IL to be generated if it has not been already. It is recommended to
+			generate IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		return self.hlil
 
 	@property
-	def hlil(self) -> 'highlevelil.HighLevelILFunction':
+	def hlil(self) -> Optional['highlevelil.HighLevelILFunction']:
 		"""
-		returns HighLevelILFunction used to represent Function high level IL, or None if an error occurs while loading
-		the IL (read-only)
+		returns HighLevelILFunction used to represent high level IL, or None if an error occurs while loading the IL
+		(read-only)
 
-		:rtype: highlevelil.HighLevelILFunction
+		.. note::
+			This function causes high level IL to be generated if it has not been already. It is recommended to generate
+			IL on-demand to avoid excessive memory usage instead of generating IL for all functions at once.
 		"""
 		result = core.BNGetFunctionHighLevelIL(self.handle)
 		if not result:
@@ -1111,7 +1155,12 @@ class Function:
 
 	@property
 	def hlil_if_available(self) -> Optional['highlevelil.HighLevelILFunction']:
-		"""Function high level IL, or None if not loaded (read-only)"""
+		"""
+		returns HighLevelILFunction used to represent high level IL, or None if not loaded or it cannot be generated
+		(read-only)
+
+		.. note:: This function can be used to check if high level IL is available without generating it.
+		"""
 		result = core.BNGetFunctionHighLevelILIfAvailable(self.handle)
 		if not result:
 			return None
@@ -1228,18 +1277,22 @@ class Function:
 		return result
 
 	@property
-	def unresolved_indirect_branches(self) -> List[int]:
+	def unresolved_indirect_branches(self) -> List[Tuple['architecture.Architecture', int]]:
 		"""List of unresolved indirect branches (read-only)"""
 		count = ctypes.c_ulonglong()
-		addrs = core.BNGetUnresolvedIndirectBranches(self.handle, count)
-		assert addrs is not None, "core.BNGetUnresolvedIndirectBranches returned None"
+		addresses = core.BNGetUnresolvedIndirectBranches(self.handle, count)
 		try:
+			assert addresses is not None, "core.BNGetUnresolvedIndirectBranches returned None"
 			result = []
-			for i in range(0, count.value):
-				result.append(addrs[i])
+			for i in range(count.value):
+				result.append((
+					architecture.CoreArchitecture._from_cache(addresses[i].arch),
+					addresses[i].address
+				))
 			return result
 		finally:
-			core.BNFreeAddressList(addrs)
+			if addresses is not None:
+				core.BNFreeArchitectureAndAddressList(addresses)
 
 	@property
 	def has_unresolved_indirect_branches(self) -> bool:
@@ -1499,13 +1552,21 @@ class Function:
 	@property
 	def llil_basic_blocks(self) -> Generator['lowlevelil.LowLevelILBasicBlock', None, None]:
 		"""A generator of all LowLevelILBasicBlock objects in the current function"""
-		for block in self.llil:
+		llil = self.llil
+		if llil is None:
+			return
+
+		for block in llil:
 			yield block
 
 	@property
 	def mlil_basic_blocks(self) -> Generator['mediumlevelil.MediumLevelILBasicBlock', None, None]:
 		"""A generator of all MediumLevelILBasicBlock objects in the current function"""
-		for block in self.mlil:
+		mlil = self.mlil
+		if mlil is None:
+			return
+
+		for block in mlil:
 			yield block
 
 	@property
@@ -1833,6 +1894,10 @@ class Function:
 			>>> func.get_llils_at(func.start)
 			[<il: push(rbp)>]
 		"""
+		llil = self.llil
+		if llil is None:
+			return []
+
 		if arch is None:
 			arch = self.arch
 		count = ctypes.c_ulonglong()
@@ -1841,7 +1906,7 @@ class Function:
 		try:
 			result = []
 			for i in range(0, count.value):
-				result.append(self.llil[instrs[i]])
+				result.append(llil[instrs[i]])
 			return result
 		finally:
 			core.BNFreeILInstructionList(instrs)
@@ -2163,12 +2228,42 @@ class Function:
 	    self, graph_type: FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph,
 	    settings: Optional['DisassemblySettings'] = None
 	) -> flowgraph.CoreFlowGraph:
+		"""
+		Create a flow graph with the disassembly of this function.
+
+		.. note:: This graph waits for function analysis, so Workflow Activities should instead use
+		          :py:func:`create_graph_immediate` to create graphs with the function contents as-is.
+
+		:param graph_type: IL form of the disassembly in the graph
+		:param settings: Optional settings for the disassembly text renderer
+		:return: Flow graph object
+		"""
 		if settings is not None:
 			settings_obj = settings.handle
 		else:
 			settings_obj = None
 		graph_type = FunctionViewType(graph_type)._to_core_struct()
 		return flowgraph.CoreFlowGraph(core.BNCreateFunctionGraph(self.handle, graph_type, settings_obj))
+
+	def create_graph_immediate(
+	    self, graph_type: FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph,
+	    settings: Optional['DisassemblySettings'] = None
+	) -> flowgraph.CoreFlowGraph:
+		"""
+		Create a flow graph with the disassembly of this function, specifically using the
+		instructions as they are in the function when this is called. You probably want to use
+		this if you are creating a Debug Report in a Workflow Activity.
+
+		:param graph_type: IL form of the disassembly in the graph
+		:param settings: Optional settings for the disassembly text renderer
+		:return: Flow graph object
+		"""
+		if settings is not None:
+			settings_obj = settings.handle
+		else:
+			settings_obj = None
+		graph_type = FunctionViewType(graph_type)._to_core_struct()
+		return flowgraph.CoreFlowGraph(core.BNCreateImmediateFunctionGraph(self.handle, graph_type, settings_obj))
 
 	def apply_imported_types(self, sym: 'types.CoreSymbol', type: Optional[StringOrType] = None) -> None:
 		if isinstance(type, str):
@@ -2203,6 +2298,51 @@ class Function:
 			branch_list[i].arch = branches[i][0].handle
 			branch_list[i].address = branches[i][1]
 		core.BNSetUserIndirectBranches(self.handle, source_arch.handle, source, branch_list, len(branches))
+
+	def set_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNSetGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def add_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNAddGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def remove_guided_source_blocks(
+	    self, addresses: List[Tuple['architecture.Architecture', int]]
+	) -> None:
+		address_list = (core.BNArchitectureAndAddress * len(addresses))()
+		for i in range(len(addresses)):
+			address_list[i].arch = addresses[i][0].handle
+			address_list[i].address = addresses[i][1]
+		core.BNRemoveGuidedSourceBlocks(self.handle, address_list, len(addresses))
+
+	def get_guided_source_blocks(
+	    self
+	) -> List[Tuple['architecture.Architecture', int]]:
+		count = ctypes.c_ulonglong()
+		addresses = core.BNGetGuidedSourceBlocks(self.handle, count)
+		try:
+			assert addresses is not None, "core.BNGetGuidedSourceBlocks returned None"
+			result = []
+			for i in range(count.value):
+				result.append((
+					architecture.CoreArchitecture._from_cache(addresses[i].arch),
+					addresses[i].address
+				))
+			return result
+		finally:
+			if addresses is not None:
+				core.BNFreeArchitectureAndAddressList(addresses)
 
 	def get_indirect_branches_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
@@ -2521,6 +2661,23 @@ class Function:
 		if not block:
 			return None
 		return basicblock.BasicBlock(block, self._view)
+
+	def get_callee_for_analysis(self, platform: '_platform.Platform', addr: int, exact: bool = False) -> Optional['Function']:
+		"""
+		``get_callee_for_analysis`` retrieves the callee function for the specified address and platform.
+
+		.. note:: This method is intended for use by architecture plugins only.
+
+		:param platform.Platform platform: Platform of the callee function
+		:param int addr: Address of the callee function
+		:param bool exact: If True, only return a function if it exactly matches the address and platform
+		:return: The callee function or None if not found
+		:rtype: Optional[Function]
+		"""
+		func = core.BNGetCalleeForAnalysis(self.handle, platform.handle, addr, exact)
+		if func is None:
+			return None
+		return Function(func, self._view)
 
 	def get_instr_highlight(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
@@ -2909,7 +3066,11 @@ class Function:
 			# Special case: function parameters have index 0 and are defined at the start of the function
 			def_addr = self.start
 		else:
-			var_defs = self.mlil.get_var_definitions(var)
+			func_mlil = self.mlil
+			if func_mlil is None:
+				raise ValueError("Could not get definition for Variable")
+
+			var_defs = func_mlil.get_var_definitions(var)
 			if var_defs is None:
 				raise ValueError("Could not get definition for Variable")
 
@@ -2985,6 +3146,22 @@ class Function:
 
 		core.BNRequestFunctionDebugReport(self.handle, name)
 		self.view.update_analysis()
+
+	def check_for_debug_report(self, name: str) -> bool:
+		"""
+		``check_for_debug_report`` checks if a function has had a debug report requested
+		with the given name, and then, if one has been requested, clears the request internally
+		so that future calls to this function for that report will return False.
+
+		If a function has had a debug report requested, it is the caller of this function's
+		responsibility to actually generate and show the debug report.
+		You can use :py:func:`binaryninja.interaction.show_report_collection`
+		for showing a debug report from a workflow activity.
+
+		:param name: Name of the debug report
+		:return: True if the report has been requested (and not checked for yet)
+		"""
+		return core.BNFunctionCheckForDebugReport(self.handle, name)
 
 	@property
 	def call_sites(self) -> List['binaryview.ReferenceSource']:
@@ -3071,7 +3248,9 @@ class Function:
 		:return: List of ReferenceSource objects of the call sites to this function
 		:rtype: list(ReferenceSource)
 		"""
-		return self.view.get_code_refs(self.start)
+		for site in self.view.get_code_refs(self.start):
+			if isinstance(site.llil, Localcall):
+				yield site
 
 	@property
 	def workflow(self):
@@ -3336,6 +3515,161 @@ class Function:
 		else:
 			bc.confidence = core.max_confidence
 		core.BNSetUserFunctionInlinedDuringAnalysis(self.handle, bc)
+
+	def toggle_region(self, hash):
+		"""
+		Toggle the collapsed state of a region during rendering, by hash value
+		:param hash: Hash value of region
+		"""
+		core.BNFunctionToggleRegion(self.handle, hash)
+
+	def collapse_region(self, hash):
+		"""
+		Collapse a region during rendering
+		:param hash: Hash value of region
+		"""
+		core.BNFunctionCollapseRegion(self.handle, hash)
+
+	def expand_region(self, hash):
+		"""
+		Un-collapse a region during rendering
+		:param hash: Hash value of region
+		"""
+		core.BNFunctionExpandRegion(self.handle, hash)
+
+	def expand_all(self):
+		"""
+		Expand all regions in the function
+		"""
+		core.BNFunctionExpandAll(self.handle)
+
+	@property
+	def is_collapsed(self):
+		"""If the entire function is collapsed during rendering."""
+		return self.is_region_collapsed(self.start)
+
+	def is_instruction_collapsed(
+		self,
+		instr: 'highlevelil.HighLevelILInstruction',
+		discriminator: int = 0
+	) -> bool:
+		"""
+		Determine if a given HLIL instruction (with discriminator) is collapsed during rendering.
+		:param instr: Instruction which might be collapsed
+		:param discriminator: Unique discriminator id for the region
+		:return: True if the instruction should be rendered as collapsed
+		"""
+		return self.is_region_collapsed(instr.get_instruction_hash(discriminator))
+
+	def is_region_collapsed(self, hash) -> bool:
+		"""
+		Determine if a given region is collapsed during rendering.
+		:param hash: Hash value of region
+		:return: True if the region should be rendered as collapsed
+		"""
+		return core.BNFunctionIsRegionCollapsed(self.handle, hash)
+
+	def store_metadata(self, key: str, md: metadata.MetadataValueType, isAuto: bool = False) -> None:
+		"""
+		`store_metadata` stores an object for the given key in the current Function. Objects stored using
+		`store_metadata` can be retrieved when the database is reopened unless isAuto is set to True.
+
+		:param str key: key value to associate the Metadata object with
+		:param Varies md: object to store
+		:param bool isAuto: whether the metadata is an auto metadata
+		:rtype: None
+        """
+		_md = md
+		if not isinstance(_md, metadata.Metadata):
+			_md = metadata.Metadata(_md)
+		core.BNFunctionStoreMetadata(self.handle, key, _md.handle, isAuto)
+
+	def query_metadata(self, key: str) -> 'metadata.MetadataValueType':
+		"""
+		`query_metadata` retrieves metadata associated with the given key stored in the current function.
+
+		:param str key: key to query
+		:rtype: metadata associated with the key
+		"""
+		md_handle = core.BNFunctionQueryMetadata(self.handle, key)
+		if md_handle is None:
+			raise KeyError(key)
+		return metadata.Metadata(handle=md_handle).value
+
+	def remove_metadata(self, key: str) -> None:
+		"""
+		`remove_metadata` removes the metadata associated with key from the current function.
+
+		:param str key: key associated with metadata to remove from the function
+		:rtype: None
+		"""
+		core.BNFunctionRemoveMetadata(self.handle, key)
+
+	@property
+	def metadata(self) -> Dict[str, 'metadata.MetadataValueType']:
+		"""
+		`metadata` retrieves the metadata associated with the current function.
+
+		:rtype: metadata associated with the function
+		"""
+		md_handle = core.BNFunctionGetMetadata(self.handle)
+		assert md_handle is not None, "core.BNFunctionGetMetadata returned None"
+		value = metadata.Metadata(handle=md_handle).value
+		assert isinstance(value, dict), "core.BNFunctionGetMetadata did not return a dict"
+		return value
+
+	@property
+	def auto_metadata(self) -> Dict[str, 'metadata.MetadataValueType']:
+		"""
+		`metadata` retrieves the metadata associated with the current function.
+
+		:rtype: metadata associated with the function
+		"""
+		md_handle = core.BNFunctionGetAutoMetadata(self.handle)
+		assert md_handle is not None, "core.BNFunctionGetAutoMetadata returned None"
+		value = metadata.Metadata(handle=md_handle).value
+		assert isinstance(value, dict), "core.BNFunctionGetAutoMetadata did not return a dict"
+		return value
+
+	def get_expr_folding(self, addr: Union[int, highlevelil.HighLevelILInstruction]) -> ExprFolding:
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		return ExprFolding(core.BNGetExprFolding(self.handle, addr))
+
+	def set_expr_folding(self, addr: Union[int, highlevelil.HighLevelILInstruction], value: ExprFolding):
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		core.BNSetExprFolding(self.handle, addr, value)
+
+	def is_condition_inverted(self, addr: Union[int, highlevelil.HighLevelILInstruction]) -> bool:
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		return core.BNIsConditionInverted(self.handle, addr)
+
+	def set_condition_inverted(self, addr: Union[int, highlevelil.HighLevelILInstruction], invert: bool):
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		core.BNSetConditionInverted(self.handle, addr, invert)
+
+	def get_early_return(self, addr: Union[int, highlevelil.HighLevelILInstruction]) -> EarlyReturn:
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		return EarlyReturn(core.BNGetEarlyReturn(self.handle, addr))
+
+	def set_early_return(self, addr: Union[int, highlevelil.HighLevelILInstruction], value: EarlyReturn):
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		core.BNSetEarlyReturn(self.handle, addr, value)
+
+	def get_switch_recovery(self, addr: Union[int, highlevelil.HighLevelILInstruction]) -> SwitchRecovery:
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		return SwitchRecovery(core.BNGetSwitchRecovery(self.handle, addr))
+
+	def set_switch_recovery(self, addr: Union[int, highlevelil.HighLevelILInstruction], value: SwitchRecovery):
+		if isinstance(addr, highlevelil.HighLevelILInstruction):
+			addr = addr.address
+		core.BNSetSwitchRecovery(self.handle, addr, value)
 
 
 class AdvancedFunctionAnalysisDataRequestor:

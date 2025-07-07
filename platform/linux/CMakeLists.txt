@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(platform_linux)
 
@@ -19,7 +19,7 @@ endif()
 target_link_libraries(platform_linux binaryninjaapi)
 
 set_target_properties(platform_linux PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
 	CXX_VISIBILITY_PRESET hidden
 	CXX_STANDARD_REQUIRED ON
     VISIBILITY_INLINES_HIDDEN ON

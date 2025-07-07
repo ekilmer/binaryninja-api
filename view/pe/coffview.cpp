@@ -1023,14 +1023,14 @@ bool COFFView::Init()
 					DefineDataVariable(m_imageBase + stringTableBase + e_offset, Type::ArrayType(Type::IntegerType(1, true, "char"), symbolName.length() + 1));
 					string symbolStringName = "__symbol_name(" + symbolName + ")";
 					DefineAutoSymbol(new Symbol(DataSymbol, symbolStringName, m_imageBase + stringTableBase + e_offset, NoBinding));
-					DEBUG_COFF(AddUserDataReference(m_imageBase + symbolVirtualAddress, m_imageBase + stringTableBase + e_offset));
+					DEBUG_COFF(AddDataReference(m_imageBase + symbolVirtualAddress, m_imageBase + stringTableBase + e_offset));
 				}
 
 				if (e_sclass == IMAGE_SYM_CLASS_STATIC && e_value == 0)
 				{
 					size_t sectionHeaderOffset = sectionHeadersOffset + (e_scnum - 1) * sizeof(COFFSectionHeader);
 					(void)sectionHeaderOffset;
-					DEBUG_COFF(AddUserDataReference(m_imageBase + symbolVirtualAddress, m_imageBase + sectionHeaderOffset));
+					DEBUG_COFF(AddDataReference(m_imageBase + symbolVirtualAddress, m_imageBase + sectionHeaderOffset));
 				}
 				else if (e_sclass == IMAGE_SYM_CLASS_EXTERNAL && e_value == 0 && e_scnum == IMAGE_SYM_UNDEFINED)
 				{
@@ -1251,11 +1251,11 @@ bool COFFView::Init()
 						DEBUG_COFF(m_logger->LogDebug("COFF: section %d reloc %d at: 0x%" PRIx32 " va: 0x%x, index: %d, type: 0x%hx, item at: 0x%x",
 							i, j, relocationOffset, virtualAddress, symbolTableIndex, relocType, itemAddress));
 
-						DEBUG_COFF(AddUserDataReference(m_imageBase + relocationOffset, m_imageBase + itemAddress));
+						DEBUG_COFF(AddDataReference(m_imageBase + relocationOffset, m_imageBase + itemAddress));
 
 						uint64_t symbolOffset = symbolTableAdjustedOffset + symbolTableIndex * sizeofCOFFSymbol;
 
-						DEBUG_COFF(AddUserDataReference(m_imageBase + relocationOffset, m_imageBase + symbolOffset));
+						DEBUG_COFF(AddDataReference(m_imageBase + relocationOffset, m_imageBase + symbolOffset));
 
 						const auto symbol = GetSymbolByAddress(m_imageBase + symbolOffset);
 						if (!symbol)
@@ -1280,7 +1280,7 @@ bool COFFView::Init()
 						coffSymbol.type = reader.Read16();
 						coffSymbol.storageClass = reader.Read8();
 
-						DEBUG_COFF(AddUserDataReference(m_imageBase + itemAddress, m_imageBase + symbolOffset));
+						DEBUG_COFF(AddDataReference(m_imageBase + itemAddress, m_imageBase + symbolOffset));
 						DEBUG_COFF(m_logger->LogDebug("COFF: CREATING RELOC SYMBOL REF from 0x%" PRIx64 " to 0x%" PRIx64 " for \"%s\"", m_imageBase + itemAddress, m_imageBase + symbolOffset, symbolName.c_str()));
 
 						DefineAutoSymbol(new Symbol(DataSymbol, "__reloc(" + symbolName + ")", m_imageBase + relocationOffset));
@@ -1313,11 +1313,11 @@ bool COFFView::Init()
 								uint64_t relocTargetOffset = m_sections[reloc.sectionIndex].virtualAddress + coffSymbol.value;
 
 								DEBUG_COFF(m_logger->LogError("COFF: CREATING RELOC (%d) REF from 0x%" PRIx64 " to 0x%" PRIx64 " for %s", relocType, m_imageBase + itemAddress, m_imageBase + relocTargetOffset, symbolName.c_str()));
-								DEBUG_COFF(AddUserDataReference(m_imageBase + itemAddress, m_imageBase + relocTargetOffset));
+								DEBUG_COFF(AddDataReference(m_imageBase + itemAddress, m_imageBase + relocTargetOffset));
 
 								DefineRelocation(m_arch, reloc, m_imageBase + relocTargetOffset, m_imageBase + reloc.address);
 
-								DEBUG_COFF(AddUserDataReference(m_imageBase + relocTargetOffset, m_imageBase + itemAddress));
+								DEBUG_COFF(AddDataReference(m_imageBase + relocTargetOffset, m_imageBase + itemAddress));
 								DEBUG_COFF(m_logger->LogError("COFF: DEFINED RELOCATION for 0x%" PRIx64 ":0x%" PRIx64 " to 0x%" PRIx64 " reloc type %#04x", reloc.base, reloc.address, m_imageBase + relocTargetOffset, reloc.nativeType));
 							}
 							else if (coffSymbol.storageClass == IMAGE_SYM_CLASS_EXTERNAL)
@@ -1531,8 +1531,7 @@ void COFFView::AddCOFFSymbol(BNSymbolType type, const string& dll, const string&
 	{
 		QualifiedName demangledName;
 		Ref<Type> demangledType;
-		bool simplify = Settings::Instance()->Get<bool>("analysis.types.templateSimplifier", this);
-		if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, this, simplify))
+		if (DemangleGeneric(m_arch, rawName, demangledType, demangledName, nullptr, m_simplifyTemplates))
 		{
 			shortName = demangledName.GetString();
 			fullName = shortName;

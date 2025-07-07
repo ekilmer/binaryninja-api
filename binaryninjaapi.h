@@ -48,6 +48,7 @@
 #include "binaryninjacore.h"
 #include "exceptions.h"
 #include "json/json.h"
+#include "rapidjsonwrapper.h"
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -216,7 +217,7 @@ namespace BinaryNinja {
 
 		T* GetObject() const { return m_object; }
 
-		static T* GetObject(StaticCoreRefCountObject* obj)
+		static T* GetObject(const StaticCoreRefCountObject* obj)
 		{
 			if (!obj)
 				return nullptr;
@@ -346,20 +347,42 @@ namespace BinaryNinja {
 
 		bool operator!() const { return m_obj == nullptr; }
 
-		bool operator==(const T* obj) const { return T::GetObject(m_obj) == T::GetObject(obj); }
+		bool operator==(T* obj) const { return T::GetObject(m_obj) == T::GetObject(obj); }
 
 		bool operator==(const Ref<T>& obj) const { return T::GetObject(m_obj) == T::GetObject(obj.m_obj); }
 
-		bool operator!=(const T* obj) const { return T::GetObject(m_obj) != T::GetObject(obj); }
+		bool operator!=(T* obj) const { return T::GetObject(m_obj) != T::GetObject(obj); }
 
 		bool operator!=(const Ref<T>& obj) const { return T::GetObject(m_obj) != T::GetObject(obj.m_obj); }
 
-		bool operator<(const T* obj) const { return T::GetObject(m_obj) < T::GetObject(obj); }
+		bool operator<(T* obj) const { return T::GetObject(m_obj) < T::GetObject(obj); }
 
 		bool operator<(const Ref<T>& obj) const { return T::GetObject(m_obj) < T::GetObject(obj.m_obj); }
 
+		bool operator>(T* obj) const { return T::GetObject(m_obj) > T::GetObject(obj); }
+
+		bool operator>(const Ref<T>& obj) const { return T::GetObject(m_obj) > T::GetObject(obj.m_obj); }
+
 		T* GetPtr() const { return m_obj; }
 	};
+
+	template <class T>
+	bool operator==(T* a, const Ref<T>& b)
+	{
+		return T::GetObject(a) == T::GetObject(b.GetPtr());
+	}
+
+	template <class T>
+	bool operator!=(T* a, const Ref<T>& b)
+	{
+		return T::GetObject(a) != T::GetObject(b.GetPtr());
+	}
+
+	template <class T>
+	bool operator<(T* a, const Ref<T>& b)
+	{
+		return T::GetObject(a) < T::GetObject(b.GetPtr());
+	}
 
 	/*!
 	    \ingroup refcount
@@ -375,17 +398,35 @@ namespace BinaryNinja {
 		operator T*() const { return m_obj; }
 		T* operator->() const { return m_obj; }
 		T& operator*() const { return *m_obj; }
-		bool operator==(const T* obj) const { return T::GetObject(m_obj) == T::GetObject(obj); }
+		bool operator==(T* obj) const { return T::GetObject(m_obj) == T::GetObject(obj); }
 		bool operator==(const Ref<T>& obj) const { return T::GetObject(m_obj) == T::GetObject(obj.m_obj); }
-		bool operator!=(const T* obj) const { return T::GetObject(m_obj) != T::GetObject(obj); }
+		bool operator!=(T* obj) const { return T::GetObject(m_obj) != T::GetObject(obj); }
 		bool operator!=(const Ref<T>& obj) const { return T::GetObject(m_obj) != T::GetObject(obj.m_obj); }
-		bool operator<(const T* obj) const { return T::GetObject(m_obj) < T::GetObject(obj); }
+		bool operator<(T* obj) const { return T::GetObject(m_obj) < T::GetObject(obj); }
 		bool operator<(const Ref<T>& obj) const { return T::GetObject(m_obj) < T::GetObject(obj.m_obj); }
 		T* GetPtr() const { return m_obj; }
 	};
 
+	template <class T>
+	bool operator==(T* a, const CallbackRef<T>& b)
+	{
+		return T::GetObject(a) == T::GetObjcet(b.GetPtr());
+	}
+
+	template <class T>
+	bool operator!=(T* a, const CallbackRef<T>& b)
+	{
+		return T::GetObject(a) != T::GetObject(b.GetPtr());
+	}
+
+	template <class T>
+	bool operator<(T* a, const CallbackRef<T>& b)
+	{
+		return T::GetObject(a) < T::GetObject(b.GetPtr());
+	}
+
 	/*!
-		\ingroup confidence
+	    \ingroup confidence
 	*/
 	class ConfidenceBase
 	{
@@ -494,8 +535,6 @@ namespace BinaryNinja {
 
 		Confidence(const Confidence<Ref<T>>& v) : ConfidenceBase(v.m_confidence), m_value(v.m_value) {}
 
-		operator Ref<T>() const { return m_value; }
-		operator T*() const { return m_value.GetPtr(); }
 		T* operator->() const { return m_value.GetPtr(); }
 		bool operator!() const { return !m_value; }
 
@@ -578,6 +617,7 @@ namespace BinaryNinja {
 	class FlowGraph;
 	class ReportCollection;
 	struct FormInputField;
+	struct ArchAndAddr;
 
 	/*! Logs to the error console with the given BNLogLevel.
 
@@ -2009,6 +2049,22 @@ namespace BinaryNinja {
 	*/
 	bool GetDirectoryNameInput(std::string& result, const std::string& prompt, const std::string& defaultName = "");
 
+	/*! Prompts the user for a checkbox input
+		\ingroup interaction
+
+		\param[out] result Reference to the integer the result will be copied to
+		\param[in] prompt Prompt for the dialog
+		\param[in] title Title for the input popup when used in UI
+		\param[in] defaultChoice Default checkbox state (0 == unchecked, 1 == checked)
+		\return Whether a checkbox input was successfully received
+	*/
+	bool GetCheckboxInput(
+		int64_t& result,
+		const std::string& prompt,
+		const std::string& title,
+		const int64_t& defaultChoice
+	);
+
 	/*! Prompts the user for a set of inputs specified in `fields` with given title.
 		The fields parameter is a list containing FieldInputFields
 
@@ -2460,6 +2516,9 @@ namespace BinaryNinja {
 		InstructionTextToken(const BNInstructionTextToken& token);
 
 		InstructionTextToken WithConfidence(uint8_t conf);
+		BNInstructionTextToken GetAPIObject() const;
+		static InstructionTextToken FromAPIObject(const BNInstructionTextToken* token);
+		static void FreeAPIObject(BNInstructionTextToken* token);
 		static void ConvertInstructionTextToken(const InstructionTextToken& token, BNInstructionTextToken* result);
 		static BNInstructionTextToken* CreateInstructionTextTokenList(const std::vector<InstructionTextToken>& tokens);
 		static void FreeInstructionTextToken(BNInstructionTextToken* token);
@@ -2819,6 +2878,7 @@ namespace BinaryNinja {
 
 		Ref<Project> GetProject() const;
 		std::string GetPathOnDisk() const;
+		std::string GetPathInProject() const;
 		bool ExistsOnDisk() const;
 		std::string GetName() const;
 		std::string GetDescription() const;
@@ -2878,7 +2938,8 @@ namespace BinaryNinja {
 		Ref<ProjectFile> CreateFileUnsafe(const std::vector<uint8_t>& contents, Ref<ProjectFolder> folder, const std::string& name, const std::string& description, const std::string& id, int64_t creationTimestamp, const ProgressFunction& progressCallback = {});
 		std::vector<Ref<ProjectFile>> GetFiles() const;
 		Ref<ProjectFile> GetFileById(const std::string& id) const;
-		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path);
+		Ref<ProjectFile> GetFileByPathOnDisk(const std::string& path) const;
+		std::vector<Ref<ProjectFile>> GetFilesByPathInProject(const std::string& path) const;
 		void PushFile(Ref<ProjectFile> file);
 		bool DeleteFile_(Ref<ProjectFile> file);
 
@@ -3172,14 +3233,14 @@ namespace BinaryNinja {
 
 		/*! Get the BinaryView for a specific View type
 
-		    \param name View name. e.g. ``Linear:ELF``, ``Graph:PE``
+		    \param name View type. e.g. ``ELF``, ``PE``
 		    \return The BinaryView, if it exists
 		*/
 		BinaryNinja::Ref<BinaryNinja::BinaryView> GetViewOfType(const std::string& name);
 
-		/*! List of View names that exist within the current file
+		/*! List of View types that exist within the current file
 
-		    \return List of View Names
+		    \return List of View Types
 		*/
 		std::vector<std::string> GetExistingViews() const;
 
@@ -4272,7 +4333,7 @@ namespace BinaryNinja {
 	struct DataVariable
 	{
 		DataVariable() {}
-		DataVariable(uint64_t a, Type* t, bool d) : address(a), type(t), autoDiscovered(d) {}
+		DataVariable(uint64_t a, const Confidence<Ref<Type>>& t, bool d) : address(a), type(t), autoDiscovered(d) {}
 
 		uint64_t address;
 		Confidence<Ref<Type>> type;
@@ -4485,6 +4546,14 @@ namespace BinaryNinja {
 
 		static RegisterValue FromAPIObject(const BNRegisterValue& value);
 		BNRegisterValue ToAPIObject();
+	};
+
+	struct AllTypeFieldReferences
+	{
+		std::vector<TypeFieldReference> codeRefs;
+		std::vector<uint64_t> dataRefsTo;
+		std::vector<uint64_t> dataRefsFrom;
+		std::vector<TypeReferenceSource> typeRefs;
 	};
 
 	struct QualifiedNameAndType;
@@ -5299,6 +5368,13 @@ namespace BinaryNinja {
 		*/
 		void AbortAnalysis();
 
+
+		/*! Check whether analysis is currently running
+
+		    \return true if analysis is aborted, false otherwise
+		*/
+		bool AnalysisIsAborted() const;
+
 		/*! Define a DataVariable at a given address with a set type
 
 		    \param addr virtual address to define the DataVariable at
@@ -5482,6 +5558,21 @@ namespace BinaryNinja {
 		*/
 		std::vector<uint64_t> GetDataReferencesFrom(uint64_t addr, uint64_t len);
 
+
+		/*! Add an auto Data Reference from a virtual address to another virtual address
+
+			\param fromAddr Address referencing the toAddr value
+			\param toAddr virtual address being referenced
+		*/
+		void AddDataReference(uint64_t fromAddr, uint64_t toAddr);
+
+		/*! Remove an auto Data Reference from a virtual address to another virtual address
+
+			\param fromAddr Address referencing the toAddr value
+			\param toAddr virtual address being referenced
+		*/
+		void RemoveDataReference(uint64_t fromAddr, uint64_t toAddr);
+
 		/*! Add a user Data Reference from a virtual address to another virtual address
 
 		    \param fromAddr Address referencing the toAddr value
@@ -5557,13 +5648,21 @@ namespace BinaryNinja {
 		*/
 		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
 
+		/*! Returns a all references to a specific type field. This includes code, data, and type references.
+
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \return AllTypeFieldReferences structure with all references
+		*/
+		AllTypeFieldReferences GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+
 		/*! Returns a list of types referenced by code at ReferenceSource \c src
 
-			If no function is specified, references from all functions and containing the address will be returned.
-		 	If no architecture is specified, the architecture of the function will be used.
+		    If no function is specified, references from all functions and containing the address will be returned.
+		    If no architecture is specified, the architecture of the function will be used.
 
-			\param src Source of the reference to check
-		 	\return vector of TypeReferenceSources
+		    \param src Source of the reference to check
+		    \return vector of TypeReferenceSources
 		*/
 		std::vector<TypeReferenceSource> GetCodeReferencesForTypeFrom(ReferenceSource src);
 
@@ -5754,7 +5853,7 @@ namespace BinaryNinja {
 			\param type Type being defined
 			\return The defined symbol
 		*/
-		Ref<Symbol> DefineAutoSymbolAndVariableOrFunction(Ref<Platform> platform, Ref<Symbol> sym, Ref<Type> type);
+		Ref<Symbol> DefineAutoSymbolAndVariableOrFunction(Ref<Platform> platform, Ref<Symbol> sym, const Confidence<Ref<Type>>& type);
 
 		/*! Undefine an automatically defined symbol
 
@@ -6895,6 +6994,17 @@ namespace BinaryNinja {
 		bool GetNewAutoFunctionAnalysisSuppressed();
 		void SetNewAutoFunctionAnalysisSuppressed(bool suppress);
 
+		/*! Determine whether the target analysis should be skipped for a given source function and target address
+
+			\param source Source function and address
+			\param sourceFunc Function at the source address
+			\param sourceEnd End address of the source function
+			\param target Target address to analyze
+			\return Whether the target analysis should be skipped
+		*/
+		bool ShouldSkipTargetAnalysis(const ArchAndAddr& source, Ref<Function> sourceFunc,
+			uint64_t sourceEnd, const ArchAndAddr& target);
+
 		/*! Returns a list of namespaces for the current BinaryView
 
 			\return A list of namespaces for the current BinaryView
@@ -7050,8 +7160,7 @@ namespace BinaryNinja {
 		void ClearUserGlobalPointerValue();
 		void SetUserGlobalPointerValue(const Confidence<RegisterValue>& value);
 
-		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(
-			Architecture* arch, const DataBuffer& buffer, bool allowShortStrings = false);
+		std::optional<std::pair<std::string, BNStringType>> StringifyUnicodeData(Architecture* arch, const DataBuffer& buffer, bool nullTerminates = true, bool allowShortStrings = false);
 	};
 
 	class MemoryMap
@@ -7065,6 +7174,11 @@ namespace BinaryNinja {
 		void SetLogicalMemoryMapEnabled(bool enabled)
 		{
 			BNSetLogicalMemoryMapEnabled(m_object, enabled);
+		}
+
+		bool IsActivated()
+		{
+			return BNIsMemoryMapActivated(m_object);
 		}
 
 		bool AddBinaryMemoryRegion(const std::string& name, uint64_t start, Ref<BinaryView> source, uint32_t flags = 0)
@@ -8042,6 +8156,54 @@ namespace BinaryNinja {
 
 	typedef size_t ExprId;
 
+	class BasicBlockAnalysisContext
+	{
+	private:
+		// in
+		std::optional<std::map<ArchAndAddr, std::set<ArchAndAddr>>> m_indirectBranches;
+		std::optional<std::set<ArchAndAddr>> m_indirectNoReturnCalls;
+
+		// in/out
+		std::optional<std::map<ArchAndAddr, bool>> m_contextualReturns;
+
+		// out
+		std::optional<std::map<uint64_t, std::set<ArchAndAddr>>> m_directCodeReferences;
+		std::optional<std::set<ArchAndAddr>> m_directNoReturnCalls;
+		std::optional<std::set<ArchAndAddr>> m_haltedDisassemblyAddresses;
+		std::optional<std::map<ArchAndAddr, ArchAndAddr>> m_inlinedUnresolvedIndirectBranches;
+
+	public:
+		BNBasicBlockAnalysisContext* m_context;
+
+		BasicBlockAnalysisContext(BNBasicBlockAnalysisContext* context);
+
+		BNFunctionAnalysisSkipOverride GetAnalysisSkipOverride() const { return m_context->analysisSkipOverride; }
+		bool GetTranslateTailCalls() const { return m_context->translateTailCalls; }
+		bool GetDisallowBranchToString() const { return m_context->disallowBranchToString; }
+		bool GetHaltOnInvalidInstructions() const { return m_context->haltOnInvalidInstructions; }
+		uint64_t GetMaxFunctionSize() const { return m_context->maxFunctionSize; }
+
+		bool GetMaxSizeReached() const { return m_context->maxSizeReached; }
+		void SetMaxSizeReached(bool reached) { m_context->maxSizeReached = reached; }
+
+		const std::map<ArchAndAddr, std::set<ArchAndAddr>> GetIndirectBranches();
+		const std::set<ArchAndAddr>& GetIndirectNoReturnCalls();
+
+		std::map<ArchAndAddr, bool>& GetContextualReturns();
+
+		std::map<uint64_t, std::set<ArchAndAddr>>& GetDirectCodeReferences();
+		std::set<ArchAndAddr>& GetDirectNoReturnCalls();
+		std::set<ArchAndAddr>& GetHaltedDisassemblyAddresses();
+		std::map<ArchAndAddr, ArchAndAddr>& GetInlinedUnresolvedIndirectBranches();
+
+		void AddTempOutgoingReference(Function* targetFunc);
+
+		Ref<BasicBlock> CreateBasicBlock(Architecture* arch, uint64_t start);
+		void AddFunctionBasicBlock(BasicBlock* block);
+
+		void Finalize();
+	};
+
 	/*! The Architecture class is the base class for all CPU architectures. This provides disassembly, assembly,
 	    patching, and IL translation lifting for a given architecture.
 
@@ -8069,6 +8231,7 @@ namespace BinaryNinja {
 		static void FreeInstructionTextCallback(BNInstructionTextToken* tokens, size_t count);
 		static bool GetInstructionLowLevelILCallback(
 		    void* ctxt, const uint8_t* data, uint64_t addr, size_t* len, BNLowLevelILFunction* il);
+		static void AnalyzeBasicBlocksCallback(void *ctxt, BNFunction* function, BNBasicBlockAnalysisContext* context);
 		static char* GetRegisterNameCallback(void* ctxt, uint32_t reg);
 		static char* GetFlagNameCallback(void* ctxt, uint32_t flag);
 		static char* GetFlagWriteTypeNameCallback(void* ctxt, uint32_t flags);
@@ -8140,6 +8303,15 @@ namespace BinaryNinja {
 			\param arch Architecture to register
 		*/
 		static void Register(Architecture* arch);
+
+		static void DefaultAnalyzeBasicBlocksCallback(BNFunction* function, BNBasicBlockAnalysisContext* context);
+
+		/*! Default implementation of AnalyzeBasicBlocks
+
+			\param function Function to analyze
+			\param context Context for the analysis
+		*/
+		static void DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context);
 
 		/*! Get an Architecture by name
 
@@ -8238,6 +8410,13 @@ namespace BinaryNinja {
 		    \param[in,out] il the LowLevelILFunction to appended to.
 		*/
 		virtual bool GetInstructionLowLevelIL(const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il);
+
+		/*! Analyze the basic blocks of a function
+
+			\param function Function to analyze
+			\param context Context for the analysis
+		*/
+		virtual void AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context);
 
 		/*! Gets a register name from a register index.
 
@@ -8517,7 +8696,6 @@ namespace BinaryNinja {
 		    \return Whether the conversion was successful
 		*/
 		virtual bool SkipAndReturnValue(uint8_t* data, uint64_t addr, size_t len, uint64_t value);
-
 		void RegisterFunctionRecognizer(FunctionRecognizer* recog);
 		void RegisterRelocationHandler(const std::string& viewName, RelocationHandler* handler);
 		Ref<RelocationHandler> GetRelocationHandler(const std::string& viewName);
@@ -8633,6 +8811,7 @@ namespace BinaryNinja {
 		    const uint8_t* data, uint64_t addr, size_t& len, std::vector<InstructionTextToken>& result) override;
 		virtual bool GetInstructionLowLevelIL(
 		    const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override;
+		virtual void AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context) override;
 		virtual std::string GetRegisterName(uint32_t reg) override;
 		virtual std::string GetFlagName(uint32_t flag) override;
 		virtual std::string GetFlagWriteTypeName(uint32_t flags) override;
@@ -9395,7 +9574,7 @@ namespace BinaryNinja {
 		bool EnumerateTypesForAccess(BinaryView* data, uint64_t offset, size_t size, uint8_t baseConfidence,
 			const std::function<void(const Confidence<Ref<Type>>& type, FieldResolutionInfo* path)>& terminal);
 		std::vector<TypeDefinitionLine> GetLines(const TypeContainer& types, const std::string& name,
-			int paddingCols = 64, bool collapsed = false, BNTokenEscapingType escaping = NoTokenEscapingType);
+			int paddingCols = 64, bool collapsed = false, BNTokenEscapingType escaping = NoTokenEscapingType) const;
 
 		static std::string GetSizeSuffix(size_t size);
 	};
@@ -10006,12 +10185,8 @@ namespace BinaryNinja {
 	/*!
 		\ingroup workflow
 	*/
-	class AnalysisContext :
-	    public CoreRefCountObject<BNAnalysisContext, BNNewAnalysisContextReference, BNFreeAnalysisContext>
+	class AnalysisContext : public CoreRefCountObject<BNAnalysisContext, BNNewAnalysisContextReference, BNFreeAnalysisContext>
 	{
-		std::unique_ptr<Json::CharReader> m_reader;
-		Json::StreamWriterBuilder m_builder;
-
 	  public:
 		AnalysisContext(BNAnalysisContext* analysisContext);
 		virtual ~AnalysisContext();
@@ -10027,6 +10202,12 @@ namespace BinaryNinja {
 			\return The function for the current context
 		*/
 		Ref<Function> GetFunction();
+
+		/*! Get the lifted IL function for the current AnalysisContext
+
+			\return The Lifted IL LowLevelILFunction for the current context
+		*/
+		Ref<LowLevelILFunction> GetLiftedILFunction();
 
 		/*! Get the low level IL function for the current AnalysisContext
 
@@ -10076,27 +10257,34 @@ namespace BinaryNinja {
 		*/
 		void SetHighLevelILFunction(Ref<HighLevelILFunction> highLevelIL);
 
+		bool Inform(const char* request);
 		bool Inform(const std::string& request);
 
-#if ((__cplusplus >= 201403L) || (_MSVC_LANG >= 201703L))
 		template <typename... Args>
 		bool Inform(Args... args)
 		{
-			// using T = std::variant<Args...>; // FIXME: remove type duplicates
-			using T = std::variant<std::string, const char*, uint64_t, Ref<Architecture>>;
-			std::vector<T> unpackedArgs {args...};
-			Json::Value request(Json::arrayValue);
-			for (auto& arg : unpackedArgs)
-				std::visit(overload {[&](Ref<Architecture> arch) { request.append(Json::Value(arch->GetName())); },
-				               [&](uint64_t val) { request.append(Json::Value(val)); },
-				               [&](auto& val) {
-					               request.append(Json::Value(std::forward<decltype(val)>(val)));
-				               }},
-				    arg);
-
-			return Inform(Json::writeString(m_builder, request));
+			rapidjson::Document request(rapidjson::kArrayType);
+			rapidjson::Document::AllocatorType& allocator = request.GetAllocator();
+			request.Reserve(sizeof...(args), allocator);
+			([&] {
+				using T = std::decay_t<decltype(args)>;
+				if constexpr (std::is_same_v<T, Ref<Architecture>>)
+				{
+					auto archName = args->GetName();
+					request.PushBack(rapidjson::Value(archName.c_str(), archName.length(), allocator), allocator);
+				}
+				else if constexpr (std::is_same_v<T, std::string>)
+					request.PushBack(rapidjson::Value(args.c_str(), args.length(), allocator), allocator);
+				else if constexpr (std::is_same_v<T, const char*>)
+					request.PushBack(rapidjson::Value(args, allocator), allocator);
+				else
+					request.PushBack(rapidjson::Value(args), allocator);
+			}(), ...);
+			rapidjson::StringBuffer buffer;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+			request.Accept(writer);
+			return Inform(buffer.GetString());
 		}
-#endif
 	};
 
 	/*!
@@ -10468,6 +10656,17 @@ namespace BinaryNinja {
 	/*!
 		\ingroup basicblocks
 	*/
+	struct PendingBasicBlockEdge
+	{
+		BNBranchType type;
+		Ref<Architecture> arch;
+		uint64_t target;
+		bool fallThrough;
+	};
+
+	/*!
+		\ingroup basicblocks
+	*/
 	class BasicBlock : public CoreRefCountObject<BNBasicBlock, BNNewBasicBlockReference, BNFreeBasicBlock>
 	{
 	  public:
@@ -10490,6 +10689,13 @@ namespace BinaryNinja {
 			\return Start address of the basic block
 		*/
 		uint64_t GetStart() const;
+
+
+		/*! Set the end of a basic block
+
+			\param end Ending address of the basic block
+		*/
+		void SetEnd(uint64_t end);
 
 		/*! Ending address of the basic block
 
@@ -10526,6 +10732,72 @@ namespace BinaryNinja {
 			\return Whether basic block has undetermined outgoing edges
 		*/
 		bool HasUndeterminedOutgoingEdges() const;
+
+
+		/*! Whether the basic block has invalid instructions
+
+			\return true if the basic block has invalid instructions, false otherwise
+		 */
+		bool HasInvalidInstructions() const;
+
+		/*! Set whether the basic block has invalid instructions
+
+			\param value true if the basic block has invalid instructions, false otherwise
+		*/
+		void SetHasInvalidInstructions(bool value);
+
+		/*! Add a pending outgoing edge to this basic block
+
+			\param type Type of the branch
+			\param addr Address of the target basic block
+			\param arch Optional architecture for the target basic block, default is nullptr
+			\param fallThrough Whether this is a fall-through edge, default false
+		*/
+		void AddPendingOutgoingEdge(BNBranchType type, uint64_t addr, Ref<Architecture> arch = nullptr,
+			bool fallThrough = false);
+
+		/*! Get a list of pending outgoing edges for this basic block
+
+			\return List of pending outgoing edges
+		*/
+		std::vector<PendingBasicBlockEdge> GetPendingOutgoingEdges() const;
+
+		/*! Clear the pending outgoing edges for this basic block
+		*/
+		void ClearPendingOutgoingEdges();
+
+		/*! Set whether basic block has undetermined outgoing edges
+
+			\param value Whether basic block has undetermined outgoing edges
+		*/
+		void SetUndeterminedOutgoingEdges(bool value);
+
+		/*! Get the instruction data for a specific address in this basic block
+
+			\param addr Address of the instruction
+			\param len Pointer to a size_t variable to store the length of the instruction data
+			\return Pointer to the instruction data
+		*/
+		const uint8_t* GetInstructionData(uint64_t addr, size_t* len) const;
+
+		/*! Add instruction data to the basic block
+
+			\param data Pointer to the instruction data
+			\param len Length of the instruction data
+		*/
+		void AddInstructionData(const void* data, size_t len);
+
+		/*! Set whether the basic blocks falls through to a function
+
+			\param value Whether the basic block falls through to a function
+		*/
+		void SetFallThroughToFunction(bool value);
+
+		/*! Determine whether the basic block falls through to a function
+
+			\return Whether basic block falls through to a function
+		*/
+		bool IsFallThroughToFunction() const;
 
 		/*! Whether basic block can return or is tagged as 'No Return'
 
@@ -10773,12 +11045,14 @@ namespace BinaryNinja {
 			address = a.address;
 			return *this;
 		}
-		bool operator==(const ArchAndAddr& a) const { return (arch == a.arch) && (address == a.address); }
+		bool operator==(const ArchAndAddr& a) const {
+			return (arch == a.arch) && (address == a.address);
+		}
 		bool operator<(const ArchAndAddr& a) const
 		{
 			if (arch < a.arch)
 				return true;
-			if (arch > a.arch)
+			if (a.arch < arch)
 				return false;
 			return address < a.address;
 		}
@@ -11199,6 +11473,7 @@ namespace BinaryNinja {
 		void ApplyAutoDiscoveredType(Type* type);
 
 		Ref<FlowGraph> CreateFunctionGraph(const FunctionViewType& type, DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(const FunctionViewType& type, DisassemblySettings* settings = nullptr);
 
 		std::map<int64_t, std::vector<VariableNameAndType>> GetStackLayout();
 		void CreateAutoStackVariable(int64_t offset, const Confidence<Ref<Type>>& type, const std::string& name);
@@ -11244,10 +11519,18 @@ namespace BinaryNinja {
 		void SetUserIndirectBranches(
 		    Architecture* sourceArch, uint64_t source, const std::vector<ArchAndAddr>& branches);
 
+		// Guided Disassembly Support
+		void SetGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		void AddGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		void RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		std::vector<ArchAndAddr> GetGuidedSourceBlocks();
+
 		std::vector<IndirectBranchInfo> GetIndirectBranches();
 		std::vector<IndirectBranchInfo> GetIndirectBranchesAt(Architecture* arch, uint64_t addr);
 
-		std::vector<uint64_t> GetUnresolvedIndirectBranches();
+		Ref<Function> GetCalleeForAnalysis(Ref<Platform> platform, uint64_t addr, bool exact);
+
+		std::vector<ArchAndAddr> GetUnresolvedIndirectBranches();
 		bool HasUnresolvedIndirectBranches();
 
 		void SetAutoCallTypeAdjustment(Architecture* arch, uint64_t addr, const Confidence<Ref<Type>>& adjust);
@@ -11397,6 +11680,7 @@ namespace BinaryNinja {
 		std::map<Variable, std::map<ArchAndAddr, Ref<FieldResolutionInfo>>> GetAllFieldResolutions();
 
 		void RequestDebugReport(const std::string& name);
+		bool CheckForDebugReport(const std::string& name);
 
 		/*! Get the name for a given label ID
 
@@ -11414,6 +11698,18 @@ namespace BinaryNinja {
 
 		BNDeadStoreElimination GetVariableDeadStoreElimination(const Variable& var);
 		void SetVariableDeadStoreElimination(const Variable& var, BNDeadStoreElimination mode);
+
+		BNExprFolding GetExprFolding(uint64_t addr);
+		void SetExprFolding(uint64_t addr, BNExprFolding mode);
+
+		bool IsConditionInverted(uint64_t addr);
+		void SetConditionInverted(uint64_t addr, bool invert);
+
+		BNEarlyReturn GetEarlyReturn(uint64_t addr);
+		void SetEarlyReturn(uint64_t addr, BNEarlyReturn mode);
+
+		BNSwitchRecovery GetSwitchRecovery(uint64_t addr);
+		void SetSwitchRecovery(uint64_t addr, BNSwitchRecovery mode);
 
 		std::map<Variable, std::set<Variable>> GetMergedVariables();
 		void MergeVariables(const Variable& target, const std::set<Variable>& sources);
@@ -11453,6 +11749,12 @@ namespace BinaryNinja {
 		void CollapseRegion(uint64_t hash);
 		void ExpandRegion(uint64_t hash);
 		void ExpandAll();
+
+		void StoreMetadata(const std::string& key, Ref<Metadata> value, bool isAuto = false);
+		Ref<Metadata> QueryMetadata(const std::string& key);
+		Ref<Metadata> GetMetadata();
+		Ref<Metadata> GetAutoMetadata();
+		void RemoveMetadata(const std::string& key);
 	};
 
 	/*!
@@ -13357,6 +13659,7 @@ namespace BinaryNinja {
 		}
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 	};
 
 	/*!
@@ -13377,7 +13680,7 @@ namespace BinaryNinja {
 	        BNFreeMediumLevelILFunction>
 	{
 	  public:
-		MediumLevelILFunction(Architecture* arch, Function* func = nullptr);
+		MediumLevelILFunction(Architecture* arch, Function* func, LowLevelILFunction* lowLevelIL);
 		MediumLevelILFunction(BNMediumLevelILFunction* func);
 
 		Ref<Function> GetFunction() const;
@@ -13749,6 +14052,7 @@ namespace BinaryNinja {
 		}
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 
 		std::set<size_t> GetLiveInstructionsForVariable(const Variable& var, bool includeLastUse = true);
 
@@ -14044,6 +14348,7 @@ namespace BinaryNinja {
 		void VisitAllExprs(const std::function<bool(const HighLevelILInstruction& expr)>& func);
 
 		Ref<FlowGraph> CreateFunctionGraph(DisassemblySettings* settings = nullptr);
+		Ref<FlowGraph> CreateFunctionGraphImmediate(DisassemblySettings* settings = nullptr);
 
 		size_t GetExprIndexForLabel(uint64_t label);
 		std::set<size_t> GetUsesForLabel(uint64_t label);
@@ -14486,6 +14791,7 @@ namespace BinaryNinja {
 		Ref<LowLevelILFunction> lowLevelILFunction;
 		Ref<MediumLevelILFunction> mediumLevelILFunction;
 		Ref<HighLevelILFunction> highLevelILFunction;
+		Ref<Project> project;
 
 		PluginCommandContext();
 	};
@@ -14562,6 +14868,12 @@ namespace BinaryNinja {
 			std::function<bool(BinaryView*, const HighLevelILInstruction&)> isValid;
 		};
 
+		struct RegisteredProjectCommand
+		{
+			std::function<void(Project*)> action;
+			std::function<bool(Project*)> isValid;
+		};
+
 		static void DefaultPluginCommandActionCallback(void* ctxt, BNBinaryView* view);
 		static void AddressPluginCommandActionCallback(void* ctxt, BNBinaryView* view, uint64_t addr);
 		static void RangePluginCommandActionCallback(void* ctxt, BNBinaryView* view, uint64_t addr, uint64_t len);
@@ -14578,6 +14890,7 @@ namespace BinaryNinja {
 		    void* ctxt, BNBinaryView* view, BNHighLevelILFunction* func);
 		static void HighLevelILInstructionPluginCommandActionCallback(
 		    void* ctxt, BNBinaryView* view, BNHighLevelILFunction* func, size_t instr);
+		static void ProjectPluginCommandActionCallback(void* ctxt, BNProject* project);
 
 		static bool DefaultPluginCommandIsValidCallback(void* ctxt, BNBinaryView* view);
 		static bool AddressPluginCommandIsValidCallback(void* ctxt, BNBinaryView* view, uint64_t addr);
@@ -14595,6 +14908,7 @@ namespace BinaryNinja {
 		    void* ctxt, BNBinaryView* view, BNHighLevelILFunction* func);
 		static bool HighLevelILInstructionPluginCommandIsValidCallback(
 		    void* ctxt, BNBinaryView* view, BNHighLevelILFunction* func, size_t instr);
+		static bool ProjectPluginCommandIsValidCallback(void* ctxt, BNProject* project);
 
 	  public:
 		PluginCommand(const BNPluginCommand& cmd);
@@ -15421,6 +15735,13 @@ namespace BinaryNinja {
 		    const std::function<void(BinaryView* view, const HighLevelILInstruction& instr)>& action,
 		    const std::function<bool(BinaryView* view, const HighLevelILInstruction& instr)>& isValid);
 
+		static void RegisterForProject(const std::string& name, const std::string& description,
+		    const std::function<void(Project* project)>& action);
+
+		static void RegisterForProject(const std::string& name, const std::string& description,
+			const std::function<void(Project* project)>& action,
+			const std::function<bool(Project* project)>& isValid);
+
 		/*! Get the list of registered PluginCommands
 
 			\return The list of registered PluginCommands
@@ -15572,6 +15893,7 @@ namespace BinaryNinja {
 		static void InitViewCallback(void* ctxt, BNBinaryView* view);
 		static uint32_t* GetGlobalRegistersCallback(void* ctxt, size_t* count);
 		static void FreeRegisterListCallback(void* ctxt, uint32_t* regs, size_t count);
+		static size_t GetAddressSizeCallback(void* ctxt);
 		static BNType* GetGlobalRegisterTypeCallback(void* ctxt, uint32_t reg);
 		static void AdjustTypeParserInputCallback(
 			void* ctxt,
@@ -15756,6 +16078,12 @@ namespace BinaryNinja {
 		 */
 		virtual Ref<Type> GetGlobalRegisterType(uint32_t reg);
 
+		/*! Get the address size for this platform
+
+			\return The address size for this platform
+		*/
+		virtual size_t GetAddressSize() const;
+
 		/*! Modify the input passed to the Type Parser with Platform-specific features.
 
 			\param[in] parser Type Parser instance
@@ -15883,6 +16211,7 @@ namespace BinaryNinja {
 			std::vector<std::string>& arguments,
 			std::vector<std::pair<std::string, std::string>>& sourceFiles
 		) override;
+		virtual size_t GetAddressSize() const override;
 	};
 
 	/*!
@@ -16764,6 +17093,7 @@ namespace BinaryNinja {
 		static FormInputField SaveFileName(
 		    const std::string& prompt, const std::string& ext, const std::string& defaultName = "");
 		static FormInputField DirectoryName(const std::string& prompt, const std::string& defaultName = "");
+		static FormInputField Checkbox(const std::string& prompt, const bool& defaultChoice = false);
 	};
 
 	/*!
@@ -16823,6 +17153,13 @@ namespace BinaryNinja {
 		    const std::string& defaultName = "");
 		virtual bool GetDirectoryNameInput(
 		    std::string& result, const std::string& prompt, const std::string& defaultName = "");
+		virtual bool GetCheckboxInput(
+			int64_t& result,
+			const std::string& prompt,
+			const std::string& title,
+			const int64_t
+			& defaultChoice = 0
+		);
 		virtual bool GetFormInput(std::vector<FormInputField>& fields, const std::string& title) = 0;
 
 		virtual BNMessageBoxButtonResult ShowMessageBox(const std::string& title, const std::string& text,
@@ -16973,8 +17310,9 @@ namespace BinaryNinja {
 			"readOnly"           bool                                     None                 Yes        Only enforced by UI elements
 			"optional"           bool                                     None                 Yes        Indicates setting can be null
 			"hidden"             bool                                     "type" is "string"   Yes        Indicates the UI should conceal the content. The "ignore" property is required to specify the applicable storage scopes
-			"requiresRestart     bool                                     None                 Yes        Enable restart notification in the UI upon change
+			"requiresRestart"    bool                                     None                 Yes        Enable restart notification in the UI upon change
 			"uiSelectionAction"  string                                   "type" is "string"   Yes        {"file", "directory", <Registered UIAction Name>} Informs the UI to add a button to open a selection dialog or run a registered UIAction
+			"quickSettingsGroup" string                                   None                 Yes        Groups related items in the quick settings context menu using dividers to separate groups
 			==================   ======================================   ==================   ========   =======================================================================
 
 		\note In order to facilitate deterministic analysis results, settings from the <em><tt>default</tt></em> schema that impact analysis are serialized
@@ -17075,9 +17413,10 @@ namespace BinaryNinja {
 
 		/*! Determine if the active settings schema is empty
 
+			\param scope the settings scope to check, defaults to SettingsAutoScope
 			\return True if the active settings schema is empty, False otherwise
 		*/
-		bool IsEmpty();
+		bool IsEmpty(BNSettingsScope scope = SettingsAutoScope);
 
 		/*! Retrieve the list of setting identifiers in the active settings schema
 
@@ -17104,6 +17443,7 @@ namespace BinaryNinja {
 		    const std::string& contents, Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 		std::string SerializeSettings(Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 
+		bool IsEmpty(Ref<BinaryView> view, BNSettingsScope scope = SettingsAutoScope);
 		bool Reset(const std::string& key, Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope);
 		bool ResetAll(
 		    Ref<BinaryView> view = nullptr, BNSettingsScope scope = SettingsAutoScope, bool schemaOnly = true);
@@ -17160,6 +17500,7 @@ namespace BinaryNinja {
 		bool DeserializeSettings(const std::string& contents, Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		std::string SerializeSettings(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 
+		bool IsEmpty(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		bool Reset(const std::string& key, Ref<Function> func, BNSettingsScope scope = SettingsAutoScope);
 		bool ResetAll(Ref<Function> func, BNSettingsScope scope = SettingsAutoScope, bool schemaOnly = true);
 
@@ -18559,6 +18900,12 @@ namespace BinaryNinja {
 
 		BNTypeContainer* GetObject() const { return m_object; }
 
+		/*! Get an empty type container which contains no types (immutable)
+
+			\return Empty type container
+		 */
+		static TypeContainer GetEmptyTypeContainer();
+
 		/*! Get an id string for the Type Container. This will be unique within a given
 			analysis session, but may not be globally unique.
 
@@ -18764,14 +19111,14 @@ namespace BinaryNinja {
 	{
 		BNSymbolQueue* m_object;
 
-		static void ResolveCallback(void* ctxt, BNSymbol** symbol, BNType** type);
-		static void AddCallback(void* ctxt, BNSymbol* symbol, BNType* type);
+		static void ResolveCallback(void* ctxt, BNSymbol** symbol, BNTypeWithConfidence* type);
+		static void AddCallback(void* ctxt, BNSymbol* symbol, BNTypeWithConfidence* type);
 
 	public:
 		SymbolQueue();
 		~SymbolQueue();
-		void Append(const std::function<std::pair<Ref<Symbol>, Ref<Type>>()>& resolve,
-			const std::function<void(Symbol*, Type*)>& add);
+		void Append(const std::function<std::pair<Ref<Symbol>, Confidence<Ref<Type>>>()>& resolve,
+			const std::function<void(Symbol*, const Confidence<Ref<Type>>&)>& add);
 		void Process();
 	};
 
@@ -19491,6 +19838,9 @@ namespace BinaryNinja {
 		/*! Returns the list of tokens on the current line */
 		std::vector<InstructionTextToken> GetCurrentTokens() const;
 
+		/*! Set the list of tokens on the current line */
+		void SetCurrentTokens(const std::vector<InstructionTextToken>& newTokens);
+
 		/*! Sets the requirement for insertion of braces around scopes in the output. */
 		void SetBraceRequirement(BNBraceRequirement required);
 
@@ -19509,6 +19859,10 @@ namespace BinaryNinja {
 		BNBraceRequirement GetBraceRequirement() const;
 		bool HasBracesAroundSwitchCases() const;
 		bool GetDefaultBracesOnSameLine() const;
+
+		/*! Gets the maximum number of tokens to emit as a ternary operation. */
+		size_t GetMaxTernarySimplificationTokens() const;
+
 		bool IsSimpleScopeAllowed() const;
 
 		/*! Gets the list of lines in the output. */
@@ -20950,20 +21304,27 @@ namespace std
 
 template<typename T> struct fmt::formatter<BinaryNinja::Ref<T>>
 {
+	fmt::formatter<T> inner;
 	format_context::iterator format(const BinaryNinja::Ref<T>& obj, format_context& ctx) const
 	{
-		return fmt::formatter<T>().format(*obj.GetPtr(), ctx);
+		if (obj.GetPtr() == nullptr)
+			return fmt::format_to(ctx.out(), "{}", "<null>");
+		return inner.format(*obj.GetPtr(), ctx);
 	}
-	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return ctx.begin(); }
+	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return inner.parse(ctx); }
 };
 
 template<typename T> struct fmt::formatter<BinaryNinja::Confidence<T>>
 {
+	fmt::formatter<T> inner;
 	format_context::iterator format(const BinaryNinja::Confidence<T>& obj, format_context& ctx) const
 	{
-		return fmt::format_to(ctx.out(), "{} ({} confidence)", obj.GetValue(), obj.GetConfidence());
+		auto out = ctx.out();
+		out = inner.format(obj.GetValue(), ctx);
+		ctx.advance_to(out);
+		return fmt::format_to(out, " ({} confidence)", obj.GetConfidence());
 	}
-	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return ctx.begin(); }
+	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return inner.parse(ctx); }
 };
 
 template<> struct fmt::formatter<BinaryNinja::Metadata>
@@ -20977,7 +21338,6 @@ template<> struct fmt::formatter<BinaryNinja::NameList>
 	format_context::iterator format(const BinaryNinja::NameList& obj, format_context& ctx) const;
 	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator { return ctx.begin(); }
 };
-
 
 template<> struct fmt::formatter<BinaryNinja::StringRef> : fmt::formatter<std::string_view>
 {
@@ -21028,3 +21388,18 @@ struct fmt::formatter<T, char, std::enable_if_t<std::is_enum_v<T>, void>>
 		return it;
 	}
 };
+
+template<> struct fmt::formatter<BinaryNinja::Type>
+{
+	// s -> short, ? -> full
+	char presentation = 's';
+	format_context::iterator format(const BinaryNinja::Type& obj, format_context& ctx) const;
+	constexpr auto parse(format_parse_context& ctx) -> format_parse_context::iterator
+	{
+		auto it = ctx.begin(), end = ctx.end();
+		if (it != end && *it == '?') presentation = *it++;
+		if (it != end && *it != '}') report_error("invalid format");
+		return it;
+	}
+};
+

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(arch_ppc)
 
@@ -11,8 +11,9 @@ file(GLOB SOURCES
 	assembler.cpp
 	disassembler.cpp
 	il.cpp
-	util.cpp
 	*.h
+	decode/*.c
+	decode/*.h
 )
 
 if(DEMO)
@@ -33,7 +34,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 set_target_properties(arch_ppc PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
 	CXX_VISIBILITY_PRESET hidden
 	CXX_STANDARD_REQUIRED ON
     VISIBILITY_INLINES_HIDDEN ON
@@ -60,7 +61,7 @@ if (DEFINED FORCE_TEST)
 		target_compile_definitions(test_disasm PRIVATE FORCE_TEST=1)
 
 		set_target_properties(test_disasm test_asm PROPERTIES
-			CXX_STANDARD 17
+			CXX_STANDARD 20
 			CXX_VISIBILITY_PRESET hidden
 			CXX_STANDARD_REQUIRED ON
 			VISIBILITY_INLINES_HIDDEN ON

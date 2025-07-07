@@ -36,6 +36,7 @@ class BINARYNINJAUIAPI StringsListModel : public QAbstractItemModel, public Bina
 	BinaryViewRef m_data;
 	std::vector<BNStringReference> m_allStrings;
 	std::vector<BNStringReference> m_strings;
+	std::map<uint64_t, uint64_t> m_refCounts;
 	std::string m_filter;
 
 	size_t m_filteredByOptions;
@@ -56,6 +57,8 @@ class BINARYNINJAUIAPI StringsListModel : public QAbstractItemModel, public Bina
 	enum {
 		COL_ADDRESS = 0,
 		COL_TYPE,
+		COL_LENGTH,
+		COL_REFERENCES,
 		COL_VALUE,
 		COLUMN_COUNT,
 	};

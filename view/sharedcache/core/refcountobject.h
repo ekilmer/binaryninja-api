@@ -58,9 +58,9 @@ namespace BinaryNinja::DSC {
 #endif
 
 	public:
-		DSCRef<T>() : m_obj(NULL) {}
+		DSCRef() : m_obj(NULL) {}
 
-		DSCRef<T>(T* obj) : m_obj(obj)
+		DSCRef(T* obj) : m_obj(obj)
 		{
 			if (m_obj)
 			{
@@ -71,7 +71,7 @@ namespace BinaryNinja::DSC {
 			}
 		}
 
-		DSCRef<T>(const DSCRef<T>& obj) : m_obj(obj.m_obj)
+		DSCRef(const DSCRef& obj) : m_obj(obj.m_obj)
 		{
 			if (m_obj)
 			{
@@ -82,7 +82,7 @@ namespace BinaryNinja::DSC {
 			}
 		}
 
-		~DSCRef<T>()
+		~DSCRef()
 		{
 			if (m_obj)
 			{
@@ -94,7 +94,7 @@ namespace BinaryNinja::DSC {
 		}
 
 		// move constructor
-		DSCRef<T>(DSCRef<T>&& other) : m_obj(other.m_obj)
+		DSCRef(DSCRef&& other) : m_obj(other.m_obj)
 		{
 			other.m_obj = 0;
 #ifdef BN_REF_COUNT_DEBUG

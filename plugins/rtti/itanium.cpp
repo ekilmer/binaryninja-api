@@ -561,6 +561,9 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
     std::vector<VirtualFunctionInfo> virtualFunctions = {};
     while (true)
     {
+        uint64_t readOffset = reader.GetOffset();
+        if (!m_view->IsValidOffset(readOffset))
+            break;
         uint64_t vFuncAddr = reader.ReadPointer();
         auto funcs = m_view->GetAnalysisFunctionsForAddress(vFuncAddr);
         if (funcs.empty())
@@ -588,7 +591,8 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
             {
                 // TODO: Is likely a function check here?
                 m_logger->LogDebug("Discovered function from virtual function table... %llx", vFuncAddr);
-                m_view->AddFunctionForAnalysis(m_view->GetDefaultPlatform(), vFuncAddr, true);
+                auto vftPlatform = m_view->GetDefaultPlatform()->GetAssociatedPlatformByAddress(vFuncAddr);
+                m_view->AddFunctionForAnalysis(vftPlatform, vFuncAddr, true);
             }
         }
         // Only ever add one function.
@@ -691,20 +695,19 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
                 Type::PointerType(addrSize, vFuncType, true), vFuncName, vFuncOffset);
             vFuncIdx++;
         }
-        m_view->DefineType(typeId, vftTypeName,
-                           Confidence(TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize(), RTTI_CONFIDENCE));
-    }
+		m_view->DefineType(typeId, vftTypeName, TypeBuilder::StructureType(vftBuilder.Finalize()).Finalize());
+	}
 
-    auto vftName = fmt::format("_vtable_for_{}", classInfo.className);
-    // TODO: How to display base classes?
-    if (baseClassInfo.has_value())
-        vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
-    auto vftSymbol = m_view->GetSymbolByAddress(vftAddr);
-    if (vftSymbol != nullptr)
-        m_view->UndefineAutoSymbol(vftSymbol);
-    m_view->DefineAutoSymbol(new Symbol{DataSymbol, vftName, vftAddr});
-    m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
-    return vftInfo;
+	auto vftName = fmt::format("_vtable_for_{}", classInfo.className);
+	// TODO: How to display base classes?
+	if (baseClassInfo.has_value())
+		vftName += fmt::format("{{for `{}'}}", baseClassInfo->className);
+	auto vftSymbol = m_view->GetSymbolByAddress(vftAddr);
+	if (vftSymbol != nullptr)
+		m_view->UndefineAutoSymbol(vftSymbol);
+	m_view->DefineAutoSymbol(new Symbol {DataSymbol, vftName, vftAddr});
+	m_view->DefineDataVariable(vftAddr, Confidence(Type::NamedType(m_view, vftTypeName), RTTI_CONFIDENCE));
+	return vftInfo;
 }
 
 

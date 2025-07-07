@@ -31,9 +31,9 @@ MediumLevelILLabel::MediumLevelILLabel()
 }
 
 
-MediumLevelILFunction::MediumLevelILFunction(Architecture* arch, Function* func)
+MediumLevelILFunction::MediumLevelILFunction(Architecture* arch, Function* func, LowLevelILFunction* lowLevelIL)
 {
-	m_object = BNCreateMediumLevelILFunction(arch->GetObject(), func ? func->GetObject() : nullptr);
+	m_object = BNCreateMediumLevelILFunction(arch->GetObject(), func->GetObject(), lowLevelIL->GetObject());
 }
 
 
@@ -937,6 +937,13 @@ void MediumLevelILFunction::SetExprType(const BinaryNinja::MediumLevelILInstruct
 Ref<FlowGraph> MediumLevelILFunction::CreateFunctionGraph(DisassemblySettings* settings)
 {
 	BNFlowGraph* graph = BNCreateMediumLevelILFunctionGraph(m_object, settings ? settings->GetObject() : nullptr);
+	return new CoreFlowGraph(graph);
+}
+
+
+Ref<FlowGraph> MediumLevelILFunction::CreateFunctionGraphImmediate(DisassemblySettings* settings)
+{
+	BNFlowGraph* graph = BNCreateMediumLevelILImmediateFunctionGraph(m_object, settings ? settings->GetObject() : nullptr);
 	return new CoreFlowGraph(graph);
 }
 

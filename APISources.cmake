@@ -16,6 +16,7 @@ target_sources(binaryninjaapi PRIVATE
     databuffer.cpp
     datarenderer.cpp
     debuginfo.cpp
+    defaultabb.cpp
     demangle.cpp
     downloadprovider.cpp
     enterprise.cpp

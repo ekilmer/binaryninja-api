@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 project(triage CXX C)
 
@@ -22,7 +22,7 @@ endif()
 target_link_libraries(triage binaryninjaui)
 
 set_target_properties(triage PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD 20
 	CXX_VISIBILITY_PRESET hidden
 	CXX_STANDARD_REQUIRED ON
     VISIBILITY_INLINES_HIDDEN ON

@@ -2381,6 +2381,11 @@ class MemoryMap:
 		"""
 		core.BNSetLogicalMemoryMapEnabled(self.handle, enabled)
 
+	@property
+	def is_activated(self):
+		"""Whether the memory map is activated for the associated view."""
+		return core.BNIsMemoryMapActivated(self.handle)
+
 	def add_memory_region(self, name: str, start: int, source: Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor'], flags: SegmentFlag = 0) -> bool:
 		"""
 		Adds a memory region to the memory map. Depending on the source parameter, the memory region is created as one of the following types:
@@ -3188,7 +3193,9 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			yield func.mlil
+			mlil = func.mlil
+			if mlil is not None:
+				yield mlil
 
 	def hlil_functions(
 	    self, preload_limit: Optional[int] = None,
@@ -3201,7 +3208,9 @@ class BinaryView:
 		for func in AdvancedILFunctionList(
 		    self, self.preload_limit if preload_limit is None else preload_limit, function_generator
 		):
-			yield func.hlil
+			hlil = func.hlil
+			if hlil is not None:
+				yield hlil
 
 	@property
 	def has_functions(self) -> bool:
@@ -3376,12 +3385,12 @@ class BinaryView:
 	def analysis_progress(self) -> AnalysisProgress:
 		"""Status of current analysis (read-only)"""
 		result = core.BNGetAnalysisProgress(self.handle)
-		return AnalysisProgress(result.state, result.count, result.total)
+		return AnalysisProgress(AnalysisState(result.state), result.count, result.total)
 
 	@property
 	def analysis_state(self) -> AnalysisState:
 		"""State of current analysis (read-only)"""
-		return core.BNGetAnalysisState(self.handle)
+		return AnalysisState(core.BNGetAnalysisState(self.handle))
 
 	@property
 	def linear_disassembly(self) -> Iterator['lineardisassembly.LinearDisassemblyLine']:
@@ -3577,27 +3586,28 @@ class BinaryView:
 	def set_user_global_pointer_value(self, value: variable.RegisterValue, confidence = 255):
 		"""
 		Set a user global pointer value. This is useful when the auto analysis fails to find out the value of the global
-		pointer, or the value is wrong. In this case, we can call `set_user_global_pointer_value` with a
-		`ConstantRegisterValue` or `ConstantPointerRegisterValue`to provide a user global pointer value to assist the
+		pointer, or the value is wrong. In this case, we can call ``set_user_global_pointer_value`` with a
+		``ConstantRegisterValue`` or ``ConstantPointerRegisterValue`` to provide a user global pointer value to assist the
 		analysis.
 
 		On the other hand, if the auto analysis figures out a global pointer value, but there should not be one, we can
-		call `set_user_global_pointer_value` with an `Undetermined` value to override it.
+		call ``set_user_global_pointer_value`` with an `Undetermined` value to override it.
 
 		Whenever a user global pointer value is set/cleared, an analysis update must occur for it to take effect and
 		all functions using the global pointer to be updated.
 
-		We can use `user_global_pointer_value_set` to query whether a user global pointer value is set, and use
-		`clear_user_global_pointer_value` to clear a user global pointer value. Note, `clear_user_global_pointer_value`
-		is different from calling `set_user_global_pointer_value` with an `Undetermined` value. The former clears the
+		We can use ``user_global_pointer_value_set`` to query whether a user global pointer value is set, and use
+		``clear_user_global_pointer_value`` to clear a user global pointer value. Note, ``clear_user_global_pointer_value``
+		is different from calling ``set_user_global_pointer_value`` with an ``Undetermined`` value. The former clears the
 		user global pointer value and let the analysis decide the global pointer value, whereas the latte forces the
 		global pointer value to become undetermined.
 
 		:param variable.RegisterValue value: the user global pointer value to be set
-		:param int confidence: the confidence value of the user global pointer value. In most cases this should be set
-		to 255. Setting a value lower than the confidence of the global pointer value from the auto analysis will cause
-		undesired effect.
-		:return:
+		:param int confidence: the confidence value of the user global pointer value. In most cases this should be \
+			set to 255. Setting a value lower than the confidence of the global pointer value from the auto analysis \
+			will cause undesired effect.
+		:return: None
+		:rtype: None
 		:Example:
 
 			>>> bv.global_pointer_value
@@ -4205,6 +4215,8 @@ class BinaryView:
 		"""
 		``create_database`` writes the current database (.bndb) out to the specified file.
 
+		.. warning:: This API will only save a database, NOT the original file from a view. To save the original file, use :py:func:`save`. To update a database, use :py:func:`save_auto_snapshot`
+
 		:param str filename: path and filename to write the bndb to, this string `should` have ".bndb" appended to it.
 		:param callback progress_func: optional function to be called with the current progress and total count.
 		:param SaveSettings settings: optional argument for special save options.
@@ -4692,6 +4704,8 @@ class BinaryView:
 		"""
 		``save`` saves the original binary file to the provided destination ``dest`` along with any modifications.
 
+		.. warning:: This API will only save the original file from a view. To save a database, use :py:func:`create_database`.
+
 		:param str dest: destination path and filename of file to be written
 		:return: True on success, False on failure
 		:rtype: bool
@@ -4958,6 +4972,43 @@ class BinaryView:
 		:rtype: None
 		"""
 		core.BNAbortAnalysis(self.handle)
+
+	@property
+	def analysis_is_aborted(self) -> bool:
+		"""
+		``analysis_is_aborted`` checks if the analysis has been aborted.
+
+		.. note:: This property is intended for use by architecture plugins only.
+
+		:return: True if the analysis has been aborted, False otherwise
+		:rtype: bool
+		"""
+
+		return core.BNAnalysisIsAborted(self.handle)
+
+	def should_skip_target_analysis(self, source_location: '_function.ArchAndAddr', source_function: '_function.Function',
+		end: int, target_location: '_function.ArchAndAddr') -> bool:
+		"""
+		``should_skip_target_analysis`` checks if target analysis should be skipped.
+
+		.. note:: This method is intended for use by architecture plugins only.
+
+		:param _function.ArchAndAddr source_location: The source location.
+		:param _function.Function source_function: The source function.
+		:param int end: The end address of the source branch instruction.
+		:param _function.ArchAndAddr target_location: The target location.
+		:return: True if the target analysis should be skipped, False otherwise
+		:rtype: bool
+		"""
+
+		bn_src_arch_and_addr = core.BNArchitectureAndAddress()
+		bn_src_arch_and_addr.arch = source_location.arch.handle
+		bn_src_arch_and_addr.address = source_location.addr
+		bn_target_arch_and_addr = core.BNArchitectureAndAddress()
+		bn_target_arch_and_addr.arch = target_location.arch.handle
+		bn_target_arch_and_addr.address = target_location.addr
+		return core.BNShouldSkipTargetAnalysis(self.handle, bn_src_arch_and_addr, source_function.handle, end,
+			bn_target_arch_and_addr)
 
 	def define_data_var(
 	    self, addr: int, var_type: StringOrType, name: Optional[Union[str, '_types.CoreSymbol']] = None
@@ -5683,6 +5734,33 @@ class BinaryView:
 			finally:
 				core.BNFreeTypeReferences(refs, count.value)
 		return result
+
+	def add_data_ref(self, from_addr: int, to_addr: int) -> None:
+		"""
+		``add_data_ref`` adds an auto data cross-reference (xref) from the address ``from_addr`` to the address ``to_addr``.
+
+		:param int from_addr: the reference's source virtual address.
+		:param int to_addr: the reference's destination virtual address.
+		:rtype: None
+
+		.. note:: It is intended to be used from within workflows or binary view initialization.
+		"""
+		core.BNAddUserDataReference(self.handle, from_addr, to_addr)
+
+	def remove_data_ref(self, from_addr: int, to_addr: int) -> None:
+		"""
+		``remove_data_ref`` removes an  auto data cross-reference (xref) from the address ``from_addr`` to the address ``to_addr``.
+		This function will only remove ones generated during autoanalysis.
+		If the reference does not exist, no action is performed.
+
+		:param int from_addr: the reference's source virtual address.
+		:param int to_addr: the reference's destination virtual address.
+		:rtype: None
+
+		.. note:: It is intended to be used from within workflows or other reoccurring analysis tasks. Removed \
+		  references will be re-created whenever auto analysis is re-run for the
+		"""
+		core.BNRemoveDataReference(self.handle, from_addr, to_addr)
 
 	def add_user_data_ref(self, from_addr: int, to_addr: int) -> None:
 		"""
@@ -8910,7 +8988,7 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 
 	def find_next_text(
 	    self, start: int, text: str, settings: Optional[_function.DisassemblySettings] = None,
-	    flags: FindFlag = FindFlag.FindCaseSensitive,
+	    flags: int = FindFlag.FindCaseSensitive,
 	    graph_type: _function.FunctionViewTypeOrName = FunctionGraphType.NormalFunctionGraph
 	) -> Optional[int]:
 		"""
@@ -8920,13 +8998,14 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		:param int start: virtual address to start searching from.
 		:param str text: text to search for
 		:param DisassemblySettings settings: disassembly settings
-		:param FindFlag flags: (optional) defaults to case-insensitive data search
+		:param FindFlag flags: (optional) bit-flags list of options, defaults to case-insensitive data search
 
 			==================== ============================
 			FindFlag             Description
 			==================== ============================
 			FindCaseSensitive    Case-sensitive search
 			FindCaseInsensitive  Case-insensitive search
+			FindIgnoreWhitespace Ignore whitespace characters
 			==================== ============================
 		:param FunctionViewType graph_type: the IL to search within
 		"""
@@ -9076,13 +9155,14 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		:param str text: text to search for
 		:param DisassemblySettings settings: DisassemblySettings object used to render the text \
 		to be searched
-		:param FindFlag flags: (optional) defaults to case-insensitive data search
+		:param FindFlag flags: (optional) bit-flags list of options, defaults to case-insensitive data search
 
 			==================== ============================
 			FindFlag             Description
 			==================== ============================
 			FindCaseSensitive    Case-sensitive search
 			FindCaseInsensitive  Case-insensitive search
+			FindIgnoreWhitespace Ignore whitespace characters
 			==================== ============================
 		:param FunctionViewType graph_type: the IL to search within
 		:param callback progress_func: optional function to be called with the current progress \
@@ -9235,12 +9315,12 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 	def search(self, pattern: str, start: int = None, end: int = None, raw: bool = False, ignore_case: bool = False, overlap: bool = False, align: int = 1,
 		limit: int = None, progress_callback: Optional[ProgressFuncType] = None, match_callback: Optional[DataMatchCallbackType] = None) -> QueueGenerator:
 		r"""
-		Searches for matches of the specified `pattern` within this BinaryView with an optionally provided address range specified by `start` and `end`.
+		Searches for matches of the specified ``pattern`` within this BinaryView with an optionally provided address range specified by ``start`` and ``end``.
 		The search pattern can be interpreted in various ways:
 
 			- specified as a string of hexadecimal digits where whitespace is ignored, and the '?' character acts as a wildcard
 			- a regular expression suitable for working with bytes
-			- or if the `raw` option is enabled, the pattern is interpreted as a raw string, and any special characters are escaped and interpreted literally
+			- or if the ``raw`` option is enabled, the pattern is interpreted as a raw string, and any special characters are escaped and interpreted literally
 
 		:param pattern: The pattern to search for.
 		:type pattern: :py:class:`str`
@@ -9254,10 +9334,10 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		:param int align: The alignment of matches, must be a power of 2 (default: 1).
 		:param int limit: The maximum number of matches to return (default: None).
 		:param callback progress_callback: An optional function to be called with the current progress and total count. \
-		This function should return a boolean value that decides whether the search should continue or stop.
+			This function should return a boolean value that decides whether the search should continue or stop.
 		:param callback match_callback: A function that gets called when a match is found. The callback takes two parameters: \
-		the address of the match, and the actual DataBuffer that satisfies the search. This function can return a boolean value \
-		that decides whether the search should continue or stop.
+			the address of the match, and the actual DataBuffer that satisfies the search. This function can return a boolean \
+			value that decides whether the search should continue or stop.
 
 		:return: A generator object that yields the offset and matched DataBuffer for each match found.
 		:rtype: QueueGenerator
@@ -10088,19 +10168,26 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		"""
 		return MemoryMap(handle=self.handle)
 
-	def stringify_unicode_data(
-			self, arch: Optional['architecture.Architecture'], buffer: 'databuffer.DataBuffer',
-			allow_short_strings: bool = False
-	) -> Tuple[Optional[str], Optional[StringType]]:
+	def stringify_unicode_data(self, arch: Optional['architecture.Architecture'], buffer: 'databuffer.DataBuffer', null_terminates: bool = True, allow_short_strings: bool = False) -> Tuple[Optional[str], Optional[StringType]]:
+		"""
+		``stringify_unicode_data`` converts a buffer of unicode data into a string representation.
+		:param arch: The architecture to use for stringification, or None to use the current architecture of the BinaryView
+		:param buffer: The DataBuffer containing the unicode data to stringify
+		:param null_terminates: If True, stops stringification at the first null character, otherwise continues until the end of the buffer
+		:param allow_short_strings: If True, allows short strings to be returned, otherwise only long strings are returned
+		:return: A tuple containing the string representation and its type, or (None, None) if the stringification fails
+		:rtype: Tuple[Optional[str], Optional[StringType]]
+		"""
+		if not isinstance(buffer, databuffer.DataBuffer):
+			raise TypeError("buffer must be an instance of databuffer.DataBuffer")
 		string = ctypes.c_char_p()
 		string_type = ctypes.c_int()
 		if arch is not None:
 			arch = arch.handle
-		if not core.BNStringifyUnicodeData(
-				self.handle, arch, buffer.handle, allow_short_strings, ctypes.byref(string), ctypes.byref(string_type)):
+		if not core.BNStringifyUnicodeData(self.handle, arch, buffer.handle, null_terminates, allow_short_strings, ctypes.byref(string), ctypes.byref(string_type)):
 			return None, None
-		result = string.value
-		core.BNFreeString(string)
+		result = string.value.decode('utf-8')
+		core.free_string(string)
 		return result, StringType(string_type.value)
 
 class BinaryReader:

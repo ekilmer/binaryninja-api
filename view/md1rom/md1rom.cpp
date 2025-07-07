@@ -230,7 +230,7 @@ void Md1romView::DefineMd1RomSymbol(BNSymbolType type, const string& name, uint6
 
 	if (m_symbolQueue)
 	{
-		m_symbolQueue->Append(process, [this](Symbol* symbol, Type* type) {
+		m_symbolQueue->Append(process, [this](Symbol* symbol, const Confidence<Ref<Type>>& type) {
 			DefineAutoSymbolAndVariableOrFunction(GetDefaultPlatform(), symbol, type);
 		});
 	}

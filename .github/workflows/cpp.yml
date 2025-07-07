@@ -35,7 +35,7 @@ jobs:
             cmakeVersion: latest
           - config: {name: ubuntu}
             headless: "ON"
-            cmakeVersion: ~3.14.0
+            cmakeVersion: ~3.15.0
           - config: {name: ubuntu}
             headless: "OFF"
             # Qt requires at least CMake 3.16.0
@@ -84,7 +84,7 @@ jobs:
           fi
           echo "Qt6 extracted to $QT_INSTALL"
           rm qt6.zip
-          
+
           QT_CMAKE="$QT_INSTALL/lib/cmake/Qt6"
           ls -la "$QT_CMAKE"
 

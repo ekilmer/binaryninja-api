@@ -95,6 +95,12 @@ std::optional<std::string> GetVariableNameFromExpr(BinaryNinja::Function* func,
 // typedef-ed type
 TypeRef GetFunctionType(BinaryViewRef data, TypeRef type);
 
+std::optional<uint64_t> getFoldableExprAddress(
+	BinaryNinja::HighLevelILFunction* hlil, const HighlightTokenState& highlight);
+std::optional<uint64_t> getInvertableConditionAddress(BinaryNinja::HighLevelILFunction* hlil, size_t instrIndex);
+std::optional<uint64_t> getEarlyReturnAddress(BinaryNinja::HighLevelILFunction* hlil, size_t instrIndex);
+std::optional<uint64_t> getSwitchRecoveryAddress(BinaryNinja::HighLevelILFunction* hlil, size_t instrIndex);
+
 /*!
-	@}
+    @}
 */

@@ -34,19 +34,21 @@ struct BINARYNINJAUIAPI SelectionInfoForXref
 	// At any given time, at most one of these four should be true.
 	bool addrValid, typeValid, typeFieldValid, localVarValid;
 
-	BNFunctionGraphType ilSource;
+	BNFunctionGraphType ilSource = InvalidILViewType;
 
-	uint64_t start;
-	uint64_t end;
+	uint64_t start = 0;
+	uint64_t end = 0;
 
 	BinaryNinja::QualifiedName type;
-	uint64_t offset;
+	uint64_t offset = 0;
 
 	BinaryNinja::Variable var;
 
 	// These two need to be tested against nullptr before de-referencing
 	FunctionRef func;
 	ArchitectureRef arch;
+
+	SelectionInfoForXref() : addrValid(false), typeValid(false), typeFieldValid(false), localVarValid(false) { }
 
 	bool operator==(const SelectionInfoForXref& other) const
 	{
