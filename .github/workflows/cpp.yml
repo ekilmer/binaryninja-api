@@ -2,7 +2,8 @@ name: Build
 
 on:
   push:
-    branches: ["cmake-refactor"]
+    branches:
+      - cmake-refactor-v*-stable
   pull_request:
     branches: ["cmake-refactor"]
 
