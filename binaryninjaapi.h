@@ -8178,9 +8178,10 @@ namespace BinaryNinja {
 		BasicBlockAnalysisContext(BNBasicBlockAnalysisContext* context);
 
 		BNFunctionAnalysisSkipOverride GetAnalysisSkipOverride() const { return m_context->analysisSkipOverride; }
+		bool GetGuidedAnalysisMode() const { return m_context->guidedAnalysisMode; }
+		bool GetTriggerGuidedOnInvalidInstruction() const { return m_context->triggerGuidedOnInvalidInstruction; }
 		bool GetTranslateTailCalls() const { return m_context->translateTailCalls; }
 		bool GetDisallowBranchToString() const { return m_context->disallowBranchToString; }
-		bool GetHaltOnInvalidInstructions() const { return m_context->haltOnInvalidInstructions; }
 		uint64_t GetMaxFunctionSize() const { return m_context->maxFunctionSize; }
 
 		bool GetMaxSizeReached() const { return m_context->maxSizeReached; }
@@ -11523,6 +11524,7 @@ namespace BinaryNinja {
 		void SetGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
 		void AddGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
 		void RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		bool IsGuidedSourceBlock(Architecture* arch, uint64_t addr) const;
 		std::vector<ArchAndAddr> GetGuidedSourceBlocks();
 
 		std::vector<IndirectBranchInfo> GetIndirectBranches();

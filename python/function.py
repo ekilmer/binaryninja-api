@@ -2326,6 +2326,22 @@ class Function:
 			address_list[i].address = addresses[i][1]
 		core.BNRemoveGuidedSourceBlocks(self.handle, address_list, len(addresses))
 
+	def is_guided_source_block(
+	    self, arch: 'architecture.Architecture', addr: int
+	) -> bool:
+		"""
+		``is_guided_source_block`` checks if the given address is a guided source block.
+
+		:param architecture.Architecture arch: Architecture of the address to check
+		:param int addr: Address to check
+		:rtype: bool
+		:Example:
+
+			>>> current_function.is_guided_source_block(arch, 0x400000)
+			True
+		"""
+		return core.BNIsGuidedSourceBlock(self.handle, arch.handle, addr)
+
 	def get_guided_source_blocks(
 	    self
 	) -> List[Tuple['architecture.Architecture', int]]:

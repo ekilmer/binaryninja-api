@@ -63,9 +63,10 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 	map<ArchAndAddr, Ref<BasicBlock>> instrBlocks;
 	set<ArchAndAddr> seenBlocks;
 
+	bool guidedAnalysisMode = context.GetGuidedAnalysisMode();
+	bool triggerGuidedOnInvalidInstruction = context.GetTriggerGuidedOnInvalidInstruction();
 	bool translateTailCalls = context.GetTranslateTailCalls();
 	bool disallowBranchToString = context.GetDisallowBranchToString();
-	bool haltOnInvalidInstructions = context.GetHaltOnInvalidInstructions();
 
 	auto& indirectBranches = context.GetIndirectBranches();
 	auto& indirectNoReturnCalls = context.GetIndirectNoReturnCalls();
@@ -674,10 +675,10 @@ void Architecture::DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnaly
 		if (maxSizeReached)
 			break;
 
-		if (haltOnInvalidInstructions && block->HasInvalidInstructions())
+		if (triggerGuidedOnInvalidInstruction && block->HasInvalidInstructions())
 			hasInvalidInstructions = true;
 
-		if (hasInvalidInstructions)
+		if (guidedAnalysisMode || hasInvalidInstructions || guidedSourceBlocksSet.size())
 		{
 			queue<ArchAndAddr> guidedBlocksToProcess;
 			while (!blocksToProcess.empty())

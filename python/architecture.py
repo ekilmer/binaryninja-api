@@ -81,10 +81,11 @@ class BasicBlockAnalysisContext:
     _indirect_branches: List["variable.IndirectBranchInfo"]
     _indirect_no_return_calls: Set["function.ArchAndAddr"]
     _analysis_skip_override: core.FunctionAnalysisSkipOverride
+    _guided_analysis_mode: bool
+    _trigger_guided_on_invalid_instruction: bool
     _translate_tail_calls: bool
     _disallow_branch_to_string: bool
     _max_function_size: int
-    _halt_on_invalid_instruction: bool
     _max_size_reached: bool
 
     # In/Out
@@ -157,10 +158,11 @@ class BasicBlockAnalysisContext:
             _indirect_branches=indirect_branches,
             _indirect_no_return_calls=indirect_no_return_calls,
             _analysis_skip_override=bn_bb_context.analysisSkipOverride,
+            _guided_analysis_mode=bn_bb_context.guidedAnalysisMode,
+            _trigger_guided_on_invalid_instruction=bn_bb_context.triggerGuidedOnInvalidInstruction,
             _translate_tail_calls=bn_bb_context.translateTailCalls,
             _disallow_branch_to_string=bn_bb_context.disallowBranchToString,
             _max_function_size=bn_bb_context.maxFunctionSize,
-            _halt_on_invalid_instruction=bn_bb_context.haltOnInvalidInstructions,
             _max_size_reached=bn_bb_context.maxSizeReached,
             _contextual_returns=contextual_returns,
             _contextual_returns_dirty=False,
@@ -186,6 +188,18 @@ class BasicBlockAnalysisContext:
         """Get the analysis skip override setting for this context."""
 
         return self._analysis_skip_override
+
+    @property
+    def guided_analysis_mode(self) -> bool:
+        """Get the setting that determines if functions start in guided analysis mode."""
+
+        return self._guided_analysis_mode
+
+    @property
+    def trigger_guided_on_invalid_instruction(self) -> bool:
+        """Get the setting that determines if guided mode should be triggered on invalid instructions."""
+
+        return self._trigger_guided_on_invalid_instruction
 
     @property
     def translate_tail_calls(self) -> bool:

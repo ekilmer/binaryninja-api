@@ -1780,6 +1780,12 @@ void Function::RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresse
 }
 
 
+bool Function::IsGuidedSourceBlock(Architecture* arch, uint64_t addr) const
+{
+	return BNIsGuidedSourceBlock(m_object, arch->GetObject(), addr);
+}
+
+
 std::vector<ArchAndAddr> Function::GetGuidedSourceBlocks()
 {
 	size_t count;

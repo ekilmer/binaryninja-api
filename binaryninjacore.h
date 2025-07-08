@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 120
+#define BN_CURRENT_CORE_ABI_VERSION 121
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 117
+#define BN_MINIMUM_CORE_ABI_VERSION 121
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -1872,9 +1872,10 @@ extern "C"
 
 		// IN
 		BNFunctionAnalysisSkipOverride analysisSkipOverride;
+		bool guidedAnalysisMode;
+		bool triggerGuidedOnInvalidInstruction;
 		bool translateTailCalls;
 		bool disallowBranchToString;
-		bool haltOnInvalidInstructions;
 		uint64_t maxFunctionSize;
 
 		size_t indirectBranchesCount;
@@ -5154,6 +5155,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNSetGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
 	BINARYNINJACOREAPI void BNAddGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
 	BINARYNINJACOREAPI void BNRemoveGuidedSourceBlocks(BNFunction* func, BNArchitectureAndAddress* addresses, size_t count);
+	BINARYNINJACOREAPI bool BNIsGuidedSourceBlock(BNFunction* func, BNArchitecture* arch, uint64_t addr);
 	BINARYNINJACOREAPI BNArchitectureAndAddress* BNGetGuidedSourceBlocks(BNFunction* func, size_t* count);
 	BINARYNINJACOREAPI void BNFreeArchitectureAndAddressList(BNArchitectureAndAddress* addresses);
 
