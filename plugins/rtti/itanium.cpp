@@ -731,7 +731,7 @@ ItaniumRTTIProcessor::ItaniumRTTIProcessor(const Ref<BinaryView> &view, bool use
 
 void ItaniumRTTIProcessor::ProcessRTTI()
 {
-    auto bgTask = new BackgroundTask("Scanning for Itanium RTTI...", true);
+    Ref<BackgroundTask> bgTask = new BackgroundTask("Scanning for Itanium RTTI...", true);
     auto start_time = std::chrono::high_resolution_clock::now();
     auto addrSize = m_view->GetAddressSize();
     uint64_t maxTypeInfoSize = TypeInfoSize(m_view);
@@ -820,7 +820,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
 
 void ItaniumRTTIProcessor::ProcessVFT()
 {
-    auto bgTask = new BackgroundTask("Scanning for Itanium VFTs...", true);
+    Ref<BackgroundTask> bgTask = new BackgroundTask("Scanning for Itanium VFTs...", true);
     BinaryReader optReader = BinaryReader(m_view);
     std::map<uint64_t, std::set<uint64_t>> vftMap = {};
     std::map<uint64_t, std::optional<VirtualFunctionTableInfo>> vftFinishedMap = {};
