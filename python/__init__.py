@@ -151,7 +151,6 @@ class CoreVersionInfo:
 			self.build = core_version_info.build
 			if core_version_info.channel is not None:
 				self.channel = core_version_info.channel
-			core.BNFreeString(core_version_info.channel)
 		else:
 			self.major = major
 			if minor is not None:
