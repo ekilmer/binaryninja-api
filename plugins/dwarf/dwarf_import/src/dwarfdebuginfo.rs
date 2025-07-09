@@ -411,16 +411,23 @@ impl DebugInfoBuilder {
             .and_then(|block_ranges| {
                 block_ranges
                     .unsorted_iter()
-                    .find_map(|x| self.range_data_offsets.values_overlap(x.start).next())
+                    .find_map(|x| self.range_data_offsets.values_overlap(x.start).next().cloned())
             })
             .or_else(|| {
-                // Try using the offset at the adjustment 4 bytes after the function start, in case the function starts with a stack adjustment
+                // Try using the offset at the adjustment 5 bytes after the function start, in case the function starts with a stack adjustment
+                // Calculate final offset as (offset after initial stack adjustment) - (entry offset)
                 // TODO: This is a decent heuristic but not perfect, since further adjustments could still be made
-                self.range_data_offsets.values_overlap(func_addr + 4).next()
+                if let Some(offset_after_stack_adjust) = self.range_data_offsets.values_overlap(func_addr + 5).next() {
+                    if let Some(entry_offset) = self.range_data_offsets.values_overlap(func_addr).next() {
+                        return Some(offset_after_stack_adjust - entry_offset);
+                    }
+                }
+                // No entry offset or no initial stack adjustment, fall through
+                None
             })
             .or_else(|| {
                 // If all else fails, use the function start address
-                self.range_data_offsets.values_overlap(func_addr).next()
+                self.range_data_offsets.values_overlap(func_addr).next().cloned()
             })
         else {
             // Unknown why, but this is happening with MachO + external dSYM
@@ -428,10 +435,10 @@ impl DebugInfoBuilder {
             return;
         };
 
-        // TODO: handle non-sp frame bases
+        // TODO: handle non-sp-based locations
         // TODO: if not in a lexical block these can be wrong, see https://github.com/Vector35/binaryninja-api/issues/5882#issuecomment-2406065057
         let adjusted_offset = if function.use_cfa {
-            // Apply CFA offset to variable storage offset if DW_AT_frame_base is frame base is CFA
+            // Apply CFA offset to variable storage offset if DW_AT_frame_base is DW_OP_call_frame_cfa
             offset + adjustment_at_variable_lifetime_start
         } else {
             // If it's using SP, we know the SP offset is <SP offset> + (<entry SP CFA offset> - <SP CFA offset>)
