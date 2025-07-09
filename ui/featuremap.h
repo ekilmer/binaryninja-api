@@ -68,9 +68,14 @@ class BINARYNINJAUIAPI FeatureMap : public QWidget
 	void updateCoordinates();
 	void updateMappedRegions();
 
+	void connectDataStore();
+	void disconnectDataStore();
+
   public:
 	FeatureMap(SplitPaneWidget* owner, BinaryViewRef data, bool vertical = true);
 	virtual ~FeatureMap();
+
+	void enableBackgroundProcessing(bool enable);
 
 	void backgroundRefresh();
 	std::pair<uint64_t, bool> getLinearOffsetForAddress(uint64_t addr);
@@ -93,6 +98,8 @@ protected:
 	virtual void mousePressEvent(QMouseEvent* event) override;
 	virtual void resizeEvent(QResizeEvent* event) override;
 	virtual void paintEvent(QPaintEvent* event) override;
+	virtual void showEvent(QShowEvent* event) override;
+	virtual void hideEvent(QHideEvent* event) override;
 	void scrollTo(int x, int y, bool addHistoryEntry = false);
 
   private Q_SLOTS:
