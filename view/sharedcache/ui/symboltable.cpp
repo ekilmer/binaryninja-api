@@ -11,8 +11,9 @@ using namespace BinaryNinja;
 using namespace SharedCacheAPI;
 
 
-SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
-	: QAbstractTableModel(parent), m_parent(parent) {
+SymbolTableModel::SymbolTableModel(SymbolTableView* parent) :
+	QAbstractTableModel(parent), m_parent(parent), m_displaySymbols(&m_symbols)
+{
 	// TODO: Need to implement updating this font if it is changed by the user
 	m_font = getMonospaceFont(parent);
 }
@@ -20,7 +21,7 @@ SymbolTableModel::SymbolTableModel(SymbolTableView* parent)
 
 int SymbolTableModel::rowCount(const QModelIndex& parent) const {
 	Q_UNUSED(parent);
-	return static_cast<int>(m_modelSymbols.size());
+	return static_cast<int>(m_displaySymbols->size());
 }
 
 
@@ -111,30 +112,28 @@ void SymbolTableModel::sort(int column, Qt::SortOrder order)
 
 	if (order == Qt::DescendingOrder)
 	{
-		std::sort(m_modelSymbols.begin(), m_modelSymbols.end(),
-				  [&comparator](const CacheSymbol& a, const CacheSymbol& b) {
-					  return comparator(b, a);
-				  });
+		std::sort(m_displaySymbols->begin(), m_displaySymbols->end(),
+			[&comparator](const CacheSymbol& a, const CacheSymbol& b) { return comparator(b, a); });
 	}
 	else
 	{
-		std::sort(m_modelSymbols.begin(), m_modelSymbols.end(), comparator);
+		std::sort(m_displaySymbols->begin(), m_displaySymbols->end(), comparator);
 	}
 
 	endResetModel();
 }
 
 
-void SymbolTableModel::updateSymbols(std::vector<CacheSymbol>&& symbols)
+void SymbolTableModel::updateSymbols(std::vector<CacheSymbol> symbols)
 {
-	m_preparedSymbols = symbols;
+	m_symbols = std::move(symbols);
 	setFilter(m_filter);
 }
 
 
 const CacheSymbol& SymbolTableModel::symbolAt(int row) const
 {
-	return m_modelSymbols.at(row);
+	return m_displaySymbols->at(row);
 }
 
 
@@ -142,30 +141,40 @@ void SymbolTableModel::setFilter(std::string text)
 {
 	beginResetModel();
 
-	m_filter = text;
-	m_modelSymbols = {};
+	m_filter = std::move(text);
 
 	// Skip filtering if no filter applied.
-	if (!m_filter.empty())
+	if (m_filter.empty())
 	{
-		m_modelSymbols.reserve(m_preparedSymbols.size());
-		for (const auto& symbol : m_preparedSymbols)
-			if (((std::string_view)symbol.name).find(m_filter) != std::string::npos)
-				m_modelSymbols.push_back(symbol);
-		m_modelSymbols.shrink_to_fit();
+		m_filteredSymbols = {};
+		m_displaySymbols = &m_symbols;
 	}
 	else
 	{
-		m_modelSymbols = m_preparedSymbols;
+		// Clear the filtered symbols while preserving the capacity
+		m_filteredSymbols.clear();
+
+		for (const auto& symbol : m_symbols)
+		{
+			if (symbol.name.find(m_filter) != std::string::npos)
+				m_filteredSymbols.push_back(symbol);
+		}
+
+		// If the filtered vector is using less than 25% of its capacity,
+		// shrink it to reduce memory usage.
+		if (m_filteredSymbols.size() < m_filteredSymbols.capacity() / 4)
+			m_filteredSymbols.shrink_to_fit();
+
+		m_displaySymbols = &m_filteredSymbols;
 	}
 
 	endResetModel();
 }
 
 
-SymbolTableView::SymbolTableView(QWidget* parent)
-	: QTableView(parent), m_model(new SymbolTableModel(this)) {
-
+SymbolTableView::SymbolTableView(QWidget* parent) :
+	QTableView(parent), m_model(new SymbolTableModel(this))
+{
 	// Set up the filter model
 	setModel(m_model);
 
@@ -181,9 +190,7 @@ SymbolTableView::SymbolTableView(QWidget* parent)
 	setSortingEnabled(true);
 }
 
-SymbolTableView::~SymbolTableView() {
-	delete m_model;
-}
+SymbolTableView::~SymbolTableView() = default;
 
 void SymbolTableView::populateSymbols(BinaryView &view)
 {
