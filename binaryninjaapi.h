@@ -4554,6 +4554,13 @@ namespace BinaryNinja {
 		BNRegisterValue ToAPIObject();
 	};
 
+	struct AllTypeReferences
+	{
+		std::vector<ReferenceSource> codeRefs;
+		std::vector<uint64_t> dataRefs;
+		std::vector<TypeReferenceSource> typeRefs;
+	};
+
 	struct AllTypeFieldReferences
 	{
 		std::vector<TypeFieldReference> codeRefs;
@@ -5653,6 +5660,13 @@ namespace BinaryNinja {
 			\return vector of TypeReferenceSources
 		*/
 		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+
+		/*! Returns a all references to a specific type. This includes code, data, and type references.
+
+		    \param type QualifiedName of the type
+		    \return AllTypeReferences structure with all references
+		*/
+		AllTypeReferences GetAllReferencesForType(const QualifiedName& type);
 
 		/*! Returns a all references to a specific type field. This includes code, data, and type references.
 

@@ -3732,6 +3732,16 @@ extern "C"
 		bool higherToLowerDirect;
 	} BNExprMapInfo;
 
+	typedef struct BNAllTypeReferences
+	{
+		BNReferenceSource* codeRefs;
+		size_t codeRefCount;
+		uint64_t* dataRefs;
+		size_t dataRefCount;
+		BNTypeReferenceSource* typeRefs;
+		size_t typeRefCount;
+	} BNAllTypeReferences;
+
 	typedef struct BNAllTypeFieldReferences
 	{
 		BNTypeFieldReference* codeRefs;
@@ -5055,6 +5065,8 @@ extern "C"
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetTypeReferencesForTypeField(
 	    BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
 
+	BINARYNINJACOREAPI BNAllTypeReferences BNGetAllReferencesForType(BNBinaryView* view, BNQualifiedName* type);
+	BINARYNINJACOREAPI void BNFreeAllTypeReferences(BNAllTypeReferences* refs);
 	BINARYNINJACOREAPI BNAllTypeFieldReferences BNGetAllReferencesForTypeField(
 		BNBinaryView* view, BNQualifiedName* type, uint64_t offset);
 	BINARYNINJACOREAPI void BNFreeAllTypeFieldReferences(BNAllTypeFieldReferences* refs);

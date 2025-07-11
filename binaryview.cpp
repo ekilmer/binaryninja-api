@@ -2685,6 +2685,41 @@ vector<TypeReferenceSource> BinaryView::GetTypeReferencesForTypeField(const Qual
 }
 
 
+AllTypeReferences BinaryView::GetAllReferencesForType(const QualifiedName& type)
+{
+	BNQualifiedName nameObj = type.GetAPIObject();
+	BNAllTypeReferences refs = BNGetAllReferencesForType(m_object, &nameObj);
+	QualifiedName::FreeAPIObject(&nameObj);
+
+	AllTypeReferences result;
+
+	result.codeRefs.reserve(refs.codeRefCount);
+	for (size_t i = 0; i < refs.codeRefCount; i++)
+	{
+		ReferenceSource src;
+		src.func = new Function(BNNewFunctionReference(refs.codeRefs[i].func));
+		src.arch = new CoreArchitecture(refs.codeRefs[i].arch);
+		src.addr = refs.codeRefs[i].addr;
+		result.codeRefs.push_back(src);
+	}
+
+	result.dataRefs = vector<uint64_t>(refs.dataRefs, &refs.dataRefs[refs.dataRefCount]);
+
+	result.typeRefs.reserve(refs.typeRefCount);
+	for (size_t i = 0; i < refs.typeRefCount; i++)
+	{
+		TypeReferenceSource src;
+		src.name = QualifiedName::FromAPIObject(&refs.typeRefs[i].name);
+		src.offset = refs.typeRefs[i].offset;
+		src.type = refs.typeRefs[i].type;
+		result.typeRefs.push_back(src);
+	}
+
+	BNFreeAllTypeReferences(&refs);
+	return result;
+}
+
+
 AllTypeFieldReferences BinaryView::GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset)
 {
 	BNQualifiedName nameObj = type.GetAPIObject();
