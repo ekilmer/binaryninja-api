@@ -86,7 +86,7 @@ bool Workflow::rewriteMethodCall(LLILFunctionRef ssa, size_t insnIndex)
     const auto bv = function->GetView();
     const auto llil = ssa->GetNonSSAForm();
     const auto insn = ssa->GetInstruction(insnIndex);
-    const auto params = insn.GetParameterExprs<LLIL_CALL_SSA>();
+    const auto params = insn.GetParameterExprs();
 
     // The second parameter passed to the objc_msgSend call is the address of
     // either the selector reference or the method's name, which in both cases
@@ -254,12 +254,13 @@ void Workflow::inlineMethodCalls(AnalysisContextRef ac)
     const auto rewriteIfEligible = [bv, messageHandler, ssa](size_t insnIndex) {
         auto insn = ssa->GetInstruction(insnIndex);
 
-        if (insn.operation == LLIL_CALL_SSA)
+        if (insn.operation == LLIL_CALL_SSA || insn.operation == LLIL_TAILCALL_SSA)
         {
             // Filter out calls that aren't to `objc_msgSend`.
-            auto callExpr = insn.GetDestExpr<LLIL_CALL_SSA>();
-            bool isMessageSend = messageHandler->isMessageSend(callExpr.GetValue().value);
-            if (auto symbol = bv->GetSymbolByAddress(callExpr.GetValue().value))
+            auto callExpr = insn.GetDestExpr();
+            auto callTarget = callExpr.GetValue().value;
+            bool isMessageSend = messageHandler->isMessageSend(callTarget);
+            if (auto symbol = bv->GetSymbolByAddress(callTarget))
                 isMessageSend = isMessageSend || symbol->GetRawName() == "_objc_msgSend";
             if (!isMessageSend)
                 return false;
@@ -294,7 +295,7 @@ void Workflow::registerActivities()
     const auto wf = BinaryNinja::Workflow::Instance("core.function.baseAnalysis")->Clone("core.function.objectiveC");
     wf->RegisterActivity(new BinaryNinja::Activity(
         ActivityID::ResolveMethodCalls, &Workflow::inlineMethodCalls));
-    wf->Insert("core.function.translateTailCalls", ActivityID::ResolveMethodCalls);
+    wf->InsertAfter("core.function.translateTailCalls", ActivityID::ResolveMethodCalls);
 
     BinaryNinja::Workflow::RegisterWorkflow(wf, WorkflowInfo);
 }
