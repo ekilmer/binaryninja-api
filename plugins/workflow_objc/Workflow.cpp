@@ -225,7 +225,7 @@ void Workflow::inlineMethodCalls(AnalysisContextRef ac)
 
     if (auto info = GlobalState::analysisInfo(bv))
     {
-        if (info->hasObjcStubs && func->GetStart() > info->objcStubsStartEnd.first && func->GetStart() < info->objcStubsStartEnd.second)
+        if (info->hasObjcStubs && func->GetStart() >= info->objcStubsStartEnd.first && func->GetStart() < info->objcStubsStartEnd.second)
         {
             func->SetAutoInlinedDuringAnalysis({true, BN_FULL_CONFIDENCE});
             // Do no further cleanup, this is a stub and it will be cleaned up after inlining
