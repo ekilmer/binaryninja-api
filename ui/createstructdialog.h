@@ -51,7 +51,6 @@ class BINARYNINJAUIAPI BaseStructuresTableWidget : public QTableWidget
 
 public:
 	BaseStructuresTableWidget();
-	virtual QSize sizeHint() const override;
 
 protected:
 	virtual void contextMenuEvent(QContextMenuEvent* event) override;
