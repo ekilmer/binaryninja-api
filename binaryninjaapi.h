@@ -7202,6 +7202,11 @@ namespace BinaryNinja {
 			return BNAddRemoteMemoryRegion(m_object, name.c_str(), start, source->GetCallbacks(), flags);
 		}
 
+		bool AddUnbackedMemoryRegion(const std::string& name, uint64_t start, uint64_t length, uint32_t flags = 0, uint8_t fill = 0)
+		{
+			return BNAddUnbackedMemoryRegion(m_object, name.c_str(), start, length, flags, fill);
+		}
+
 		bool RemoveMemoryRegion(const std::string& name)
 		{
 			return BNRemoveMemoryRegion(m_object, name.c_str());
@@ -7253,6 +7258,11 @@ namespace BinaryNinja {
 		bool SetMemoryRegionFill(const std::string& name, uint8_t fill)
 		{
 			return BNSetMemoryRegionFill(m_object, name.c_str(), fill);
+		}
+
+		bool IsMemoryRegionLocal(const std::string& name)
+		{
+			return BNIsMemoryRegionLocal(m_object, name.c_str());
 		}
 
 		void Reset()

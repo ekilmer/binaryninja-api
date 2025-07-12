@@ -2410,35 +2410,45 @@ class MemoryMap:
 		"""Whether the memory map is activated for the associated view."""
 		return core.BNIsMemoryMapActivated(self.handle)
 
-	def add_memory_region(self, name: str, start: int, source: Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor'], flags: SegmentFlag = 0) -> bool:
+	def add_memory_region(self, name: str, start: int, source: Optional[Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor']] = None, flags: SegmentFlag = 0, fill: int = 0, length: Optional[int] = None) -> bool:
 		"""
 		Adds a memory region to the memory map. Depending on the source parameter, the memory region is created as one of the following types:
 
-		- **BinaryMemoryRegion** (***Unimplemented***): Represents a memory region loaded from a binary format, providing persistence across sessions.
-		- **DataMemoryRegion**: Represents a memory region loaded from flat files or raw bytes, providing persistence across sessions.
-		- **RemoteMemoryRegion**: Represents a memory region managed via a proxy callback interface. This region is ephemeral and not persisted across sessions.
+		- **BinaryMemoryRegion** (***Unimplemented***): Represents a memory region loaded from a binary format.
+		- **DataMemoryRegion**: Region backed by flat file or raw data (str, bytes, DataBuffer).
+		- **RemoteMemoryRegion**: Ephemeral memory region via FileAccessor.
+		- **UnbackedMemoryRegion**: Region not backed by any data source (requires `length` to be set).
 
-		The type of memory region created is determined by the `source` parameter:
-		- `os.PathLike` or `str`: Treated as a file path to be loaded into memory as a `DataMemoryRegion`.
+		The `source` parameter determines the type:
+		- `os.PathLike` or `str`: File path to be loaded into memory as a `DataMemoryRegion`.
 		- `bytes` or `bytearray`: Directly loaded into memory as a `DataMemoryRegion`.
 		- `databuffer.DataBuffer`: Loaded as a `DataMemoryRegion`.
-		- `fileaccessor.FileAccessor`: Creates a `RemoteMemoryRegion` that fetches data via a remote source.
-		- `BinaryView`: (Not yet implemented) Intended for future exploration.
+		- `fileaccessor.FileAccessor`: Remote proxy source.
+		- `BinaryView`: (Reserved for future).
+		- `None`: Creates an unbacked memory region (must specify `length`).
 
 		.. note:: If no flags are specified and the new memory region overlaps with one or more existing regions, the overlapping portions of the new region will inherit the flags of the respective underlying regions.
 
 		Parameters:
 			name (str): A unique name for the memory region.
-			start (int): The starting address in memory for the region.
-			source (Union[os.PathLike, str, bytes, bytearray, BinaryView, databuffer.DataBuffer, fileaccessor.FileAccessor]): The source from which the memory is loaded.
-			flags (SegmentFlag, optional): Flags to apply to the memory region. Defaults to 0 (no flags).
+			start (int): Starting address.
+			source (Optional[Union[os.PathLike, str, bytes, bytearray, BinaryView, databuffer.DataBuffer, fileaccessor.FileAccessor]]): Source of data or `None` for unbacked.
+			length (Optional[int]): Required if source is None (unbacked).
+			flags (SegmentFlag): Flags to apply to the memory region. Defaults to 0 (no flags).
+			fill (int): Fill byte for unbacked regions. Defaults to 0.
 
 		Returns:
 			bool: `True` if the memory region was successfully added, `False` otherwise.
 
 		Raises:
-			NotImplementedError: If the specified `source` type is unsupported.
+			NotImplementedError: If source type is unsupported.
+			ValueError: If source is None and length is not specified.
 		"""
+		if source is None:
+			if length is None:
+				raise ValueError("Must specify `length` when `source` is None for unbacked memory region")
+			return core.BNAddUnbackedMemoryRegion(self.handle, name, start, length, flags, fill)
+
 		if isinstance(source, os.PathLike):
 			source = str(source)
 		if isinstance(source, bytes) or isinstance(source, bytearray):
@@ -2457,7 +2467,7 @@ class MemoryMap:
 		elif isinstance(source, fileaccessor.FileAccessor):
 			return core.BNAddRemoteMemoryRegion(self.handle, name, start, source._cb, flags)
 		else:
-			raise NotImplementedError
+			raise NotImplementedError(f"Unsupported memory region source type: {type(source)}")
 
 	def remove_memory_region(self, name: str) -> bool:
 		return core.BNRemoveMemoryRegion(self.handle, name)
@@ -2489,6 +2499,9 @@ class MemoryMap:
 
 	def set_memory_region_fill(self, name: str, fill: int) -> bool:
 		return core.BNSetMemoryRegionFill(self.handle, name, fill)
+
+	def is_memory_region_local(self, name: str) -> bool:
+		return core.BNIsMemoryRegionLocal(self.handle, name)
 
 	def reset(self):
 		core.BNResetMemoryMap(self.handle)
