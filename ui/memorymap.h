@@ -46,8 +46,23 @@ class BINARYNINJAUIAPI MemoryRegionDialog : public QDialog
 	QPushButton* m_cancelButton;
 	QLineEdit* m_nameField;
 	QLineEdit* m_startField;
-	QLineEdit* m_endField;
-	QLabel* m_contentsLabel;
+	QLineEdit* m_lengthField;
+	QLineEdit* m_sourceOffsetField;
+	QLineEdit* m_sourceLengthField;
+	QLineEdit* m_patternField;
+	QLineEdit* m_fillByteField;
+	QCheckBox* m_flagRead;
+	QCheckBox* m_flagWrite;
+	QCheckBox* m_flagExec;
+	QComboBox* m_sourceSelection;
+	QLabel* m_fileContentsLabel;
+	QLabel* m_lengthLabel;
+	QLabel* m_sourceOffsetLabel;
+	QLabel* m_sourceLengthLabel;
+	QLabel* m_fileLabel;
+	QLabel* m_fileLabelText;
+	QLabel* m_patternLabel;
+	QLabel* m_fillByteLabel;
 
 	BinaryViewRef m_data;
 	SegmentRef m_segment;
@@ -115,8 +130,8 @@ enum class SegmentColumn : int {
 	DATA_OFFSET,
 	DATA_LENGTH,
 	FLAGS,
-	SOURCE,
 	REGION,
+	SOURCE,
 	COLUMN_COUNT,
 };
 
