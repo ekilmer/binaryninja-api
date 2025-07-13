@@ -5038,9 +5038,8 @@ bool BinaryView::GetAddressForDataOffset(uint64_t offset, uint64_t& addr)
 bool BinaryView::GetDataOffsetForAddress(uint64_t addr, uint64_t& offset)
 {
 	auto segment = GetSegmentAt(addr);
-	if (segment && segment->GetStart() <= addr && addr < segment->GetEnd())
+	if (segment && segment->GetDataLength() && (segment->GetStart() <= addr) && (addr < segment->GetEnd()))
 	{
-		offset = 0;
 		offset = addr - segment->GetStart() + segment->GetDataOffset();
 		return true;
 	}
