@@ -37,6 +37,7 @@ class BINARYNINJAUIAPI FeatureMap : public QWidget
 {
 	Q_OBJECT
 
+	mutable std::mutex m_imageMutex;
 	std::vector<uint8_t> m_imageData;
 	std::unique_ptr<QImage> m_image = nullptr;
 	std::unique_ptr<QImage> m_staticImage = nullptr;
