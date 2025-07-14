@@ -184,12 +184,27 @@ bool Workflow::rewriteMethodCall(LLILFunctionRef ssa, size_t insnIndex)
     const auto llilIndex = ssa->GetNonSSAInstructionIndex(insnIndex);
     auto llilInsn = llil->GetInstruction(llilIndex);
 
-    // Change the destination expression of the LLIL_CALL operation to point to
+    // Change the destination expression of the call operation to point to
     // the method implementation. This turns the "indirect call" piped through
     // `objc_msgSend` and makes it a normal C-style function call.
-    auto callDestExpr = llilInsn.GetDestExpr<LLIL_CALL>();
-    callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
-    llilInsn.Replace(llil->Call(callDestExpr.exprIndex, llilInsn));
+    switch (llilInsn.operation) {
+        case LLIL_CALL: {
+            auto callDestExpr = llilInsn.GetDestExpr<LLIL_CALL>();
+            callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
+            llilInsn.Replace(llil->Call(callDestExpr.exprIndex, llilInsn));
+            break;
+        }
+        case LLIL_TAILCALL: {
+            auto callDestExpr = llilInsn.GetDestExpr<LLIL_TAILCALL>();
+            callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
+            llilInsn.Replace(llil->TailCall(callDestExpr.exprIndex, llilInsn));
+            break;
+        }
+        default:
+            const auto log = BinaryNinja::LogRegistry::GetLogger(PluginLoggerName);
+            log->LogDebugF("Unexpected LLIL operation {} for objc_msgSend call at {:#0x}", llilInsn.operation, llilInsn.address);
+            return false;
+    }
 
     return true;
 }
