@@ -152,7 +152,7 @@ def rewrite_action(context: AnalysisContext, do_it: bool):
             new_mlil.set_current_address(old_mlil[InstructionIndex(block.start)].address, block.arch)
 
             for instr_index in range(block.start, block.end):
-                instr: MediumLevelILInstruction = old_mlil[InstructionIndex(instr_index)]
+                old_instr: MediumLevelILInstruction = old_mlil[InstructionIndex(instr_index)]
 
                 # Copy continuation blocks to end of block calling dispatcher
                 if block in to_copy:
@@ -172,12 +172,12 @@ def rewrite_action(context: AnalysisContext, do_it: bool):
                                 # Copy instructions as-is
                                 copy_block_instr: MediumLevelILInstruction = old_mlil[InstructionIndex(copy_block_instr_index)]
                                 new_mlil.set_current_address(copy_block_instr.address, copy_block.arch)
-                                new_mlil.append(copy_block_instr.copy_to(new_mlil))
+                                new_mlil.append(copy_block_instr.copy_to(new_mlil), ILSourceLocation.from_instruction(copy_block_instr))
                         continue
 
                 # Otherwise, copy the instruction as-is
-                new_mlil.set_current_address(instr.address, block.arch)
-                new_mlil.append(instr.copy_to(new_mlil))
+                new_mlil.set_current_address(old_instr.address, block.arch)
+                new_mlil.append(old_instr.copy_to(new_mlil), ILSourceLocation.from_instruction(old_instr))
 
         # Generate blocks and SSA (for dataflow) for the next part
         new_mlil.finalize()
@@ -217,25 +217,25 @@ def rewrite_action(context: AnalysisContext, do_it: bool):
             new_mlil.mark_label(label)
 
             for instr_index in range(old_block.start, old_block.end):
-                instr: MediumLevelILInstruction = old_mlil[InstructionIndex(instr_index)]
+                old_instr: MediumLevelILInstruction = old_mlil[InstructionIndex(instr_index)]
                 # If we find a MLIL_JUMP_TO with a known constant dest, then rewrite it
                 # to a MLIL_GOTO with the known dest filled in
-                if instr.operation == MediumLevelILOperation.MLIL_JUMP_TO:
-                    if instr.dest.value.type == RegisterValueType.ConstantPointerValue:
-                        dest_value = instr.dest.value.value
-                        if dest_value in instr.targets:
-                            old_target_index = instr.targets[dest_value]
+                if old_instr.operation == MediumLevelILOperation.MLIL_JUMP_TO:
+                    if old_instr.dest.value.type == RegisterValueType.ConstantPointerValue:
+                        dest_value = old_instr.dest.value.value
+                        if dest_value in old_instr.targets:
+                            old_target_index = old_instr.targets[dest_value]
                             if old_target_index in block_labels:
                                 target_label = block_labels[old_target_index]
                             else:
                                 target_label = MediumLevelILLabel()
                                 block_labels[old_target_index] = target_label
-                            new_mlil.append(new_mlil.goto(target_label, ILSourceLocation.from_instruction(instr)))
+                            new_mlil.append(new_mlil.goto(target_label, ILSourceLocation.from_instruction(old_instr)), ILSourceLocation.from_instruction(old_instr))
                             continue
 
                 # Otherwise, copy the instruction as-is
-                new_mlil.set_current_address(instr.address, old_block.arch)
-                new_mlil.append(instr.copy_to(new_mlil))
+                new_mlil.set_current_address(old_instr.address, old_block.arch)
+                new_mlil.append(old_instr.copy_to(new_mlil), ILSourceLocation.from_instruction(old_instr))
 
         new_mlil.finalize()
         new_mlil.generate_ssa_form()
