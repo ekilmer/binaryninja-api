@@ -5520,9 +5520,27 @@ namespace BinaryNinja {
 		*/
 		std::vector<ReferenceSource> GetCodeReferences(uint64_t addr, uint64_t len);
 
+		/*! Get a list of references made from code (instructions) to a virtual address
+
+		    \param addr Address to check
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of ReferenceSources referencing the virtual address
+		*/
+		std::vector<ReferenceSource> GetCodeReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems = std::nullopt);
+
+		/*! Get a list of references from code (instructions) to a range of addresses
+
+		    \param addr Address to check
+		    \param len Length of query
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of ReferenceSources referencing the virtual address range
+		*/
+		std::vector<ReferenceSource> GetCodeReferencesInRangeWithLimit(
+			uint64_t addr, uint64_t len, std::optional<size_t> maxItems = std::nullopt);
+
 		/*! Get code references made by a particular "ReferenceSource"
 
-			A ReferenceSource contains a given function, architecture of that function, and an address within it.
+		    A ReferenceSource contains a given function, architecture of that function, and an address within it.
 
 		    \param src reference source
 		    \return List of virtual addresses referenced by this source
@@ -5555,6 +5573,24 @@ namespace BinaryNinja {
 		    \return vector of virtual addresses referencing the virtual address range
 		*/
 		std::vector<uint64_t> GetDataReferences(uint64_t addr, uint64_t len);
+
+		/*! Get references made by data ('DataVariables') to a virtual address
+
+		    \param addr Address to check
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of virtual addresses referencing the virtual address
+		*/
+		std::vector<uint64_t> GetDataReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems = std::nullopt);
+
+		/*! Get references made by data ('DataVariables') in a given range, to a virtual address
+
+		    \param addr Address to check
+		    \param len Length of query
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of virtual addresses referencing the virtual address range
+		*/
+		std::vector<uint64_t> GetDataReferencesInRangeWithLimit(
+			uint64_t addr, uint64_t len, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get references made by data ('DataVariables') located at a virtual address.
 
@@ -5605,43 +5641,53 @@ namespace BinaryNinja {
 		/*! Get code references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of ReferenceSources
 		*/
-		std::vector<ReferenceSource> GetCodeReferencesForType(const QualifiedName& type);
+		std::vector<ReferenceSource> GetCodeReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get data references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of virtual addresses referencing this Type
 		*/
-		std::vector<uint64_t> GetDataReferencesForType(const QualifiedName& type);
+		std::vector<uint64_t> GetDataReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get Type references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of TypeReferenceSources to this Type
 		*/
-		std::vector<TypeReferenceSource> GetTypeReferencesForType(const QualifiedName& type);
+		std::vector<TypeReferenceSource> GetTypeReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of references to a specific type field
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return vector of TypeFieldReferences
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of TypeFieldReferences
 		*/
-		std::vector<TypeFieldReference> GetCodeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<TypeFieldReference> GetCodeReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of virtual addresses of data which references the type \c type .
 
-			Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
-			DataVariable at \c 0x1000 that has type \c A , and type \c A contains type \c B at offset \c 0x10 .
-			Then <tt>GetDataReferencesForTypeField(bQualifiedName, 0x8)</tt> will return \c 0x1018 for it.
+		    Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
+		    DataVariable at \c 0x1000 that has type \c A , and type \c A contains type \c B at offset \c 0x10 .
+		    Then <tt>GetDataReferencesForTypeField(bQualifiedName, 0x8)</tt> will return \c 0x1018 for it.
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return List of DataVariable start addresses containing references to the type field
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return List of DataVariable start addresses containing references to the type field
 		*/
-		std::vector<uint64_t> GetDataReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<uint64_t> GetDataReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of virtual addresses of data which are referenced from the type \c type .
 
@@ -5649,32 +5695,40 @@ namespace BinaryNinja {
 
 		    \param type QualifiedName of the type
 		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return List of addresses referenced from the type field
 		*/
-		std::vector<uint64_t> GetDataReferencesFromForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<uint64_t> GetDataReferencesFromForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of type references to a specific type field
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return vector of TypeReferenceSources
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of TypeReferenceSources
 		*/
-		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a all references to a specific type. This includes code, data, and type references.
 
 		    \param type QualifiedName of the type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return AllTypeReferences structure with all references
 		*/
-		AllTypeReferences GetAllReferencesForType(const QualifiedName& type);
+		AllTypeReferences GetAllReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a all references to a specific type field. This includes code, data, and type references.
 
 		    \param type QualifiedName of the type
 		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return AllTypeFieldReferences structure with all references
 		*/
-		AllTypeFieldReferences GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		AllTypeFieldReferences GetAllReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of types referenced by code at ReferenceSource \c src
 

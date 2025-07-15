@@ -5333,7 +5333,7 @@ class BinaryView:
 			return None
 		return basicblock.BasicBlock(block, self)
 
-	def get_code_refs(self, addr: int, length: Optional[int] = None) -> Generator['ReferenceSource', None, None]:
+	def get_code_refs(self, addr: int, length: Optional[int] = None, max_items: Optional[int] = None) -> Generator['ReferenceSource', None, None]:
 		"""
 		``get_code_refs`` returns a generator of :py:class:`~binaryninja.binaryview.ReferenceSource` objects (xrefs or cross-references) that point to the provided virtual address.
 		This function returns both autoanalysis ("auto") and user-specified ("user") xrefs.
@@ -5347,6 +5347,7 @@ class BinaryView:
 
 		:param int addr: virtual address to query for references
 		:param int length: optional length of query
+		:param int max_items: optional maximum number of references to fetch
 		:return: A generator of References for the given virtual address
 		:rtype: Generator[ReferenceSource, None, None]
 		:Example:
@@ -5357,11 +5358,13 @@ class BinaryView:
 
 		"""
 		count = ctypes.c_ulonglong(0)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
 		if length is None:
-			refs = core.BNGetCodeReferences(self.handle, addr, count)
+			refs = core.BNGetCodeReferences(self.handle, addr, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetCodeReferences returned None"
 		else:
-			refs = core.BNGetCodeReferencesInRange(self.handle, addr, length, count)
+			refs = core.BNGetCodeReferencesInRange(self.handle, addr, length, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetCodeReferencesInRange returned None"
 
 		try:
@@ -5409,7 +5412,7 @@ class BinaryView:
 			core.BNFreeAddressList(refs)
 		return result
 
-	def get_data_refs(self, addr: int, length: Optional[int] = None) -> Generator[int, None, None]:
+	def get_data_refs(self, addr: int, length: Optional[int] = None, max_items: Optional[int] = None) -> Generator[int, None, None]:
 		"""
 		``get_data_refs`` returns a list of virtual addresses of _data_ (not code) which references ``addr``, optionally specifying
 		a length. When ``length`` is set ``get_data_refs`` returns the data which references in the range ``addr``-``addr``+``length``.
@@ -5432,11 +5435,13 @@ class BinaryView:
 			>>>
 		"""
 		count = ctypes.c_ulonglong(0)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
 		if length is None:
-			refs = core.BNGetDataReferences(self.handle, addr, count)
+			refs = core.BNGetDataReferences(self.handle, addr, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetDataReferences returned None"
 		else:
-			refs = core.BNGetDataReferencesInRange(self.handle, addr, length, count)
+			refs = core.BNGetDataReferencesInRange(self.handle, addr, length, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetDataReferencesInRange returned None"
 
 		try:
@@ -5477,11 +5482,12 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_code_refs_for_type(self, name: str) -> Generator[ReferenceSource, None, None]:
+	def get_code_refs_for_type(self, name: str, max_items: Optional[int] = None) -> Generator[ReferenceSource, None, None]:
 		"""
 		``get_code_refs_for_type`` returns a Generator[ReferenceSource] objects (xrefs or cross-references) that reference the provided QualifiedName.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of References for the given type
 		:rtype: list(ReferenceSource)
 		:Example:
@@ -5493,7 +5499,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetCodeReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetCodeReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetCodeReferencesForType returned None"
 
 		try:
@@ -5502,13 +5510,13 @@ class BinaryView:
 		finally:
 			core.BNFreeCodeReferences(refs, count.value)
 
-	def get_code_refs_for_type_field(self, name: str,
-	                                 offset: int) -> Generator['_types.TypeFieldReference', None, None]:
+	def get_code_refs_for_type_field(self, name: str, offset: int, max_items: Optional[int] = None) -> Generator['_types.TypeFieldReference', None, None]:
 		"""
 		``get_code_refs_for_type`` returns a Generator[TypeFieldReference] objects (xrefs or cross-references) that reference the provided type field.
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: Generator of References for the given type
 		:rtype: Generator[TypeFieldReference]
 		:Example:
@@ -5520,7 +5528,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetCodeReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetCodeReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetCodeReferencesForTypeField returned None"
 
 		try:
@@ -5544,7 +5554,7 @@ class BinaryView:
 		finally:
 			core.BNFreeTypeFieldReferences(refs, count.value)
 
-	def get_data_refs_for_type(self, name: str) -> Generator[int, None, None]:
+	def get_data_refs_for_type(self, name: str, max_items: Optional[int] = None) -> Generator[int, None, None]:
 		"""
 		``get_data_refs_for_type`` returns a list of virtual addresses of data which references the type ``name``.
 		Note, the returned addresses are the actual start of the queried type. For example, suppose there is a DataVariable
@@ -5552,6 +5562,7 @@ class BinaryView:
 		return 0x1010 for it.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5562,7 +5573,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesForType returned None"
 
 		try:
@@ -5571,7 +5584,7 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_data_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int) -> List[int]:
+	def get_data_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List[int]:
 		"""
 		``get_data_refs_for_type_field`` returns a list of virtual addresses of data which references the type ``name``.
 		Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
@@ -5580,6 +5593,7 @@ class BinaryView:
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5590,7 +5604,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesForTypeField returned None"
 
 		result = []
@@ -5601,7 +5617,7 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_data_refs_from_for_type_field(self, name: '_types.QualifiedNameType', offset: int) -> List[int]:
+	def get_data_refs_from_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List[int]:
 		"""
 		``get_data_refs_from_for_type_field`` returns a list of virtual addresses of data which are referenced by the type ``name``.
 
@@ -5609,6 +5625,7 @@ class BinaryView:
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5619,7 +5636,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesFromForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesFromForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesFromForTypeField returned None"
 
 		result = []
@@ -5630,11 +5649,12 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_type_refs_for_type(self, name: '_types.QualifiedNameType') -> List['_types.TypeReferenceSource']:
+	def get_type_refs_for_type(self, name: '_types.QualifiedNameType', max_items: Optional[int] = None) -> List['_types.TypeReferenceSource']:
 		"""
 		``get_type_refs_for_type`` returns a list of TypeReferenceSource objects (xrefs or cross-references) that reference the provided QualifiedName.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of references for the given type
 		:rtype: list(TypeReferenceSource)
 		:Example:
@@ -5646,7 +5666,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetTypeReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetTypeReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetTypeReferencesForType returned None"
 
 		result = []
@@ -5660,13 +5682,13 @@ class BinaryView:
 		finally:
 			core.BNFreeTypeReferences(refs, count.value)
 
-	def get_type_refs_for_type_field(self, name: '_types.QualifiedNameType',
-	                                 offset: int) -> List['_types.TypeReferenceSource']:
+	def get_type_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List['_types.TypeReferenceSource']:
 		"""
 		``get_type_refs_for_type`` returns a list of TypeReferenceSource objects (xrefs or cross-references) that reference the provided type field.
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of references for the given type
 		:rtype: list(TypeReferenceSource)
 		:Example:
@@ -5678,7 +5700,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetTypeReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetTypeReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetTypeReferencesForTypeField returned None"
 
 		result = []

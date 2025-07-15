@@ -5020,9 +5020,10 @@ extern "C"
 	BINARYNINJACOREAPI void BNMarkFunctionAsRecentlyUsed(BNFunction* func);
 	BINARYNINJACOREAPI void BNMarkBasicBlockAsRecentlyUsed(BNBasicBlock* block);
 
-	BINARYNINJACOREAPI BNReferenceSource* BNGetCodeReferences(BNBinaryView* view, uint64_t addr, size_t* count);
+	BINARYNINJACOREAPI BNReferenceSource* BNGetCodeReferences(
+		BNBinaryView* view, uint64_t addr, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI BNReferenceSource* BNGetCodeReferencesInRange(
-	    BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count);
+		BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI void BNFreeCodeReferences(BNReferenceSource* refs, size_t count);
 	BINARYNINJACOREAPI void BNFreeTypeFieldReferences(BNTypeFieldReference* refs, size_t count);
 	BINARYNINJACOREAPI void BNFreeILReferences(BNILReferenceSource* refs, size_t count);
@@ -5030,9 +5031,10 @@ extern "C"
 	BINARYNINJACOREAPI uint64_t* BNGetCodeReferencesFromInRange(
 	    BNBinaryView* view, BNReferenceSource* src, uint64_t len, size_t* count);
 
-	BINARYNINJACOREAPI uint64_t* BNGetDataReferences(BNBinaryView* view, uint64_t addr, size_t* count);
+	BINARYNINJACOREAPI uint64_t* BNGetDataReferences(
+		BNBinaryView* view, uint64_t addr, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesInRange(
-	    BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count);
+		BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesFrom(BNBinaryView* view, uint64_t addr, size_t* count);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesFromInRange(
 	    BNBinaryView* view, uint64_t addr, uint64_t len, size_t* count);
@@ -5050,25 +5052,27 @@ extern "C"
 
 	// References to type
 	BINARYNINJACOREAPI BNReferenceSource* BNGetCodeReferencesForType(
-	    BNBinaryView* view, BNQualifiedName* type, size_t* count);
-	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesForType(BNBinaryView* view, BNQualifiedName* type, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, size_t* count, bool limit, size_t maxItems);
+	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesForType(
+		BNBinaryView* view, BNQualifiedName* type, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetTypeReferencesForType(
-	    BNBinaryView* view, BNQualifiedName* type, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, size_t* count, bool limit, size_t maxItems);
 
 	// References to type field
 	BINARYNINJACOREAPI BNTypeFieldReference* BNGetCodeReferencesForTypeField(
-	    BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesForTypeField(
-	    BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI uint64_t* BNGetDataReferencesFromForTypeField(
-		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetTypeReferencesForTypeField(
-	    BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count);
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, size_t* count, bool limit, size_t maxItems);
 
-	BINARYNINJACOREAPI BNAllTypeReferences BNGetAllReferencesForType(BNBinaryView* view, BNQualifiedName* type);
+	BINARYNINJACOREAPI BNAllTypeReferences BNGetAllReferencesForType(
+		BNBinaryView* view, BNQualifiedName* type, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI void BNFreeAllTypeReferences(BNAllTypeReferences* refs);
 	BINARYNINJACOREAPI BNAllTypeFieldReferences BNGetAllReferencesForTypeField(
-		BNBinaryView* view, BNQualifiedName* type, uint64_t offset);
+		BNBinaryView* view, BNQualifiedName* type, uint64_t offset, bool limit, size_t maxItems);
 	BINARYNINJACOREAPI void BNFreeAllTypeFieldReferences(BNAllTypeFieldReferences* refs);
 
 	BINARYNINJACOREAPI BNTypeReferenceSource* BNGetCodeReferencesForTypeFrom(

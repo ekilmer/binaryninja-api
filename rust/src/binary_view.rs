@@ -1645,7 +1645,7 @@ pub trait BinaryViewExt: BinaryViewBase {
     fn code_refs_to_addr(&self, addr: u64) -> Array<CodeReference> {
         unsafe {
             let mut count = 0;
-            let handle = BNGetCodeReferences(self.as_ref().handle, addr, &mut count);
+            let handle = BNGetCodeReferences(self.as_ref().handle, addr, &mut count, false, 0);
             Array::new(handle, count, ())
         }
     }
@@ -1659,6 +1659,8 @@ pub trait BinaryViewExt: BinaryViewBase {
                 range.start,
                 range.end - range.start,
                 &mut count,
+                false,
+                0,
             );
             Array::new(handle, count, ())
         }
@@ -1683,7 +1685,7 @@ pub trait BinaryViewExt: BinaryViewBase {
     fn data_refs_to_addr(&self, addr: u64) -> Array<DataReference> {
         unsafe {
             let mut count = 0;
-            let handle = BNGetDataReferences(self.as_ref().handle, addr, &mut count);
+            let handle = BNGetDataReferences(self.as_ref().handle, addr, &mut count, false, 0);
             Array::new(handle, count, ())
         }
     }
@@ -1697,6 +1699,8 @@ pub trait BinaryViewExt: BinaryViewBase {
                 range.start,
                 range.end - range.start,
                 &mut count,
+                false,
+                0,
             );
             Array::new(handle, count, ())
         }
@@ -1717,7 +1721,7 @@ pub trait BinaryViewExt: BinaryViewBase {
         unsafe {
             let mut count = 0;
             let handle =
-                BNGetCodeReferencesForType(self.as_ref().handle, &mut raw_name, &mut count);
+                BNGetCodeReferencesForType(self.as_ref().handle, &mut raw_name, &mut count, false, 0);
             QualifiedName::free_raw(raw_name);
             Array::new(handle, count, ())
         }
@@ -1729,7 +1733,7 @@ pub trait BinaryViewExt: BinaryViewBase {
         unsafe {
             let mut count = 0;
             let handle =
-                BNGetDataReferencesForType(self.as_ref().handle, &mut raw_name, &mut count);
+                BNGetDataReferencesForType(self.as_ref().handle, &mut raw_name, &mut count, false, 0);
             QualifiedName::free_raw(raw_name);
             Array::new(handle, count, ())
         }

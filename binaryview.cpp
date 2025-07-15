@@ -2423,7 +2423,7 @@ vector<Ref<BasicBlock>> BinaryView::GetBasicBlocksStartingAtAddress(uint64_t add
 vector<ReferenceSource> BinaryView::GetCodeReferences(uint64_t addr)
 {
 	size_t count;
-	BNReferenceSource* refs = BNGetCodeReferences(m_object, addr, &count);
+	BNReferenceSource* refs = BNGetCodeReferences(m_object, addr, &count, false, 0);
 
 	vector<ReferenceSource> result;
 	result.reserve(count);
@@ -2444,7 +2444,51 @@ vector<ReferenceSource> BinaryView::GetCodeReferences(uint64_t addr)
 vector<ReferenceSource> BinaryView::GetCodeReferences(uint64_t addr, uint64_t len)
 {
 	size_t count;
-	BNReferenceSource* refs = BNGetCodeReferencesInRange(m_object, addr, len, &count);
+	BNReferenceSource* refs = BNGetCodeReferencesInRange(m_object, addr, len, &count, false, 0);
+
+	vector<ReferenceSource> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		ReferenceSource src;
+		src.func = new Function(BNNewFunctionReference(refs[i].func));
+		src.arch = new CoreArchitecture(refs[i].arch);
+		src.addr = refs[i].addr;
+		result.push_back(src);
+	}
+
+	BNFreeCodeReferences(refs, count);
+	return result;
+}
+
+
+vector<ReferenceSource> BinaryView::GetCodeReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems)
+{
+	size_t count;
+	BNReferenceSource* refs = BNGetCodeReferences(m_object, addr, &count, maxItems.has_value(), maxItems.value_or(0));
+
+	vector<ReferenceSource> result;
+	result.reserve(count);
+	for (size_t i = 0; i < count; i++)
+	{
+		ReferenceSource src;
+		src.func = new Function(BNNewFunctionReference(refs[i].func));
+		src.arch = new CoreArchitecture(refs[i].arch);
+		src.addr = refs[i].addr;
+		result.push_back(src);
+	}
+
+	BNFreeCodeReferences(refs, count);
+	return result;
+}
+
+
+vector<ReferenceSource> BinaryView::GetCodeReferencesInRangeWithLimit(
+	uint64_t addr, uint64_t len, std::optional<size_t> maxItems)
+{
+	size_t count;
+	BNReferenceSource* refs =
+		BNGetCodeReferencesInRange(m_object, addr, len, &count, maxItems.has_value(), maxItems.value_or(0));
 
 	vector<ReferenceSource> result;
 	result.reserve(count);
@@ -2487,7 +2531,7 @@ vector<uint64_t> BinaryView::GetCodeReferencesFrom(ReferenceSource src, uint64_t
 vector<uint64_t> BinaryView::GetDataReferences(uint64_t addr)
 {
 	size_t count;
-	uint64_t* refs = BNGetDataReferences(m_object, addr, &count);
+	uint64_t* refs = BNGetDataReferences(m_object, addr, &count, false, 0);
 	vector<uint64_t> result(refs, &refs[count]);
 	BNFreeDataReferences(refs);
 	return result;
@@ -2497,7 +2541,29 @@ vector<uint64_t> BinaryView::GetDataReferences(uint64_t addr)
 vector<uint64_t> BinaryView::GetDataReferences(uint64_t addr, uint64_t len)
 {
 	size_t count;
-	uint64_t* refs = BNGetDataReferencesInRange(m_object, addr, len, &count);
+	uint64_t* refs = BNGetDataReferencesInRange(m_object, addr, len, &count, false, 0);
+	vector<uint64_t> result(refs, &refs[count]);
+	BNFreeDataReferences(refs);
+	return result;
+}
+
+
+vector<uint64_t> BinaryView::GetDataReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems)
+{
+	size_t count;
+	uint64_t* refs = BNGetDataReferences(m_object, addr, &count, maxItems.has_value(), maxItems.value_or(0));
+	vector<uint64_t> result(refs, &refs[count]);
+	BNFreeDataReferences(refs);
+	return result;
+}
+
+
+vector<uint64_t> BinaryView::GetDataReferencesInRangeWithLimit(
+	uint64_t addr, uint64_t len, std::optional<size_t> maxItems)
+{
+	size_t count;
+	uint64_t* refs =
+		BNGetDataReferencesInRange(m_object, addr, len, &count, maxItems.has_value(), maxItems.value_or(0));
 	vector<uint64_t> result(refs, &refs[count]);
 	BNFreeDataReferences(refs);
 	return result;
@@ -2548,12 +2614,13 @@ void BinaryView::RemoveUserDataReference(uint64_t fromAddr, uint64_t toAddr)
 }
 
 
-vector<ReferenceSource> BinaryView::GetCodeReferencesForType(const QualifiedName& type)
+vector<ReferenceSource> BinaryView::GetCodeReferencesForType(const QualifiedName& type, std::optional<size_t> maxItems)
 {
 	size_t count;
 
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNReferenceSource* refs = BNGetCodeReferencesForType(m_object, &nameObj, &count);
+	BNReferenceSource* refs =
+		BNGetCodeReferencesForType(m_object, &nameObj, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<ReferenceSource> result;
@@ -2572,11 +2639,11 @@ vector<ReferenceSource> BinaryView::GetCodeReferencesForType(const QualifiedName
 }
 
 
-vector<uint64_t> BinaryView::GetDataReferencesForType(const QualifiedName& type)
+vector<uint64_t> BinaryView::GetDataReferencesForType(const QualifiedName& type, std::optional<size_t> maxItems)
 {
 	size_t count;
 	BNQualifiedName nameObj = type.GetAPIObject();
-	uint64_t* refs = BNGetDataReferencesForType(m_object, &nameObj, &count);
+	uint64_t* refs = BNGetDataReferencesForType(m_object, &nameObj, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<uint64_t> result(refs, &refs[count]);
@@ -2585,12 +2652,14 @@ vector<uint64_t> BinaryView::GetDataReferencesForType(const QualifiedName& type)
 }
 
 
-vector<TypeReferenceSource> BinaryView::GetTypeReferencesForType(const QualifiedName& type)
+vector<TypeReferenceSource> BinaryView::GetTypeReferencesForType(
+	const QualifiedName& type, std::optional<size_t> maxItems)
 {
 	size_t count;
 
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNTypeReferenceSource* refs = BNGetTypeReferencesForType(m_object, &nameObj, &count);
+	BNTypeReferenceSource* refs =
+		BNGetTypeReferencesForType(m_object, &nameObj, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<TypeReferenceSource> result;
@@ -2609,11 +2678,13 @@ vector<TypeReferenceSource> BinaryView::GetTypeReferencesForType(const Qualified
 }
 
 
-vector<TypeFieldReference> BinaryView::GetCodeReferencesForTypeField(const QualifiedName& type, uint64_t offset)
+vector<TypeFieldReference> BinaryView::GetCodeReferencesForTypeField(
+	const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems)
 {
 	size_t count;
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNTypeFieldReference* refs = BNGetCodeReferencesForTypeField(m_object, &nameObj, offset, &count);
+	BNTypeFieldReference* refs =
+		BNGetCodeReferencesForTypeField(m_object, &nameObj, offset, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<TypeFieldReference> result;
@@ -2636,11 +2707,13 @@ vector<TypeFieldReference> BinaryView::GetCodeReferencesForTypeField(const Quali
 }
 
 
-vector<uint64_t> BinaryView::GetDataReferencesForTypeField(const QualifiedName& type, uint64_t offset)
+vector<uint64_t> BinaryView::GetDataReferencesForTypeField(
+	const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems)
 {
 	size_t count;
 	BNQualifiedName nameObj = type.GetAPIObject();
-	uint64_t* refs = BNGetDataReferencesForTypeField(m_object, &nameObj, offset, &count);
+	uint64_t* refs =
+		BNGetDataReferencesForTypeField(m_object, &nameObj, offset, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<uint64_t> result(refs, &refs[count]);
@@ -2649,11 +2722,13 @@ vector<uint64_t> BinaryView::GetDataReferencesForTypeField(const QualifiedName& 
 }
 
 
-vector<uint64_t> BinaryView::GetDataReferencesFromForTypeField(const QualifiedName& type, uint64_t offset)
+vector<uint64_t> BinaryView::GetDataReferencesFromForTypeField(
+	const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems)
 {
 	size_t count;
 	BNQualifiedName nameObj = type.GetAPIObject();
-	uint64_t* refs = BNGetDataReferencesFromForTypeField(m_object, &nameObj, offset, &count);
+	uint64_t* refs = BNGetDataReferencesFromForTypeField(
+		m_object, &nameObj, offset, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<uint64_t> result(refs, &refs[count]);
@@ -2662,11 +2737,13 @@ vector<uint64_t> BinaryView::GetDataReferencesFromForTypeField(const QualifiedNa
 }
 
 
-vector<TypeReferenceSource> BinaryView::GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset)
+vector<TypeReferenceSource> BinaryView::GetTypeReferencesForTypeField(
+	const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems)
 {
 	size_t count;
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNTypeReferenceSource* refs = BNGetTypeReferencesForTypeField(m_object, &nameObj, offset, &count);
+	BNTypeReferenceSource* refs =
+		BNGetTypeReferencesForTypeField(m_object, &nameObj, offset, &count, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	vector<TypeReferenceSource> result;
@@ -2685,10 +2762,11 @@ vector<TypeReferenceSource> BinaryView::GetTypeReferencesForTypeField(const Qual
 }
 
 
-AllTypeReferences BinaryView::GetAllReferencesForType(const QualifiedName& type)
+AllTypeReferences BinaryView::GetAllReferencesForType(const QualifiedName& type, std::optional<size_t> maxItems)
 {
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNAllTypeReferences refs = BNGetAllReferencesForType(m_object, &nameObj);
+	BNAllTypeReferences refs =
+		BNGetAllReferencesForType(m_object, &nameObj, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	AllTypeReferences result;
@@ -2720,10 +2798,12 @@ AllTypeReferences BinaryView::GetAllReferencesForType(const QualifiedName& type)
 }
 
 
-AllTypeFieldReferences BinaryView::GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset)
+AllTypeFieldReferences BinaryView::GetAllReferencesForTypeField(
+	const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems)
 {
 	BNQualifiedName nameObj = type.GetAPIObject();
-	BNAllTypeFieldReferences refs = BNGetAllReferencesForTypeField(m_object, &nameObj, offset);
+	BNAllTypeFieldReferences refs =
+		BNGetAllReferencesForTypeField(m_object, &nameObj, offset, maxItems.has_value(), maxItems.value_or(0));
 	QualifiedName::FreeAPIObject(&nameObj);
 
 	AllTypeFieldReferences result;
