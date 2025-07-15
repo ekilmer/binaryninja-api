@@ -3625,7 +3625,12 @@ class MediumLevelILFunction:
 
 	def copy_expr(self, original: MediumLevelILInstruction) -> ExpressionIndex:
 		"""
-		``copy_expr`` adds an expression to the function which is equivalent to the given expression
+		``copy_expr`` makes a shallow copy of the given IL expression, adding a new expression to the IL function.
+
+		.. warning:: The copy will not copy any child expressions, but will instead reference them as well (by expression index).
+		             This means that you cannot use this function to copy an expression tree to another function.
+		             If you want to copy an expression tree, you should use :py:func:`MediumLevelILFunction.copy_expr_to`.
+		             Metadata such as expression type and attributes are also not copied.
 
 		:param MediumLevelILInstruction original: the original IL Instruction you want to copy
 		:return: The index of the newly copied expression
@@ -3643,18 +3648,23 @@ class MediumLevelILFunction:
 
 	def replace_expr(self, original: InstructionOrExpression, new: InstructionOrExpression) -> None:
 		"""
-		``replace_expr`` allows modification of MLIL expressions
+		``replace_expr`` replace an existing IL instruction in-place with another one
+
+		Both expressions must have been created on the same function. The original expression
+		will be replaced completely and the new expression will not be modified.
 
 		:param ExpressionIndex original: the ExpressionIndex to replace (may also be an expression index)
 		:param ExpressionIndex new: the ExpressionIndex to add to the current LowLevelILFunction (may also be an expression index)
 		:rtype: None
 		"""
 		if isinstance(original, MediumLevelILInstruction):
+			assert original.function == self
 			original = original.expr_index
 		elif isinstance(original, int):
 			original = ExpressionIndex(original)
 
 		if isinstance(new, MediumLevelILInstruction):
+			assert new.function == self
 			new = new.expr_index
 		elif isinstance(new, int):
 			new = ExpressionIndex(new)
@@ -4006,6 +4016,7 @@ class MediumLevelILFunction:
 		``append`` adds the ExpressionIndex ``expr`` to the current MediumLevelILFunction.
 
 		:param ExpressionIndex expr: the ExpressionIndex to add to the current MediumLevelILFunction
+		:param ILSourceLocation source_location: Optional source location for the instruction
 		:return: Index of added instruction in the current function
 		:rtype: int
 		"""
@@ -4042,6 +4053,10 @@ class MediumLevelILFunction:
 		llil_ssa_to_mlil_instr_map = {}
 
 		if from_builders:
+			# TODO: Handle LLIL SSA -> MLIL mappings in case someone is brave enough to try
+			# lifting LLILSSA->MLIL themselves instead of an MLIL->MLIL translation
+			# (which is the only one I've seen people do so far)
+
 			for (old_instr, new_indices) in self._mlil_to_mlil_instr_map.items():
 				old_instr: MediumLevelILInstruction
 				new_indices: List[InstructionIndex]
@@ -4067,6 +4082,10 @@ class MediumLevelILFunction:
 		llil_ssa_to_mlil_expr_map = []
 
 		if from_builders:
+			# TODO: Handle LLIL SSA -> MLIL mappings in case someone is brave enough to try
+			# lifting LLILSSA->MLIL themselves instead of an MLIL->MLIL translation
+			# (which is the only one I've seen people do so far)
+
 			for (old_expr, new_indices) in self._mlil_to_mlil_expr_map.items():
 				old_expr: MediumLevelILInstruction
 				new_indices: List[ExpressionIndex]

@@ -153,3 +153,7 @@ The visitor receives 4 operands:
 0x4012d8 arg1 + 0x1404
 0x4012de arg1 + 0x1400
 ```
+
+## Modifying ILs
+
+See [Modifying ILs](bnil-modifying.md).
