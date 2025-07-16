@@ -32,6 +32,7 @@ class BINARYNINJAUIAPI DockableTabCollection : public QObject
 	std::set<DockableTabWidget*> m_containers;
 
 public:
+	DockableTabCollection(QObject* parent = nullptr) : QObject(parent) {}
 	void registerContainer(DockableTabWidget* widget);
 	void unregisterContainer(DockableTabWidget* widget);
 

@@ -169,7 +169,7 @@ class VariableListItemDelegate : public QStyledItemDelegate
 	Q_OBJECT
 
   public:
-	VariableListItemDelegate();
+	VariableListItemDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {};
 
 	void paint(QPainter* painter, const QStyleOptionViewItem& opt, const QModelIndex& index) const;
 	QSize sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& index) const;

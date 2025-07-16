@@ -51,7 +51,7 @@ protected:
 
 public:
 	SidebarWidget(const QString& title);
-	~SidebarWidget() { closing(); }
+	~SidebarWidget();
 	const QString& title() const { return m_title; }
 
 	void enableRefreshTimer(int interval);
