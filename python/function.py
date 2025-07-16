@@ -2352,6 +2352,9 @@ class Function:
 			if addresses is not None:
 				core.BNFreeArchitectureAndAddressList(addresses)
 
+	def has_guided_source_blocks(self) -> bool:
+		return core.BNHasGuidedSourceBlocks(self.handle)
+
 	def get_indirect_branches_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
 	) -> List['variable.IndirectBranchInfo']:

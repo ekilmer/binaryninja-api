@@ -1750,6 +1750,12 @@ std::vector<ArchAndAddr> Function::GetGuidedSourceBlocks()
 }
 
 
+bool Function::HasGuidedSourceBlocks() const
+{
+	return BNHasGuidedSourceBlocks(m_object);
+}
+
+
 vector<IndirectBranchInfo> Function::GetIndirectBranches()
 {
 	size_t count;

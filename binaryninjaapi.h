@@ -11602,6 +11602,7 @@ namespace BinaryNinja {
 		void RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
 		bool IsGuidedSourceBlock(Architecture* arch, uint64_t addr) const;
 		std::vector<ArchAndAddr> GetGuidedSourceBlocks();
+		bool HasGuidedSourceBlocks() const;
 
 		std::vector<IndirectBranchInfo> GetIndirectBranches();
 		std::vector<IndirectBranchInfo> GetIndirectBranchesAt(Architecture* arch, uint64_t addr);
