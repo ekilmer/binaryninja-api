@@ -131,7 +131,7 @@ void KernelCache::ProcessRelocations(Ref<BinaryView> view, linkedit_data_command
 			fixupsHeader.imports_format = parentReader.Read32();
 			fixupsHeader.symbols_format = parentReader.Read32();
 
-			LogDebug("Chained Fixups: Header @ %llx // Fixups version %lx", fixupHeaderAddress, fixupsHeader.fixups_version);
+			LogDebugF("Chained Fixups: Header @ 0x{:x}// Fixups version 0x{:x}", fixupHeaderAddress, fixupsHeader.fixups_version);
 
 			if (fixupsHeader.fixups_version > 0)
 			{
@@ -204,14 +204,14 @@ void KernelCache::ProcessRelocations(Ref<BinaryView> view, linkedit_data_command
 					break;
 				default:
 				{
-					LogError("Chained Fixups: Unknown or unsupported pointer format %d, "
-						"unable to process chains for segment at @llx", starts.pointer_format, starts.segment_offset);
+					LogErrorF("Chained Fixups: Unknown or unsupported pointer format {}, "
+						"unable to process chains for segment at 0x{:x}", starts.pointer_format, starts.segment_offset);
 					continue;
 				}
 				}
 
 				uint16_t fmt = starts.pointer_format;
-				LogDebug("Chained Fixups: Segment start @ %llx, fmt %d", starts.segment_offset, fmt);
+				LogDebugF("Chained Fixups: Segment start @ 0x{:x}, fmt {}", starts.segment_offset, fmt);
 
 				uint64_t pageStartsTableStartAddress = parentReader.GetOffset();
 				std::vector<std::vector<uint16_t>> pageStartOffsets {};
@@ -299,7 +299,7 @@ void KernelCache::ProcessRelocations(Ref<BinaryView> view, linkedit_data_command
 								bind = false;
 							}
 
-							LogTrace("Chained Fixups: @ 0x%llx ( 0x%llx ) - %d 0x%llx", chainEntryAddress,
+							LogTraceF("Chained Fixups: @ 0x{:x} ( 0x{:x} ) - {} 0x{:x}", chainEntryAddress,
 								view->GetStart() + (chainEntryAddress),
 								bind, nextEntryStrideCount);
 
@@ -354,7 +354,7 @@ void KernelCache::ProcessRelocations(Ref<BinaryView> view, linkedit_data_command
 							{
 								// Something is seriously wrong here. likely malformed binary, or our parsing failed elsewhere.
 								// This will log the pointer in mapped memory.
-								LogError("Chained Fixups: Pointer at 0x%llx left page",
+								LogErrorF("Chained Fixups: Pointer at 0x{:x} left page",
 									view->GetStart() + ((chainEntryAddress - (nextEntryStrideCount * strideSize))));
 								fixupsDone = true;
 							}

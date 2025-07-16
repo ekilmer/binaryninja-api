@@ -417,7 +417,7 @@ static const DERByte
     _oidAppleExtendedKeyUsageQAProfileSigning[] = { APPLE_EKU_QA_PROFILE_SIGNING },
     _oidAppleIntmMarkerAppleID[] = { APPLE_CERT_EXT_INTERMEDIATE_MARKER_APPLEID },
     _oidAppleIntmMarkerAppleID2[] = {APPLE_CERT_EXT_INTERMEDIATE_MARKER_APPLEID_2 },
-    _oidApplePushServiceClient[]   =   { APPLE_CERT_EXT_APPLE_PUSH_MARKER, 2 },
+    // _oidApplePushServiceClient[]   =   { APPLE_CERT_EXT_APPLE_PUSH_MARKER, 2 },
     _oidApplePolicyMobileStore[]  = { APPLE_CERT_POLICY_MOBILE_STORE },
     _oidApplePolicyTestMobileStore[] = { APPLE_CERT_POLICY_TEST_MOBILE_STORE },
     _oidApplePolicyEscrowService[] = { APPLE_ESCROW_POLICY_OID },

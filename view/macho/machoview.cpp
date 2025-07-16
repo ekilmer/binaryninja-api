@@ -2911,7 +2911,7 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 		auto table = reader.Read(tableSize);
 		BNRelocationInfo externReloc;
 
-		BNSymbolType symtype = incomingType;
+		// BNSymbolType symtype = incomingType;
 		uint64_t ordinal = 0;
 		// int64_t addend = 0;
 		uint64_t segmentIndex = 0;
@@ -2938,7 +2938,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					name = NULL;
 					// flags = 0;
 					type = 0;
-					symtype = incomingType;
 					break;
 				case BindOpcodeSetDylibOrdinalImmediate: ordinal = imm;break;
 				case BindOpcodeSetDylibOrdinalULEB: ordinal = readLEB128(table, tableSize, i); break;
@@ -2951,8 +2950,6 @@ void MachoView::ParseDynamicTable(BinaryReader& reader, MachOHeader& header, BNS
 					break;
 				case BindOpcodeSetTypeImmediate:
 					type = imm;
-					if (type == 1)
-						symtype = ImportedDataSymbol;
 					break;
 				case BindOpcodeSetAddendSLEB: /* addend = */ readSLEB128(table, tableSize, i); break;
 				case BindOpcodeSetSegmentAndOffsetULEB:
@@ -3294,7 +3291,8 @@ void MachoView::ParseChainedFixups(
 		fixupsHeader.imports_format = parentReader.Read32();
 		fixupsHeader.symbols_format = parentReader.Read32();
 
-		m_logger->LogDebug("Chained Fixups: Header @ %llx // Fixups version %lx", fixupHeaderAddress, fixupsHeader.fixups_version);
+		m_logger->LogDebugF(
+			"Chained Fixups: Header @ 0x{:x} // Fixups version {}", fixupHeaderAddress, fixupsHeader.fixups_version);
 
 		size_t importsAddress = fixupHeaderAddress + fixupsHeader.imports_offset;
 		size_t importTableSize = sizeof(dyld_chained_import) * fixupsHeader.imports_count;
@@ -3377,13 +3375,13 @@ void MachoView::ParseChainedFixups(
 			}
 			default:
 			{
-				m_logger->LogWarn("Chained Fixups: Unknown import binding format %d", fixupsHeader.imports_format);
+				m_logger->LogWarnF("Chained Fixups: Unknown import binding format {}", fixupsHeader.imports_format);
 				processBinds = false; // We can still handle rebases.
 				break;
 			}
 		}
 
-		m_logger->LogDebug("Chained Fixups: %llx import table entries", importTable.size());
+		m_logger->LogDebugF("Chained Fixups: 0x{:x} import table entries", importTable.size());
 
 		uint64_t fixupStartsAddress = fixupHeaderAddress + fixupsHeader.starts_offset;
 		parentReader.Seek(fixupStartsAddress);
@@ -3450,14 +3448,14 @@ void MachoView::ParseChainedFixups(
 				break;
 			default:
 			{
-				m_logger->LogError("Chained Fixups: Unknown or unsupported pointer format %d, "
-					"unable to process chains for segment at @llx", starts.pointer_format, starts.segment_offset);
+				m_logger->LogErrorF("Chained Fixups: Unknown or unsupported pointer format {}, "
+					"unable to process chains for segment at @ 0x{:x}", starts.pointer_format, starts.segment_offset);
 				continue;
 			}
 			}
 
 			uint16_t fmt = starts.pointer_format;
-			m_logger->LogDebug("Chained Fixups: Segment start @ %llx, fmt %d", starts.segment_offset, fmt);
+			m_logger->LogDebugF("Chained Fixups: Segment start @ 0x{:x}, fmt {}", starts.segment_offset, fmt);
 
 			uint64_t pageStartsTableStartAddress = parentReader.GetOffset();
 			vector<vector<uint16_t>> pageStartOffsets {};
@@ -3547,7 +3545,7 @@ void MachoView::ParseChainedFixups(
 							break;
 						}
 
-						m_logger->LogTrace("Chained Fixups: @ 0x%llx ( 0x%llx ) - %d 0x%llx", chainEntryAddress,
+						m_logger->LogTraceF("Chained Fixups: @ 0x{:x} ( 0x{:x} ) - {} 0x{:x}", chainEntryAddress,
 							GetStart() + (chainEntryAddress - m_universalImageOffset),
 							bind, nextEntryStrideCount);
 
@@ -3578,13 +3576,13 @@ void MachoView::ParseChainedFixups(
 							case DYLD_CHAINED_PTR_64_KERNEL_CACHE: // no binding
 							case DYLD_CHAINED_PTR_X86_64_KERNEL_CACHE: // ''
 							default:
-								m_logger->LogWarn("Chained Fixups: Unknown Bind Pointer Format at %llx",
+								m_logger->LogWarnF("Chained Fixups: Unknown Bind Pointer Format at 0x{:x}",
 									GetStart() + (chainEntryAddress - m_universalImageOffset));
 
 								chainEntryAddress += (nextEntryStrideCount * strideSize);
 								if (chainEntryAddress > pageAddress + starts.page_size)
 								{
-									m_logger->LogError("Chained Fixups: Pointer at %llx left page",
+									m_logger->LogErrorF("Chained Fixups: Pointer at 0x{:x} left page",
 										GetStart() + ((chainEntryAddress - (nextEntryStrideCount * strideSize))) - m_universalImageOffset);
 									fixupsDone = true;
 								}
@@ -3614,8 +3612,8 @@ void MachoView::ParseChainedFixups(
 								}
 								else
 								{
-									m_logger->LogWarn("Chained Fixups: Import Table entry %llx has no symbol; "
-										"Unable to bind item at %llx", ordinal, targetAddress);
+									m_logger->LogWarnF("Chained Fixups: Import Table entry 0x{:x} has no symbol; "
+										"Unable to bind item at 0x{:x}", ordinal, targetAddress);
 								}
 							}
 						}
@@ -3673,7 +3671,7 @@ void MachoView::ParseChainedFixups(
 						{
 							// Something is seriously wrong here. likely malformed binary, or our parsing failed elsewhere.
 							// This will log the pointer in mapped memory.
-							m_logger->LogError("Chained Fixups: Pointer at %llx left page",
+							m_logger->LogErrorF("Chained Fixups: Pointer at 0x{:x} left page",
 								GetStart() + ((chainEntryAddress - (nextEntryStrideCount * strideSize))) - m_universalImageOffset);
 							fixupsDone = true;
 						}
