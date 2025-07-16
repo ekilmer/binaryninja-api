@@ -155,7 +155,11 @@ pub fn run_matcher(view: &BinaryView) {
         log::info!("Matcher was cancelled by user, you may run it again by running the 'Run Matcher' command.");
     }
 
-    log::info!("Function matching took {:?}", start.elapsed());
+    // It is noisy to show this every time, so we only show it in cases where a user can reasonably perceive.
+    let elapsed = start.elapsed();
+    if elapsed > std::time::Duration::from_secs(1) {
+        log::info!("Function matching took {:?}", elapsed);
+    }
     background_task.finish();
 
     // Now we want to trigger re-analysis.
