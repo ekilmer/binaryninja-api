@@ -522,8 +522,8 @@ void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& var
 
 						tokens.Append(FieldNameToken, member.name, structOffset + member.offset, 0, 0,
 							BN_FULL_CONFIDENCE, nameList);
-					}),
-				memberIndexHint)
+					},
+					memberIndexHint))
 				return;
 
 			// Part of structure but no defined field, use __offset syntax
