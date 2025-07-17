@@ -73,12 +73,22 @@ There are a couple of steps involved in this process:
 First, you need to make a clone of the default workflow, making it mutable and allowing you to insert your Activity. 
 You can either name the clone the same thing as the metaAnalysis workflow to make your Activity available by default,
 or clone to a different name, which will require users to select that workflow in Open with Options.
+
+Also note that, as of writing, Objective-C support registers its own workflow as `core.function.objectiveC`.
+If you want your Workflow Activity to apply to Objective-C files, you will need to do this whole process twice, once for `core.function.metaAnalysis` and once for `core.function.objectiveC`.
+The same applies if any of your other plugins register a custom workflow that is not `core.function.metaAnalysis`. 
+
 ```py
 # This Workflow will replace metaAnalysis and be used by default 
 wf = Workflow("core.function.metaAnalysis").clone("core.function.metaAnalysis")
 
 # Users will need to pick this Workflow in Open with Options
 wf = Workflow("core.function.metaAnalysis").clone("MyCustomWorkflow")
+
+# As of 5.1: To modify functions in binaries using the Objective-C workflow,
+# you need to do the entire rest of this section twice: 
+# once as above, and once for the Objective-C workflow as shown here.
+wf = Workflow("core.function.objectiveC").clone("core.function.objectiveC")
 ```
 
 Then, define a new Activity on the Workflow, which allows you to run your code to make modifications.
@@ -344,8 +354,8 @@ report.append(FlowGraphReport("Graph with Highlights", init_graph, context.view)
 
 Due to the nature of Workflows, a custom Debug Report is only able to be triggered if your Activity gets run.
 But what if you don't want to apply your changes yet?
-This might be because you suspect your changes are bugger, or so you can introspect the unchanged function while still seeing diagnostics from your changes.
-Either way, sometimes it is helpful to have a variant of your Activity that does all of the logic _except_ for apply the updated analysis.
+This might be because you suspect your changes are buggy, or so you can introspect the unchanged function while still seeing diagnostics from your changes.
+Either way, sometimes it is helpful to have a variant of your Activity that does all of the logic _except_ for applying the updated analysis.
 There's no built-in solution for this, but you can model it pretty effectively by having two activities and a Dry Run switch.
 
 First, modify your Activity function with another parameter for if this is a dry run:
