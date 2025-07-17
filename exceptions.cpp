@@ -32,8 +32,11 @@ BinaryNinja::ExceptionWithStackTrace::ExceptionWithStackTrace(const std::string&
 		if (stackTrace)
 		{
 			m_stackTrace = stackTrace;
-			m_message += "\n";
-			m_message += stackTrace;
+			if (var)
+			{
+				m_message += "\n";
+				m_message += stackTrace;
+			}
 			BNFreeString(stackTrace);
 		}
 	}
@@ -94,8 +97,11 @@ BinaryNinja::ExceptionWithStackTrace::ExceptionWithStackTrace(std::exception_ptr
 		if (stackTrace)
 		{
 			m_stackTrace = stackTrace;
-			m_message += "\n";
-			m_message += stackTrace;
+			if (var)
+			{
+				m_message += "\n";
+				m_message += stackTrace;
+			}
 			BNFreeString(stackTrace);
 		}
 	}
