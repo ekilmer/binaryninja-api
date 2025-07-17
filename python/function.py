@@ -2294,6 +2294,15 @@ class Function:
 	def set_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``set_guided_source_blocks`` sets the complete list of guided source blocks for this function.
+		Only blocks in this set will have their direct outgoing branch targets analyzed. This replaces
+		any existing guided source blocks and automatically enables or disables the ``analysis.guided.enable``
+		setting based on whether addresses are provided.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
@@ -2303,6 +2312,14 @@ class Function:
 	def add_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``add_guided_source_blocks`` adds blocks to the guided source block list for this function.
+		The specified blocks will have their direct outgoing branch targets analyzed. This automatically
+		enables the ``analysis.guided.enable`` setting if it is not already enabled.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples to add
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
@@ -2312,6 +2329,14 @@ class Function:
 	def remove_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``remove_guided_source_blocks`` removes blocks from the guided source block list for this function.
+		The specified blocks will no longer have their direct outgoing branch targets analyzed.
+		This automatically enables the ``analysis.guided.enable`` setting if it is not already enabled.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples to remove
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
@@ -2327,16 +2352,19 @@ class Function:
 		:param architecture.Architecture arch: Architecture of the address to check
 		:param int addr: Address to check
 		:rtype: bool
-		:Example:
-
-			>>> current_function.is_guided_source_block(arch, 0x400000)
-			True
 		"""
 		return core.BNIsGuidedSourceBlock(self.handle, arch.handle, addr)
 
 	def get_guided_source_blocks(
 	    self
 	) -> List[Tuple['architecture.Architecture', int]]:
+		"""
+		``get_guided_source_blocks`` returns the current list of guided source blocks for this function.
+		These blocks have their direct outgoing branch targets analyzed.
+
+		:rtype: List[Tuple[architecture.Architecture, int]]
+		:return: List of (architecture, address) tuples representing current guided source blocks
+		"""
 		count = ctypes.c_ulonglong()
 		addresses = core.BNGetGuidedSourceBlocks(self.handle, count)
 		try:
@@ -2353,6 +2381,13 @@ class Function:
 				core.BNFreeArchitectureAndAddressList(addresses)
 
 	def has_guided_source_blocks(self) -> bool:
+		"""
+		``has_guided_source_blocks`` checks if this function has any guided source blocks configured.
+		This indicates whether guided analysis is active for this function.
+
+		:rtype: bool
+		:return: True if the function has guided source blocks, False otherwise
+		"""
 		return core.BNHasGuidedSourceBlocks(self.handle)
 
 	def get_indirect_branches_at(
