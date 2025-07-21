@@ -40,53 +40,57 @@ BinaryView Resource settings can be accessed through:
 * **Settings UI**: Use `[CMD/CTRL] .` to open Resource Settings (automatically selects the current BinaryView)
 * **Programmatically**: Use the [Settings API](https://api.binary.ninja/binaryninja.settings-module.html) with a BinaryView object as the resource parameter
 
-## Resource Settings (Function)
+## Function Settings Context Menu
 
-Binary Ninja supports function-level settings for fine-grained control over analysis parameters. Unlike BinaryView Resource settings which store a complete copy of all analysis settings, Function Resource settings use an inheritance-based storage model. Each function inherits settings from its BinaryView by default, and only stores settings in its own cache when customization is needed for that specific function.
+Binary Ninja provides a powerful context menu for managing function-specific settings directly from analysis views. Right-clicking in any analysis view (Graph, Linear, etc.) displays the **Function Settings** menu, which offers quick access to three types of settings (a small dividing line separates each section from the other):
 
-### Accessing Function Resource Settings
+![Function Settings Context Menu](../img/function-settings-context-menu.png)
 
-Function Resource settings can be accessed through:
+### Resource Settings (Function)
 
-* **Context Menu**: Right-click in any analysis view and select "Function Settings" to access a customizable submenu of boolean settings controlled by the Quick Settings system
-* **Programmatically**: Use the [Settings API](https://api.binary.ninja/binaryninja.settings-module.html) with a Function object as the resource parameter
+The first section contains special analysis settings designed to be changed per-function. Binary Ninja supports function-level settings for fine-grained control over analysis parameters. Unlike BinaryView Resource settings which store a complete copy of all analysis settings, Function Resource settings use an inheritance-based storage model. Each function inherits settings from its BinaryView by default, and only stores settings in its own cache when customization is needed for that specific function.
+
+Function Resource settings can also be accessed programmatically using the [Settings API](https://api.binary.ninja/binaryninja.settings-module.html) with a Function object as the resource parameter.
 
 !!! note
 	Function-specific Resource settings are not currently accessible in the Settings UI Resource dropdown tab.
 
-## Quick Settings
+### Workflow Eligibility Settings
 
-Quick Settings provide streamlined access to frequently used boolean analysis settings directly from the context menu within analysis views. This mechanism is designed for efficient per-function customization without requiring the full Settings UI.
+The second section displays settings that can be enabled or disabled per-function to control workflow eligibility. These settings determine whether specific analysis workflows (such as WARP matching) are applied to individual functions. Examples include:
 
-By default, no settings are included in the context menus. Individual settings must be explicitly marked for inclusion.
+- **WARP GUID Generator**: Controls whether the function participates in WARP GUID generation
+- **WARP Apply Matched**: Controls whether matched WARP info is applied to the function
 
-### Using Quick Settings in Context Menus
+These workflow eligibility settings are automatically populated based on the available workflows in your Binary Ninja installation.
 
-1. Right-click within any analysis view (Graph, Linear, etc.).
-2. The **Function Settings** submenu will appear, containing:
-   - Function workflow eligibility settings (automatically added and configurable)
-   - Manually added analysis settings for quick toggling in the Function Resource scope
-3. Toggle settings as needed. These changes apply only to the current function’s settings scope.
-4. Select "Reset Settings" to clear the function settings and revert to inherited settings from the BinaryView.
+### Quick Settings
 
-### Adding Quick Settings
+The last section contains custom Quick Settings, which is empty by default. Quick Settings provide streamlined access to frequently used boolean analysis settings directly from the context menu. This mechanism is designed for efficient per-function customization without requiring the full Settings UI.
+
+#### Using Quick Settings
+
+1. Toggle settings as needed in the Function Settings menu. These changes apply only to the current function's settings scope.
+2. Select `Reset Settings` to clear the function settings and revert to inherited settings from the BinaryView.
+
+#### Adding Quick Settings
 
 1. Open the Settings UI
 2. Right-click any boolean setting
-3. Select “Add to Quick Settings” to add it to the quick access menu
+3. Select `Add to Quick Settings` to add it to the quick access menu
 
-The setting will appear under the `Function Settings` submenu in applicable context menus.
+The setting will appear under the Quick Settings section in the Function Settings context menu.
 
-### Removing Quick Settings
+#### Removing Quick Settings
 
 1. Open the Settings UI
 2. Right-click on any boolean setting
-3. Uncheck “Add to Quick Settings” to remove it from the quick access menu
+3. Uncheck `Add to Quick Settings` to remove it from the quick access menu
 
-### Resetting Quick Settings
+#### Resetting All Quick Settings
 
 * Right-click within the Settings dialog.
-* Select “Reset All Quick Settings”
+* Select `Reset All Quick Settings`
 
 ## Settings Reference
 
