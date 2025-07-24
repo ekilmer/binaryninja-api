@@ -435,6 +435,7 @@ class BINARYNINJAUIAPI SplitPaneWidget : public QWidget
 	void createFeatureMap();
 	void recreateFeatureMaps();
 	void refreshFeatureMap();
+	void resetFeatureMap(bool sizeOnly = false);
 	void updateFeatureMapLocation(const ViewLocation& location);
 	BinaryViewRef getCurrentBinaryView();
 
