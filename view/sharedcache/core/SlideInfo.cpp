@@ -223,7 +223,8 @@ std::vector<SlideMappingInfo> SlideInfoProcessor::ReadEntryInfo(const MappedFile
 		mappings.emplace_back(map);
 		m_logger->LogDebugF("File: {:?}", entry.GetFilePath().c_str());
 		m_logger->LogDebugF("Slide Info Address: {:#x}", map.address);
-		m_logger->LogDebugF("Mapping Address: {:#x}", map.mappingInfo.address);
+		uint64_t mappingAddress = map.mappingInfo.address;
+		m_logger->LogDebugF("Mapping Address: {:#x}", mappingAddress);
 		m_logger->LogDebugF("Slide Info Version: {}", map.slideInfoVersion);
 	}
 
