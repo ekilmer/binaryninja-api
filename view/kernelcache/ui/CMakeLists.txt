@@ -93,3 +93,5 @@ target_include_directories(kernelcacheui PRIVATE ${INCLUDES})
 
 target_link_libraries(kernelcacheui kernelcacheapi kernelcache binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets)
 
+ui_plugin_rpath(kernelcacheui)
+

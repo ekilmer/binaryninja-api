@@ -25,6 +25,8 @@ file(
 
 add_library(efi_resolver SHARED ${SOURCE_FILES})
 target_link_libraries(efi_resolver binaryninjaapi)
+
+plugin_rpath(efi_resolver)
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(efi_resolver PRIVATE cxx_std_20 c_std_99)
 

@@ -94,3 +94,5 @@ target_include_directories(sharedcacheui PRIVATE ${INCLUDES})
 
 target_link_libraries(sharedcacheui sharedcacheapi sharedcache binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets)
 
+ui_plugin_rpath(sharedcacheui)
+

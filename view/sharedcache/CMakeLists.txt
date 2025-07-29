@@ -68,6 +68,8 @@ target_include_directories(sharedcache PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMA
 
 target_link_libraries(sharedcache PUBLIC sharedcacheapi binaryninjaapi sharedcachecore sharedcacheworkflow)
 
+plugin_rpath(sharedcache)
+
 
 set(COMPILE_DEFS "")
 

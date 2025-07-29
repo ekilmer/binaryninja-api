@@ -66,6 +66,8 @@ target_include_directories(kernelcache PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMA
 
 target_link_libraries(kernelcache PUBLIC kernelcacheapi binaryninjaapi kernelcachecore) # kernelcacheworkflow)
 
+plugin_rpath(kernelcache)
+
 
 set(COMPILE_DEFS "")
 
