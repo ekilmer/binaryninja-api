@@ -656,6 +656,8 @@ class AnalysisProgress:
 			return "Hold"
 		if self.state == AnalysisState.IdleState:
 			return "Idle"
+		if self.state == AnalysisState.DiscoveryState:
+			return "Discovery"
 		if self.state == AnalysisState.DisassembleState:
 			return "Disassembling (%d/%d)" % (self.count, self.total)
 		if self.state == AnalysisState.AnalyzeState:

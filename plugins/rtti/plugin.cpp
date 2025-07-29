@@ -115,13 +115,16 @@ extern "C" {
 			"eligibility": {
 				"runOnce": true,
 				"auto": {}
+			},
+			"dependencies": {
+				"downstream": ["core.module.update"]
 			}
-		})~", &VFTAnalysis, {"core.module.update"});
+		})~", &VFTAnalysis);
 
 		// Run rtti before debug info is applied.
 		rttiMetaWorkflow->Insert("core.module.loadDebugInfo", "analysis.rtti.rttiAnalysis");
 		// Run vft after functions have analyzed (so that the virtual functions have analyzed)
-		rttiMetaWorkflow->Insert("core.module.deleteUnusedAutoFunctions", "analysis.rtti.vftAnalysis");
+		rttiMetaWorkflow->InsertAfter("core.module.extendedAnalysis", "analysis.rtti.vftAnalysis");
 		Workflow::RegisterWorkflow(rttiMetaWorkflow);
 
 		return true;

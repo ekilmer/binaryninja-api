@@ -70,6 +70,9 @@ extern "C"
 			"eligibility": {
 				"runOnce": true,
 				"auto": {}
+			},
+			"dependencies": {
+				"downstream": ["core.module.update"]
 			}
 		})~", &RunWorkflow);
 

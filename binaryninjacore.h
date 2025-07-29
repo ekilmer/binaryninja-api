@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 126
+#define BN_CURRENT_CORE_ABI_VERSION 127
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -2731,12 +2731,13 @@ extern "C"
 
 	typedef enum BNAnalysisState
 	{
-		InitialState,
-		HoldState,
-		IdleState,
-		DisassembleState,
-		AnalyzeState,
-		ExtendedAnalyzeState
+		InitialState,        // Entry point before any analysis begins
+		HoldState,           // Module-level analysis is deferred; On-demand function analysis is permitted
+		IdleState,           // No active analysis; system is idle and ready
+		DiscoveryState,      // Context gathering and auxiliary data preparation
+		DisassembleState,    // Instruction decoding and control flow discovery
+		AnalyzeState,        // Core semantic and structural analysis
+		ExtendedAnalyzeState // Supplemental analysis: sweeping, type resolution, and pattern matching
 	} BNAnalysisState;
 
 	typedef struct BNActiveAnalysisInfo

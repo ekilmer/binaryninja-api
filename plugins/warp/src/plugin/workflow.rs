@@ -40,6 +40,9 @@ const MATCHER_ACTIVITY_CONFIG: &str = r#"{
     "eligibility": {
         "auto": {},
         "runOnce": true
+    },
+    "dependencies": {
+        "downstream": ["core.module.update"]
     }
 }"#;
 
@@ -288,10 +291,10 @@ pub fn insert_workflow() {
     let matcher_activity = Activity::new_with_action(MATCHER_ACTIVITY_CONFIG, matcher_activity);
     // Matcher activity must have core.module.update as subactivity otherwise analysis will sometimes never retrigger.
     module_meta_workflow
-        .register_activity_with_subactivities(&matcher_activity, vec!["core.module.update"])
+        .register_activity(&matcher_activity)
         .unwrap();
     module_meta_workflow.insert(
-        "core.module.deleteUnusedAutoFunctions",
+        "core.module.finishUpdate",
         [MATCHER_ACTIVITY_NAME],
     );
     module_meta_workflow.register().unwrap();
