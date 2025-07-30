@@ -984,6 +984,7 @@ extern "C"
 		FloatDisplayType,
 		DoubleDisplayType,
 		EnumerationDisplayType,
+		InvertedCharacterConstantDisplayType,
 	} BNIntegerDisplayType;
 
 	typedef enum BNFlowGraphOption
