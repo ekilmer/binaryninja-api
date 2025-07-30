@@ -1159,13 +1159,13 @@ static ExprId ExtractBits(
     LowLevelILFunction& il, InstructionOperand& reg, size_t nbits, size_t rightMostBit)
 {
 // Get N set bits at offset O
-#define BITMASK(N, O) (((1LL << nbits) - 1) << O)
+#define BITMASK(N, O) (((UINT64_C(1) << nbits) - 1) << O)
 	return il.And(REGSZ_O(reg), ILREG_O(reg), il.Const(REGSZ_O(reg), BITMASK(nbits, rightMostBit)));
 }
 
 static ExprId ExtractBit(LowLevelILFunction& il, InstructionOperand& reg, size_t bit)
 {
-	return il.And(REGSZ_O(reg), ILREG_O(reg), il.Const(REGSZ_O(reg), (1 << bit)));
+	return il.And(REGSZ_O(reg), ILREG_O(reg), il.Const(REGSZ_O(reg), (UINT64_C(1) << bit)));
 }
 
 static void ConditionalJump(Architecture* arch, LowLevelILFunction& il, size_t cond,
