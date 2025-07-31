@@ -11106,11 +11106,20 @@ namespace BinaryNinja {
 		*/
 		void SetLowLevelILFunction(Ref<LowLevelILFunction> lowLevelIL);
 
-		/*! Set the new Medium Level IL for the current analysis context
+		/*! Set the new Medium Level IL for the current analysis context.
+
+			If mapping parameters are left as default (empty), then they will be automatically
+			computed for you based on previous calls to AddExpr() and AddInstruction()
 
 			\param mediumLevelIL the new Medium Level IL
+			\param llilSsaToMlilInstrMap New mappings from LLIL SSA -> MLIL instruction indices
+			\param llilSsaToMlilExprMap New mappings from LLIL SSA -> MLIL expression indices
 		*/
-		void SetMediumLevelILFunction(Ref<MediumLevelILFunction> mediumLevelIL);
+		void SetMediumLevelILFunction(
+			Ref<MediumLevelILFunction> mediumLevelIL,
+			std::unordered_map<size_t /* llil ssa */, size_t /* mlil */> llilSsaToMlilInstrMap = {},
+			std::vector<BNExprMapInfo> llilSsaToMlilExprMap = {}
+		);
 
 		/*! Set the new High Level IL for the current analysis context
 
@@ -13071,21 +13080,16 @@ namespace BinaryNinja {
 		uint32_t sourceOperand;
 		bool valid;
 
-		ILSourceLocation() : valid(false) {}
+		bool ilBased;
+		bool ilDirect;
+		size_t ilExprIndex;
 
-		ILSourceLocation(uint64_t addr, uint32_t operand) : address(addr), sourceOperand(operand), valid(true) {}
+		ILSourceLocation() : valid(false), ilBased(false) {}
 
-		ILSourceLocation(const BNLowLevelILInstruction& instr) :
-		    address(instr.address), sourceOperand(instr.sourceOperand), valid(true)
-		{}
-
-		ILSourceLocation(const BNMediumLevelILInstruction& instr) :
-		    address(instr.address), sourceOperand(instr.sourceOperand), valid(true)
-		{}
-
-		ILSourceLocation(const BNHighLevelILInstruction& instr) :
-		    address(instr.address), sourceOperand(instr.sourceOperand), valid(true)
-		{}
+		ILSourceLocation(uint64_t addr, uint32_t operand) : address(addr), sourceOperand(operand), valid(true), ilBased(false) {}
+		ILSourceLocation(const struct LowLevelILInstruction& instr);
+		ILSourceLocation(const struct MediumLevelILInstruction& instr);
+		ILSourceLocation(const struct HighLevelILInstruction& instr);
 	};
 
 	struct LowLevelILInstruction;
@@ -14535,6 +14539,22 @@ namespace BinaryNinja {
 	    public CoreRefCountObject<BNMediumLevelILFunction, BNNewMediumLevelILFunctionReference,
 	        BNFreeMediumLevelILFunction>
 	{
+		struct TranslationData
+		{
+			MediumLevelILFunction* copyingFunction = nullptr;
+			std::unordered_map<size_t /* old function expr index */, std::vector<std::tuple<size_t /* new function expr index */, bool /* direct */>>> mlilToMlilExprMap;
+			std::unordered_map<size_t /* old function instr index */, std::vector<std::tuple<size_t /* new function instr index */, bool /* direct */>>> mlilToMlilInstrMap;
+			// todo maybe: llil ssa -> mlil mappings
+		};
+		std::unique_ptr<TranslationData> m_translationData;
+
+		void RecordMLILToMLILExprMap(size_t newExprIndex, const ILSourceLocation& location);
+		void RecordMLILToMLILInstrMap(size_t newInstrIndex, const ILSourceLocation& location);
+		std::unordered_map<size_t /* llil ssa */, size_t /* mlil */> GetLLILSSAToMLILInstrMap(bool fromTranslation);
+		std::vector<BNExprMapInfo> GetLLILSSAToMLILExprMap(bool fromTranslation);
+
+		friend class AnalysisContext;
+
 	  public:
 		MediumLevelILFunction(Architecture* arch, Function* func = nullptr, LowLevelILFunction* lowLevelIL = nullptr);
 		MediumLevelILFunction(BNMediumLevelILFunction* func);
@@ -14774,7 +14794,7 @@ namespace BinaryNinja {
 		    const ILSourceLocation& loc = ILSourceLocation());
 		void MarkLabel(BNMediumLevelILLabel& label);
 
-		ExprId AddInstruction(ExprId expr);
+		ExprId AddInstruction(ExprId expr, const ILSourceLocation& loc = ILSourceLocation());
 
 		std::vector<uint64_t> GetOperandList(ExprId i, size_t listOperand);
 		ExprId AddLabelMap(const std::map<uint64_t, BNMediumLevelILLabel*>& labels);

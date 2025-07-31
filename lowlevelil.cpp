@@ -25,6 +25,12 @@ using namespace BinaryNinja;
 using namespace std;
 
 
+ILSourceLocation::ILSourceLocation(const struct LowLevelILInstruction& instr):
+	address(instr.address), sourceOperand(instr.sourceOperand), valid(true),
+	ilBased(true), ilDirect(true), ilExprIndex(instr.exprIndex)
+{}
+
+
 LowLevelILLabel::LowLevelILLabel()
 {
 	BNLowLevelILInitLabel(this);

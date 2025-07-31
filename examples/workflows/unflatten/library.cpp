@@ -235,7 +235,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 						{
 							node->SetHighlight(GetHighlightColor(RedHighlightColor));
 						}
-						else if (std::find_if(path.begin(), path.end(), [node](Ref<BasicBlock> b) { return b->GetStart() == node->GetBasicBlock()->GetStart(); }) != path.end())
+						else if (std::find_if(path.begin(), path.end(), [node](const Ref<BasicBlock>& b) { return b->GetStart() == node->GetBasicBlock()->GetStart(); }) != path.end())
 						{
 							node->SetHighlight(GetHighlightColor(GreenHighlightColor));
 						}
@@ -286,7 +286,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 									// Copy instruction as-is
 									auto copyBlockInstr = oldMLIL->GetInstruction(copyBlockInstrIndex);
 									newMLIL->SetCurrentAddress(copyBlock->GetArchitecture(), copyBlockInstr.address);
-									newMLIL->AddInstruction(copyBlockInstr.CopyTo(newMLIL));
+									newMLIL->AddInstruction(copyBlockInstr.CopyTo(newMLIL), copyBlockInstr);
 								}
 							}
 							continue;
@@ -295,7 +295,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 
 					// Otherwise, copy the instruction as-is
 					newMLIL->SetCurrentAddress(block->GetArchitecture(), oldInstr.address);
-					newMLIL->AddInstruction(oldInstr.CopyTo(newMLIL));
+					newMLIL->AddInstruction(oldInstr.CopyTo(newMLIL), oldInstr);
 				}
 			}
 
@@ -350,7 +350,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 						{
 							size_t destValue = oldInstr.GetDestExpr<MLIL_JUMP_TO>().GetValue().value;
 							auto targets = oldInstr.GetTargets<MLIL_JUMP_TO>();
-							if (std::find_if(targets.begin(), targets.end(), [&](std::pair<size_t, size_t> target) {
+							if (std::find_if(targets.begin(), targets.end(), [&](const std::pair<size_t, size_t>& target) {
 								return target.first == destValue;
 							}) != targets.end()) {
 								auto oldTargetIndex = targets[destValue];
@@ -359,7 +359,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 									blockLabels[oldTargetIndex] = MediumLevelILLabel{};
 								}
 								MediumLevelILLabel* targetLabel = &blockLabels[oldTargetIndex];
-								newMLIL->AddInstruction(newMLIL->Goto(*targetLabel, oldInstr));
+								newMLIL->AddInstruction(newMLIL->Goto(*targetLabel, oldInstr), oldInstr);
 								continue;
 							}
 						}
@@ -367,7 +367,7 @@ void RewriteAction(Ref<AnalysisContext> context, bool doIt)
 
 					// Otherwise, copy the instruction as-is
 					newMLIL->SetCurrentAddress(block->GetArchitecture(), oldInstr.address);
-					newMLIL->AddInstruction(oldInstr.CopyTo(newMLIL));
+					newMLIL->AddInstruction(oldInstr.CopyTo(newMLIL), oldInstr);
 				}
 			}
 
