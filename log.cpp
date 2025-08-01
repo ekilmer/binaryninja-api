@@ -161,6 +161,49 @@ static void PerformLogForException(size_t session, BNLogLevel level, const strin
 }
 
 
+static void PerformLogWithStackTrace(size_t session, BNLogLevel level, const string& logger_name, size_t tid,
+	const char* fmt, va_list args)
+{
+	#if defined(_MSC_VER)
+	int len = _vscprintf(fmt, args);
+	if (len < 0)
+		return;
+	char* msg = (char*)malloc(len + 1);
+	if (!msg)
+		return;
+	if (vsnprintf(msg, len + 1, fmt, args) >= 0)
+	{
+		char* stackTrace = BNGetCurrentStackTraceString();
+		if (stackTrace)
+		{
+			BNLogWithStackTrace(session, level, logger_name.c_str(), tid, stackTrace, "%s", msg);
+			BNFreeString(stackTrace);
+		}
+		else
+		{
+			BNLog(session, level, logger_name.c_str(), tid, "%s", msg);
+		}
+	}
+	free(msg);
+	#else
+	char* msg;
+	if (vasprintf(&msg, fmt, args) < 0)
+		return;
+	char* stackTrace = BNGetCurrentStackTraceString();
+	if (stackTrace)
+	{
+		BNLogWithStackTrace(session, level, logger_name.c_str(), tid, stackTrace, "%s", msg);
+		BNFreeString(stackTrace);
+	}
+	else
+	{
+		BNLog(session, level, logger_name.c_str(), tid, "%s", msg);
+	}
+	free(msg);
+	#endif
+}
+
+
 void BinaryNinja::Log(BNLogLevel level, const char* fmt, ...)
 {
 	va_list args;
@@ -291,6 +334,71 @@ void BinaryNinja::LogAlertForException(const std::exception& e, const char* fmt,
 }
 
 
+void BinaryNinja::LogWithStackTrace(BNLogLevel level, const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, level, "", 0, fmt, args);
+	va_end(args);
+}
+
+
+void BinaryNinja::LogTraceWithStackTrace(const char* fmt, ...)
+{
+	#ifdef _DEBUG
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, DebugLog, "", 0, fmt, args);
+	va_end(args);
+	#endif
+}
+
+
+void BinaryNinja::LogDebugWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, DebugLog, "", 0, fmt, args);
+	va_end(args);
+}
+
+
+void BinaryNinja::LogInfoWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, InfoLog, "", 0, fmt, args);
+	va_end(args);
+}
+
+
+void BinaryNinja::LogWarnWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, WarningLog, "", 0, fmt, args);
+	va_end(args);
+}
+
+
+void BinaryNinja::LogErrorWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, ErrorLog, "", 0, fmt, args);
+	va_end(args);
+}
+
+
+void BinaryNinja::LogAlertWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(0, AlertLog, "", 0, fmt, args);
+	va_end(args);
+}
+
+
 void BinaryNinja::LogFV(BNLogLevel level, fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
@@ -302,41 +410,6 @@ void BinaryNinja::LogTraceFV(fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
 	LogTrace("%s", value.c_str());
-}
-
-
-void BinaryNinja::LogDebugFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogDebug("%s", value.c_str());
-}
-
-
-void BinaryNinja::LogInfoFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogInfo("%s", value.c_str());
-}
-
-
-void BinaryNinja::LogWarnFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogWarn("%s", value.c_str());
-}
-
-
-void BinaryNinja::LogErrorFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogError("%s", value.c_str());
-}
-
-
-void BinaryNinja::LogAlertFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogAlert("%s", value.c_str());
 }
 
 
@@ -355,38 +428,17 @@ void BinaryNinja::LogTraceForExceptionFV(const std::exception& e, fmt::string_vi
 }
 
 
-void BinaryNinja::LogDebugForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
+void BinaryNinja::LogWithStackTraceFV(BNLogLevel level, fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
-	LogDebugForException(e, "%s", value.c_str());
+	LogWithStackTrace(level, "%s", value.c_str());
 }
 
 
-void BinaryNinja::LogInfoForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
+void BinaryNinja::LogTraceWithStackTraceFV(fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
-	LogInfoForException(e, "%s", value.c_str());
-}
-
-
-void BinaryNinja::LogWarnForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogWarnForException(e, "%s", value.c_str());
-}
-
-
-void BinaryNinja::LogErrorForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogErrorForException(e, "%s", value.c_str());
-}
-
-
-void BinaryNinja::LogAlertForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogAlertForException(e, "%s", value.c_str());
+	LogTraceWithStackTrace("%s", value.c_str());
 }
 
 
@@ -567,6 +619,78 @@ void Logger::LogAlertForException(const std::exception& e, const char* fmt, ...)
 }
 
 
+void Logger::LogWithStackTrace(BNLogLevel level, const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), level, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
+void Logger::LogTraceWithStackTrace(const char* fmt, ...)
+{
+	#ifdef _DEBUG
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), DebugLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+	#endif
+}
+
+
+void Logger::LogDebugWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), DebugLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
+void Logger::LogInfoWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), InfoLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
+void Logger::LogWarnWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), WarningLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
+void Logger::LogErrorWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), ErrorLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
+void Logger::LogAlertWithStackTrace(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	PerformLogWithStackTrace(
+		GetSessionId(), AlertLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
+	va_end(args);
+}
+
+
 void Logger::LogFV(BNLogLevel level, fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
@@ -578,41 +702,6 @@ void Logger::LogTraceFV(fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
 	LogTrace("%s", value.c_str());
-}
-
-
-void Logger::LogDebugFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogDebug("%s", value.c_str());
-}
-
-
-void Logger::LogInfoFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogInfo("%s", value.c_str());
-}
-
-
-void Logger::LogWarnFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogWarn("%s", value.c_str());
-}
-
-
-void Logger::LogErrorFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogError("%s", value.c_str());
-}
-
-
-void Logger::LogAlertFV(fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogAlert("%s", value.c_str());
 }
 
 
@@ -631,38 +720,17 @@ void Logger::LogTraceForExceptionFV(const std::exception& e, fmt::string_view fo
 }
 
 
-void Logger::LogDebugForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
+void Logger::LogWithStackTraceFV(BNLogLevel level, fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
-	LogDebugForException(e, "%s", value.c_str());
+	LogWithStackTrace(level, "%s", value.c_str());
 }
 
 
-void Logger::LogInfoForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
+void Logger::LogTraceWithStackTraceFV(fmt::string_view format, fmt::format_args args)
 {
 	std::string value = fmt::vformat(format, args);
-	LogInfoForException(e, "%s", value.c_str());
-}
-
-
-void Logger::LogWarnForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogWarnForException(e, "%s", value.c_str());
-}
-
-
-void Logger::LogErrorForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogErrorForException(e, "%s", value.c_str());
-}
-
-
-void Logger::LogAlertForExceptionFV(const std::exception& e, fmt::string_view format, fmt::format_args args)
-{
-	std::string value = fmt::vformat(format, args);
-	LogAlertForException(e, "%s", value.c_str());
+	LogTraceWithStackTrace("%s", value.c_str());
 }
 
 
