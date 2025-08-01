@@ -34,7 +34,7 @@ from . import typelibrary
 from . import architecture
 from . import typecontainer
 from . import binaryview
-from .log import log_error
+from .log import log_error_for_exception
 
 
 class _PlatformMetaClass(type):
@@ -160,7 +160,7 @@ class Platform(metaclass=_PlatformMetaClass):
 			view_obj = binaryview.BinaryView(handle=core.BNNewViewReference(view))
 			self.view_init(view)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Platform._view_init")
 
 	def _get_global_regs(self, ctxt, count):
 		try:
@@ -173,7 +173,7 @@ class Platform(metaclass=_PlatformMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Platform._get_global_regs")
 			count[0] = 0
 			return None
 
@@ -184,7 +184,7 @@ class Platform(metaclass=_PlatformMetaClass):
 				raise ValueError("freeing register list that wasn't allocated")
 			del self._pending_reg_lists[buf.value]
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Platform._free_register_list")
 
 	def _get_global_reg_type(self, ctxt, reg):
 		try:
@@ -195,7 +195,7 @@ class Platform(metaclass=_PlatformMetaClass):
 				return ctypes.cast(handle, ctypes.c_void_p).value
 			return None
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Platform._get_global_reg_type")
 			return None
 
 	def _get_address_size(self, ctxt):
@@ -289,7 +289,7 @@ class Platform(metaclass=_PlatformMetaClass):
 					raise ValueError("freeing source_file_values list that wasn't allocated")
 				del self._pending_parser_input_lists[buf.value]
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Platform._free_type_parser_input")
 
 	def adjust_type_parser_input(
 			self,

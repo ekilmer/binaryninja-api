@@ -33,7 +33,7 @@ from . import highlight
 from . import lineformatter
 from . import variable
 from . import types
-from .log import log_error
+from .log import log_error_for_exception
 from .enums import BraceRequirement, HighlightStandardColor, InstructionTextTokenType, OperatorPrecedence, ScopeType, \
 	SymbolDisplayType, SymbolDisplayResult, InstructionTextTokenContext
 
@@ -440,20 +440,20 @@ class LanguageRepresentationFunction:
 		try:
 			self.__class__._registered_instances.append(self)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._external_ref_taken")
 
 	def _external_ref_released(self, ctxt):
 		try:
 			self.__class__._registered_instances.remove(self)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._external_ref_released")
 
 	def _init_token_emitter(self, ctxt, emitter: core.BNHighLevelILTokenEmitterHandle):
 		try:
 			emitter = HighLevelILTokenEmitter(core.BNNewHighLevelILTokenEmitterReference(emitter))
 			self.perform_init_token_emitter(emitter)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._init_token_emitter")
 
 	def _get_expr_text(
 			self, ctxt, hlil: core.BNHighLevelILFunctionHandle, expr_index: int,
@@ -468,7 +468,7 @@ class LanguageRepresentationFunction:
 				settings = function.DisassemblySettings(core.BNNewDisassemblySettingsReference(settings))
 			self.perform_get_expr_text(instr, tokens, settings, precedence, statement)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._get_expr_text")
 
 	def _begin_lines(
 			self, ctxt, hlil: core.BNHighLevelILFunctionHandle, expr_index: int,
@@ -480,7 +480,7 @@ class LanguageRepresentationFunction:
 			tokens = HighLevelILTokenEmitter(core.BNNewHighLevelILTokenEmitterReference(tokens))
 			self.perform_begin_lines(instr, tokens)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._begin_lines")
 
 	def _end_lines(
 			self, ctxt, hlil: core.BNHighLevelILFunctionHandle, expr_index: int,
@@ -492,34 +492,34 @@ class LanguageRepresentationFunction:
 			tokens = HighLevelILTokenEmitter(core.BNNewHighLevelILTokenEmitterReference(tokens))
 			self.perform_end_lines(instr, tokens)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._end_lines")
 
 	def _comment_start_string(self, ctxt):
 		try:
 			return core.BNAllocString(self.comment_start_string)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._comment_start_string")
 			return core.BNAllocString("// ")
 
 	def _comment_end_string(self, ctxt):
 		try:
 			return core.BNAllocString(self.comment_end_string)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._comment_end_string")
 			return core.BNAllocString("")
 
 	def _annotation_start_string(self, ctxt):
 		try:
 			return core.BNAllocString(self.annotation_start_string)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._annotation_start_string")
 			return core.BNAllocString("{")
 
 	def _annotation_end_string(self, ctxt):
 		try:
 			return core.BNAllocString(self.annotation_end_string)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunction._annotation_end_string")
 			return core.BNAllocString("}")
 
 	def perform_init_token_emitter(self, emitter: HighLevelILTokenEmitter):
@@ -709,7 +709,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 			assert handle is not None, "core.BNNewLanguageRepresentationFunctionReference returned None"
 			return ctypes.cast(handle, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LangugeRepresentationFunctionType._create")
 			return None
 
 	def _is_valid(self, ctxt, view: core.BNBinaryViewHandle) -> bool:
@@ -717,7 +717,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 			view = binaryview.BinaryView(handle=core.BNNewViewReference(view))
 			return self.is_valid(view)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunctionType._is_valid")
 			return False
 
 	def _type_printer(self, ctxt):
@@ -727,7 +727,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 				return None
 			return ctypes.cast(result.handle, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunctionType._type_printer")
 			return None
 
 	def _type_parser(self, ctxt):
@@ -737,7 +737,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 				return None
 			return ctypes.cast(result.handle, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunctionType._type_parser")
 			return None
 
 	def _line_formatter(self, ctxt):
@@ -747,7 +747,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 				return None
 			return ctypes.cast(result.handle, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunctionType._line_formatter")
 			return None
 
 	def _function_type_tokens(
@@ -787,7 +787,7 @@ class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFuncti
 
 			return ctypes.cast(self.line_buf, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in LanguageRepresentationFunctionType._function_type_tokens")
 			count[0] = 0
 			return None
 

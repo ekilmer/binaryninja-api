@@ -304,3 +304,21 @@ class Logger:
 
 	def log_alert(self, message: str) -> None:
 		log(LogLevel.AlertLog, message, self.logger_name, self.session_id)
+
+	def log_for_exception(self, level: LogLevel, message: str) -> None:
+		log_for_exception(level, message, self.logger_name, self.session_id)
+
+	def log_debug_for_exception(self, message: str) -> None:
+		log_for_exception(LogLevel.DebugLog, message, self.logger_name, self.session_id)
+
+	def log_info_for_exception(self, message: str) -> None:
+		log_for_exception(LogLevel.InfoLog, message, self.logger_name, self.session_id)
+
+	def log_warn_for_exception(self, message: str) -> None:
+		log_for_exception(LogLevel.WarningLog, message, self.logger_name, self.session_id)
+
+	def log_error_for_exception(self, message: str) -> None:
+		log_for_exception(LogLevel.ErrorLog, message, self.logger_name, self.session_id)
+
+	def log_alert_for_exception(self, message: str) -> None:
+		log_for_exception(LogLevel.AlertLog, message, self.logger_name, self.session_id)

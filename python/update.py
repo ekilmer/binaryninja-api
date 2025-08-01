@@ -25,7 +25,7 @@ import ctypes
 import binaryninja
 from . import _binaryninjacore as core
 from .enums import UpdateResult
-from .log import log_error
+from .log import log_error_for_exception
 
 
 class _UpdateChannelMetaClass(type):
@@ -78,7 +78,7 @@ class UpdateProgressCallback:
 				return self.func(progress, total)
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in update progress callback")
 
 	@property
 	def active(cls):

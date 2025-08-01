@@ -24,7 +24,7 @@ import abc
 
 # Binary Ninja components
 import binaryninja
-from .log import log_error
+from .log import log_error_for_exception
 from . import databuffer
 from . import _binaryninjacore as core
 from .enums import TransformType
@@ -179,7 +179,7 @@ class Transform(metaclass=_TransformMetaClass):
 			self._pending_param_lists[result.value] = (result, param_buf)
 			return result.value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Transform._get_parameters")
 			count[0] = 0
 			return None
 
@@ -190,7 +190,7 @@ class Transform(metaclass=_TransformMetaClass):
 				raise ValueError("freeing parameter list that wasn't allocated")
 			del self._pending_param_lists[buf.value]
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Transform._free_parameters")
 
 	def _decode(self, ctxt, input_buf, output_buf, params, count):
 		try:
@@ -206,7 +206,7 @@ class Transform(metaclass=_TransformMetaClass):
 			core.BNSetDataBufferContents(output_buf, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Transform._decode")
 			return False
 
 	def _encode(self, ctxt, input_buf, output_buf, params, count):
@@ -223,7 +223,7 @@ class Transform(metaclass=_TransformMetaClass):
 			core.BNSetDataBufferContents(output_buf, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Transform._encode")
 			return False
 
 	@abc.abstractmethod

@@ -27,7 +27,7 @@ from typing import List, Union, Callable, Optional, Any
 
 # Binary Ninja components
 import binaryninja
-from .log import log_error
+from .log import log_error_for_exception
 from . import _binaryninjacore as core
 from .flowgraph import FlowGraph, CoreFlowGraph
 
@@ -224,7 +224,7 @@ class Activity(object):
 			if self.action is not None:
 				self.action(AnalysisContext(ac))
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Activity._action")
 
 	def __del__(self):
 		if core is not None:
