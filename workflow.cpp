@@ -98,10 +98,39 @@ void AnalysisContext::SetLowLevelILFunction(Ref<LowLevelILFunction> lowLevelIL)
 }
 
 
-void AnalysisContext::SetMediumLevelILFunction(Ref<MediumLevelILFunction> mediumLevelIL)
+void AnalysisContext::SetMediumLevelILFunction(
+	Ref<MediumLevelILFunction> mediumLevelIL,
+	std::unordered_map<size_t /* llil ssa */, size_t /* mlil */> llilSsaToMlilInstrMap,
+	std::vector<BNExprMapInfo> llilSsaToMlilExprMap
+)
 {
-	// TODO: Mappings FFI
-	BNSetMediumLevelILFunction(m_object, mediumLevelIL->m_object, nullptr, 0, nullptr, 0);
+	if (llilSsaToMlilExprMap.empty() || llilSsaToMlilInstrMap.empty())
+	{
+		// Build up maps from existing data in the function
+		llilSsaToMlilExprMap = mediumLevelIL->GetLLILSSAToMLILExprMap(true);
+		llilSsaToMlilInstrMap = mediumLevelIL->GetLLILSSAToMLILInstrMap(true);
+	}
+
+	std::vector<size_t> instrMapVec;
+	// Technically imprecise but doesn't matter this is just reserving
+	instrMapVec.reserve(llilSsaToMlilInstrMap.size());
+	for (auto& [llilSSAIndex, mlilIndex]: llilSsaToMlilInstrMap)
+	{
+		if (instrMapVec.size() <= llilSSAIndex)
+		{
+			instrMapVec.resize(llilSSAIndex + 1, BN_INVALID_EXPR);
+		}
+		instrMapVec[llilSSAIndex] = mlilIndex;
+	}
+
+	BNSetMediumLevelILFunction(
+		m_object,
+		mediumLevelIL->m_object,
+		instrMapVec.data(),
+		instrMapVec.size(),
+		llilSsaToMlilExprMap.data(),
+		llilSsaToMlilExprMap.size()
+	);
 }
 
 

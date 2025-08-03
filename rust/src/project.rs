@@ -41,8 +41,8 @@ impl Project {
     ///
     /// * `path` - Path to the project directory (.bnpr)
     /// * `name` - Name of the new project
-    pub fn create(path: &str, name: &str) -> Option<Ref<Self>> {
-        let path_raw = path.to_cstr();
+    pub fn create(path: impl AsRef<Path>, name: &str) -> Option<Ref<Self>> {
+        let path_raw = path.as_ref().to_cstr();
         let name_raw = name.to_cstr();
         let handle = unsafe { BNCreateProject(path_raw.as_ptr(), name_raw.as_ptr()) };
         NonNull::new(handle).map(|h| unsafe { Self::ref_from_raw(h) })
@@ -52,8 +52,8 @@ impl Project {
     /// Open an existing project
     ///
     /// * `path` - Path to the project directory (.bnpr) or project metadata file (.bnpm)
-    pub fn open_project(path: &str) -> Option<Ref<Self>> {
-        let path_raw = path.to_cstr();
+    pub fn open_project(path: impl AsRef<Path>) -> Option<Ref<Self>> {
+        let path_raw = path.as_ref().to_cstr();
         let handle = unsafe { BNOpenProject(path_raw.as_ptr()) };
         NonNull::new(handle).map(|h| unsafe { Self::ref_from_raw(h) })
     }
@@ -146,7 +146,7 @@ impl Project {
     /// * `description` - Description for created root folder
     pub fn create_folder_from_path(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         parent: Option<&ProjectFolder>,
         description: &str,
     ) -> Result<Ref<ProjectFolder>, ()> {
@@ -161,7 +161,7 @@ impl Project {
     /// * `progress` - [`ProgressCallback`] that will be called as the [`ProjectFolder`] is being created
     pub fn create_folder_from_path_with_progress<PC>(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         parent: Option<&ProjectFolder>,
         description: &str,
         mut progress: PC,
@@ -169,7 +169,7 @@ impl Project {
     where
         PC: ProgressCallback,
     {
-        let path_raw = path.to_cstr();
+        let path_raw = path.as_ref().to_cstr();
         let description_raw = description.to_cstr();
         let parent_ptr = parent.map(|p| p.handle.as_ptr()).unwrap_or(null_mut());
 
@@ -300,7 +300,7 @@ impl Project {
     /// * `description` - Description to assign to the created file
     pub fn create_file_from_path(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         folder: Option<&ProjectFolder>,
         name: &str,
         description: &str,
@@ -323,7 +323,7 @@ impl Project {
     /// * `progress` - [`ProgressCallback`] that will be called as the [`ProjectFile`] is being added
     pub fn create_file_from_path_with_progress<PC>(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         folder: Option<&ProjectFolder>,
         name: &str,
         description: &str,
@@ -332,7 +332,7 @@ impl Project {
     where
         PC: ProgressCallback,
     {
-        let path_raw = path.to_cstr();
+        let path_raw = path.as_ref().to_cstr();
         let name_raw = name.to_cstr();
         let description_raw = description.to_cstr();
         let folder_ptr = folder.map(|p| p.handle.as_ptr()).unwrap_or(null_mut());
@@ -361,7 +361,7 @@ impl Project {
     /// * `creation_time` - Creation time of the file
     pub unsafe fn create_file_from_path_unsafe(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         folder: Option<&ProjectFolder>,
         name: &str,
         description: &str,
@@ -391,7 +391,7 @@ impl Project {
     #[allow(clippy::too_many_arguments)]
     pub unsafe fn create_file_from_path_unsafe_with_progress<PC>(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         folder: Option<&ProjectFolder>,
         name: &str,
         description: &str,
@@ -402,7 +402,7 @@ impl Project {
     where
         PC: ProgressCallback,
     {
-        let path_raw = path.to_cstr();
+        let path_raw = path.as_ref().to_cstr();
         let name_raw = name.to_cstr();
         let description_raw = description.to_cstr();
         let id_raw = id.to_cstr();

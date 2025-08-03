@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 126
+#define BN_CURRENT_CORE_ABI_VERSION 128
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 124
+#define BN_MINIMUM_CORE_ABI_VERSION 128
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -984,6 +984,7 @@ extern "C"
 		FloatDisplayType,
 		DoubleDisplayType,
 		EnumerationDisplayType,
+		InvertedCharacterConstantDisplayType,
 	} BNIntegerDisplayType;
 
 	typedef enum BNFlowGraphOption
@@ -1559,6 +1560,8 @@ extern "C"
 	{
 		void* context;
 		void (*log)(void* ctxt, size_t sessionId, BNLogLevel level, const char* msg, const char* logger_name, size_t tid);
+		void (*logWithStackTrace)(void* ctxt, size_t sessionId, BNLogLevel level, const char* stackTrace,
+			const char* msg, const char* logger_name, size_t tid);
 		void (*close)(void* ctxt);
 		BNLogLevel (*getLogLevel)(void* ctxt);
 	} BNLogListener;
@@ -2731,12 +2734,13 @@ extern "C"
 
 	typedef enum BNAnalysisState
 	{
-		InitialState,
-		HoldState,
-		IdleState,
-		DisassembleState,
-		AnalyzeState,
-		ExtendedAnalyzeState
+		InitialState,        // Entry point before any analysis begins
+		HoldState,           // Module-level analysis is deferred; On-demand function analysis is permitted
+		IdleState,           // No active analysis; system is idle and ready
+		DiscoveryState,      // Context gathering and auxiliary data preparation
+		DisassembleState,    // Instruction decoding and control flow discovery
+		AnalyzeState,        // Core semantic and structural analysis
+		ExtendedAnalyzeState // Supplemental analysis: sweeping, type resolution, and pattern matching
 	} BNAnalysisState;
 
 	typedef struct BNActiveAnalysisInfo
@@ -3867,6 +3871,28 @@ extern "C"
 	BINARYNINJACOREAPI void BNLogString(
 		size_t session, BNLogLevel level, const char* logger_name, size_t tid, const char* str);
 
+	BN_PRINTF_ATTRIBUTE(6, 7)
+	BINARYNINJACOREAPI void BNLogWithStackTrace(size_t session, BNLogLevel level, const char* logger_name, size_t tid,
+		const char* stackTrace, const char* fmt, ...);
+
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	BINARYNINJACOREAPI void BNLogDebugWithStackTrace(const char* stackTrace, const char* fmt, ...);
+
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	BINARYNINJACOREAPI void BNLogInfoWithStackTrace(const char* stackTrace, const char* fmt, ...);
+
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	BINARYNINJACOREAPI void BNLogWarnWithStackTrace(const char* stackTrace, const char* fmt, ...);
+
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	BINARYNINJACOREAPI void BNLogErrorWithStackTrace(const char* stackTrace, const char* fmt, ...);
+
+	BN_PRINTF_ATTRIBUTE(2, 3)
+	BINARYNINJACOREAPI void BNLogAlertWithStackTrace(const char* stackTrace, const char* fmt, ...);
+
+	BINARYNINJACOREAPI void BNLogStringWithStackTrace(
+		size_t session, BNLogLevel level, const char* logger_name, size_t tid, const char* stackTrace, const char* str);
+
 
 	BINARYNINJACOREAPI BNLogger* BNNewLoggerReference(BNLogger* logger);
 	BINARYNINJACOREAPI void BNFreeLogger(BNLogger* logger);
@@ -3874,6 +3900,12 @@ extern "C"
 	BN_PRINTF_ATTRIBUTE(3, 4)
 	BINARYNINJACOREAPI void BNLoggerLog(BNLogger* logger, BNLogLevel level, const char* fmt, ...);
 	BINARYNINJACOREAPI void BNLoggerLogString(BNLogger* logger, BNLogLevel level, const char* msg);
+
+	BN_PRINTF_ATTRIBUTE(4, 5)
+	BINARYNINJACOREAPI void BNLoggerLogWithStackTrace(
+		BNLogger* logger, BNLogLevel level, const char* stackTrace, const char* fmt, ...);
+	BINARYNINJACOREAPI void BNLoggerLogStringWithStackTrace(
+		BNLogger* logger, BNLogLevel level, const char* stackTrace, const char* msg);
 
 	BINARYNINJACOREAPI char* BNLoggerGetName(BNLogger* logger);
 	BINARYNINJACOREAPI size_t BNLoggerGetSessionId(BNLogger* logger);

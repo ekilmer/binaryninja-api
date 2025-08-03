@@ -26,6 +26,12 @@ using namespace BinaryNinja;
 using namespace std;
 
 
+ILSourceLocation::ILSourceLocation(const struct HighLevelILInstruction& instr):
+	address(instr.address), sourceOperand(instr.sourceOperand), valid(true),
+	ilBased(true), ilDirect(true), ilExprIndex(instr.exprIndex)
+{}
+
+
 HighLevelILFunction::HighLevelILFunction(Architecture* arch, Function* func)
 {
 	m_object = BNCreateHighLevelILFunction(arch->GetObject(), func ? func->GetObject() : nullptr);

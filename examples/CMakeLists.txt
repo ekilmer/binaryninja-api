@@ -8,6 +8,7 @@ add_subdirectory(breakpoint)
 add_subdirectory(x86_extension)
 add_subdirectory(workflows/inliner)
 add_subdirectory(workflows/tailcall)
+add_subdirectory(workflows/unflatten)
 
 # Personal+ UI plugins (headless UI binaries is a weird concept but I guess technically possible)
 if(NOT DEFINED BinaryNinjaAPI_HEADLESS OR NOT BinaryNinjaAPI_HEADLESS)

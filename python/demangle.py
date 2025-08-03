@@ -26,7 +26,7 @@ import binaryninja
 from . import _binaryninjacore as core
 from . import binaryview
 from . import types
-from .log import log_error
+from .log import log_error_for_exception
 from .architecture import Architecture, CoreArchitecture
 from .platform import Platform
 from typing import Iterable, List, Optional, Union, Tuple
@@ -369,7 +369,7 @@ class Demangler(metaclass=_DemanglerMetaclass):
 		try:
 			return self.is_mangled_string(core.pyNativeStr(name))
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Demangler._is_mangled_string")
 			return False
 
 	def _demangle(self, ctxt, arch, name, out_type, out_var_name, view):
@@ -395,14 +395,14 @@ class Demangler(metaclass=_DemanglerMetaclass):
 			out_var_name[0] = Demangler._cached_name
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Demangler._demangle")
 			return False
 
 	def _free_var_name(self, ctxt, name):
 		try:
 			Demangler._cached_name = None
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Demangler._free_var_name")
 
 	def is_mangled_string(self, name: str) -> bool:
 		"""

@@ -29,7 +29,7 @@ void RTTIAnalysis(const Ref<AnalysisContext>& analysisContext)
 		}
 		catch (std::exception& e)
 		{
-			LogError("MSVC RTTI Analysis failed with uncaught exception: %s", e.what());
+			LogErrorForException(e, "MSVC RTTI Analysis failed with uncaught exception: %s", e.what());
 		}
 	}
 
@@ -41,7 +41,7 @@ void RTTIAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogError("Itanium RTTI Analysis failed with uncaught exception: %s", e.what());
+		LogErrorForException(e, "Itanium RTTI Analysis failed with uncaught exception: %s", e.what());
 	}
 }
 
@@ -60,7 +60,7 @@ void VFTAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogError("MSVC VFT Analysis failed with uncaught exception: %s", e.what());
+		LogErrorForException(e, "MSVC VFT Analysis failed with uncaught exception: %s", e.what());
 	}
 
 	try
@@ -71,7 +71,7 @@ void VFTAnalysis(const Ref<AnalysisContext>& analysisContext)
 	}
 	catch (std::exception& e)
 	{
-		LogError("Itanium VFT Analysis failed with uncaught exception: %s", e.what());
+		LogErrorForException(e, "Itanium VFT Analysis failed with uncaught exception: %s", e.what());
 	}
 }
 
@@ -115,13 +115,16 @@ extern "C" {
 			"eligibility": {
 				"runOnce": true,
 				"auto": {}
+			},
+			"dependencies": {
+				"downstream": ["core.module.update"]
 			}
-		})~", &VFTAnalysis, {"core.module.update"});
+		})~", &VFTAnalysis);
 
 		// Run rtti before debug info is applied.
 		rttiMetaWorkflow->Insert("core.module.loadDebugInfo", "analysis.rtti.rttiAnalysis");
 		// Run vft after functions have analyzed (so that the virtual functions have analyzed)
-		rttiMetaWorkflow->Insert("core.module.deleteUnusedAutoFunctions", "analysis.rtti.vftAnalysis");
+		rttiMetaWorkflow->InsertAfter("core.module.extendedAnalysis", "analysis.rtti.vftAnalysis");
 		Workflow::RegisterWorkflow(rttiMetaWorkflow);
 
 		return true;

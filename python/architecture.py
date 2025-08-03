@@ -30,7 +30,7 @@ from .enums import (
     Endianness, ImplicitRegisterExtend, BranchType, LowLevelILFlagCondition, FlagRole, LowLevelILOperation,
     InstructionTextTokenType, InstructionTextTokenContext, IntrinsicClass
 )
-from .log import log_error
+from .log import log_error_for_exception, log_debug_for_exception
 from . import lowlevelil
 from . import types
 from . import databuffer
@@ -930,42 +930,42 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		try:
 			return self.endianness
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_endianness")
 			return Endianness.LittleEndian
 
 	def _get_address_size(self, ctxt):
 		try:
 			return self.address_size
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_address_size")
 			return 8
 
 	def _get_default_integer_size(self, ctxt):
 		try:
 			return self.default_int_size
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_default_integer_size")
 			return 4
 
 	def _get_instruction_alignment(self, ctxt):
 		try:
 			return self.instr_alignment
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_instruction_alignment")
 			return 1
 
 	def _get_max_instruction_length(self, ctxt):
 		try:
 			return self.max_instr_length
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_max_instruction_length")
 			return 16
 
 	def _get_opcode_display_length(self, ctxt):
 		try:
 			return self.opcode_display_length
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_opcode_display_length")
 			return 8
 
 	def _get_associated_arch_by_address(self, ctxt, addr):
@@ -974,7 +974,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			addr[0] = new_addr
 			return ctypes.cast(result.handle, ctypes.c_void_p).value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_associated_arch_by_address")
 			return ctypes.cast(self.handle, ctypes.c_void_p).value
 
 	def _get_instruction_info(self, ctxt, data, addr, max_len, result):
@@ -1001,7 +1001,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 					result[0].branchArch[i] = arch.handle
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_instruction_info")
 			return False
 
 	def _get_instruction_text(self, ctxt, data, addr, length, result, count):
@@ -1020,7 +1020,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_token_lists[ptr.value] = (ptr.value, token_buf)
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_instruction_text")
 			return False
 
 	def _free_instruction_text(self, tokens, count):
@@ -1030,7 +1030,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				raise ValueError("freeing token list that wasn't allocated")
 			del self._pending_token_lists[buf.value]
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._free_instruction_text")
 
 	def _get_instruction_low_level_il(self, ctxt, data, addr, length, il):
 		try:
@@ -1044,7 +1044,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			length[0] = result
 			return True
 		except OSError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_instruction_low_level_il")
 			return False
 
 	def _analyze_basic_blocks(self, ctx, func, ptr_bn_bb_context):
@@ -1053,7 +1053,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			context = BasicBlockAnalysisContext.from_core_struct(bn_bb_context)
 			self.analyze_basic_blocks(function.Function(handle=core.BNNewFunctionReference(func)), context)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._analyze_basic_blocks")
 
 	def _get_register_name(self, ctxt, reg):
 		try:
@@ -1061,7 +1061,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._regs_by_index[reg])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_register_name")
 			return core.BNAllocString("")
 
 	def _get_flag_name(self, ctxt, flag):
@@ -1070,7 +1070,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._flags_by_index[flag])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flag_name")
 			return core.BNAllocString("")
 
 	def _get_flag_write_type_name(self, ctxt, write_type: FlagWriteTypeIndex):
@@ -1079,7 +1079,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._flag_write_types_by_index[write_type])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flag_write_type_name")
 			return core.BNAllocString("")
 
 	def _get_semantic_flag_class_name(self, ctxt, sem_class):
@@ -1088,7 +1088,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._semantic_flag_classes_by_index[sem_class])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_semantic_flag_class_name")
 			return core.BNAllocString("")
 
 	def _get_semantic_flag_group_name(self, ctxt, sem_group):
@@ -1097,7 +1097,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._semantic_flag_groups_by_index[sem_group])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_semantic_flag_group_name")
 			return core.BNAllocString("")
 
 	def _get_full_width_registers(self, ctxt, count):
@@ -1111,7 +1111,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_full_width_registers")
 			count[0] = 0
 			return None
 
@@ -1126,7 +1126,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_registers")
 			count[0] = 0
 			return None
 
@@ -1141,7 +1141,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, flag_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_flags")
 			count[0] = 0
 			return None
 
@@ -1156,7 +1156,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, type_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_flag_write_types")
 			count[0] = 0
 			return None
 
@@ -1171,7 +1171,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, class_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_semantic_flag_classes")
 			count[0] = 0
 			return None
 
@@ -1186,7 +1186,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, group_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_semantic_flag_groups")
 			count[0] = 0
 			return None
 
@@ -1216,7 +1216,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, flag_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flags_required_for_flag_condition")
 			count[0] = 0
 			return None
 
@@ -1234,7 +1234,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, flag_buf)
 			return result.value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flags_required_for_semantic_flag_group")
 			count[0] = 0
 			return None
 
@@ -1255,7 +1255,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_condition_lists[result.value] = (result, cond_buf)
 			return result.value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flag_conditions_for_semantic_flag_group")
 			count[0] = 0
 			return None
 
@@ -1266,7 +1266,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				raise ValueError("freeing condition list that wasn't allocated")
 			del self._pending_condition_lists[buf.value]
 		except (ValueError, KeyError):
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._free_flag_conditions_for_semantic_flag_group")
 
 	def _get_flags_written_by_flag_write_type(self, ctxt, write_type, count):
 		try:
@@ -1282,7 +1282,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, flag_buf)
 			return result.value
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flags_written_by_flag_write_type")
 			count[0] = 0
 			return None
 
@@ -1293,7 +1293,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			else:
 				return 0
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_semantic_class_for_flag_write_type")
 			return 0
 
 	def _get_flag_write_low_level_il(self, ctxt, op, size, write_type, flag, operands, operand_count, il):
@@ -1315,7 +1315,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			    lowlevelil.LowLevelILFunction(self, core.BNNewLowLevelILFunctionReference(il))
 			)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flag_write_low_level_il")
 			return False
 
 	def _get_flag_condition_low_level_il(self, ctxt, cond, sem_class, il):
@@ -1328,7 +1328,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			    cond, sem_class_name, lowlevelil.LowLevelILFunction(self, core.BNNewLowLevelILFunctionReference(il))
 			)
 		except OSError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_flag_condition_low_level_il")
 			return 0
 
 	def _get_semantic_flag_group_low_level_il(self, ctxt, sem_group, il):
@@ -1341,7 +1341,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			    sem_group_name, lowlevelil.LowLevelILFunction(self, core.BNNewLowLevelILFunctionReference(il))
 			)
 		except OSError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_semantic_flag_group_low_level_il")
 			return 0
 
 	def _free_register_list(self, ctxt, regs, count):
@@ -1351,7 +1351,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				raise ValueError("freeing register list that wasn't allocated")
 			del self._pending_reg_lists[buf.value]
 		except (ValueError, KeyError):
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._free_register_list")
 
 	def _get_register_info(self, ctxt, reg, result):
 		try:
@@ -1370,7 +1370,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			else:
 				result[0].extend = info.extend
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_register_info")
 			result[0].fullWidthRegister = 0
 			result[0].offset = 0
 			result[0].size = 0
@@ -1382,7 +1382,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		try:
 			return self._all_regs[self.stack_pointer]
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_stack_pointer_register")
 			return 0
 
 	def _get_link_register(self, ctxt):
@@ -1391,7 +1391,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return 0xffffffff
 			return self._all_regs[self.link_reg]
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_link_register")
 			return 0
 
 	def _get_global_registers(self, ctxt, count):
@@ -1404,7 +1404,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_global_registers")
 			count[0] = 0
 			return None
 
@@ -1418,7 +1418,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_system_registers")
 			count[0] = 0
 			return None
 
@@ -1428,7 +1428,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._reg_stacks_by_index[reg_stack])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_register_stack_name")
 			return core.BNAllocString("")
 
 	def _get_all_register_stacks(self, ctxt, count):
@@ -1442,7 +1442,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_register_stacks")
 			count[0] = 0
 			return None
 
@@ -1466,7 +1466,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				result[0].topRelativeCount = 0
 			result[0].stackTopReg = self._all_regs[info.stack_top_reg]
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_register_stack_info")
 			result[0].firstStorageReg = 0
 			result[0].firstTopRelativeReg = 0
 			result[0].storageCount = 0
@@ -1484,7 +1484,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				return core.BNAllocString(self._intrinsics_by_index[intrinsic][0])
 			return core.BNAllocString("")
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_intrinsic_name")
 			return core.BNAllocString("")
 
 	def _get_all_intrinsics(self, ctxt, count):
@@ -1498,7 +1498,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self._pending_reg_lists[result.value] = (result, reg_buf)
 			return result.value
 		except KeyError:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_all_intrinsics")
 			count[0] = 0
 			return None
 
@@ -1518,7 +1518,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			count[0] = 0
 			return None
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_intrinsic_inputs")
 			count[0] = 0
 			return None
 
@@ -1533,7 +1533,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				core.BNFreeType(name_and_types[i].type)
 			del self._pending_name_and_type_lists[buf.value]
 		except (ValueError, KeyError):
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._free_name_and_type_list")
 
 	def _get_intrinsic_outputs(self, ctxt, intrinsic, count):
 		try:
@@ -1550,7 +1550,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			count[0] = 0
 			return None
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._get_intrinsic_outputs")
 			count[0] = 0
 			return None
 
@@ -1565,7 +1565,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				core.BNFreeType(_types[i].type)
 			del self._pending_type_lists[buf.value]
 		except (ValueError, KeyError):
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._free_type_list")
 
 	def _assemble(self, ctxt, code, addr, result, errors):
 		"""
@@ -1582,11 +1582,11 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			core.BNSetDataBufferContents(result, buf, len(data))
 			return True
 		except ValueError as e:  # Overridden `assemble` functions should raise a ValueError if the input was invalid (with a reasonable error message)
-			log_error(traceback.format_exc())
+			log_debug_for_exception("Assemble failed")
 			errors[0] = core.BNAllocString(str(e))
 			return False
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._assemble")
 			errors[0] = core.BNAllocString("Unhandled exception during assembly.\n")
 			return False
 
@@ -1596,7 +1596,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(buf, data, length)
 			return self.is_never_branch_patch_available(buf.raw, addr)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._is_never_branch_patch_available")
 			return False
 
 	def _is_always_branch_patch_available(self, ctxt, data, addr, length):
@@ -1605,7 +1605,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(buf, data, length)
 			return self.is_always_branch_patch_available(buf.raw, addr)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._is_always_branch_patch_available")
 			return False
 
 	def _is_invert_branch_patch_available(self, ctxt, data, addr, length):
@@ -1614,7 +1614,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(buf, data, length)
 			return self.is_invert_branch_patch_available(buf.raw, addr)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._is_invert_branch_patch_available")
 			return False
 
 	def _is_skip_and_return_zero_patch_available(self, ctxt, data, addr, length):
@@ -1623,7 +1623,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(buf, data, length)
 			return self.is_skip_and_return_zero_patch_available(buf.raw, addr)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._is_skip_and_return_zero_patch_available")
 			return False
 
 	def _is_skip_and_return_value_patch_available(self, ctxt, data, addr, length):
@@ -1632,7 +1632,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(buf, data, length)
 			return self.is_skip_and_return_value_patch_available(buf.raw, addr)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._is_skip_and_return_value_patch_available")
 			return False
 
 	def _convert_to_nop(self, ctxt, data, addr, length):
@@ -1647,7 +1647,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(data, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._convert_to_nop")
 			return False
 
 	def _always_branch(self, ctxt, data, addr, length):
@@ -1662,7 +1662,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(data, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._always_branch")
 			return False
 
 	def _invert_branch(self, ctxt, data, addr, length):
@@ -1677,7 +1677,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(data, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._invert_branch")
 			return False
 
 	def _skip_and_return_value(self, ctxt, data, addr, length, value):
@@ -1692,7 +1692,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			ctypes.memmove(data, result, len(result))
 			return True
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture._skip_and_return_value")
 			return False
 
 	def get_associated_arch_by_address(self, addr: int) -> Tuple['Architecture', int]:
@@ -1783,7 +1783,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		try:
 			core.BNArchitectureDefaultAnalyzeBasicBlocks(func.handle, context._handle)
 		except:
-			log_error(traceback.format_exc())
+			log_error_for_exception("Unhandled Python exception in Architecture.analyze_basic_blocks")
 
 	def get_low_level_il_from_bytes(self, data: bytes, addr: int) -> 'lowlevelil.LowLevelILInstruction':
 		"""
@@ -1847,8 +1847,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 				assert index is not None
 				return index
 			except KeyError:
-				log_error(f"Failed to map string {reg} to register index: ")
-				log_error(traceback.format_exc())
+				log_error_for_exception(f"Failed to map string {reg} to register index")
 		elif isinstance(reg, lowlevelil.ILRegister):
 			return reg.index
 		elif isinstance(reg, int):
