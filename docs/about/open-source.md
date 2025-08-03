@@ -26,6 +26,7 @@ The previous tools are used in the generation of our documentation, but are not 
 
 * Core
     - [abseil-cpp] ([abseil-cpp license] - Apache 2.0)
+    - [BinExport] ([binexport license] - Apache 2.0) - Google project, [Vector 35 fork]
     - [jsoncpp] ([jsoncpp] - Public Domain / MIT)
     - [llvm] ([llvm license] - BSD-style)
     - [lzf] ([lzf license] - BSD)
@@ -284,6 +285,7 @@ The previous tools are used in the generation of our documentation, but are not 
     - [DWARF Import] - ([dwarf import license] - MIT)
     - [DWARF Export] - ([dwarf export license] - MIT)
     - [IDB Import] - ([idb import license] - MIT)
+    - [SCC] - ([scc license] - MIT)
 
 ## Building Qt
 
@@ -307,6 +309,9 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [Qt 6.8]: https://www.qt.io/licensing/open-source-lgpl-obligations
 [abseil-cpp]: https://github.com/abseil/abseil-cpp
 [abseil-cpp license]: https://github.com/abseil/abseil-cpp/blob/master/LICENSE
+[BinExport]: https://github.com/google/binexport
+[binexport license]: https://github.com/google/binexport/blob/main/LICENSE
+[Vector 35 fork]: https://github.com/Vector35/binexport
 [capstone]: https://github.com/aquynh/capstone
 [capstone license]: https://github.com/aquynh/capstone/blob/master/LICENSE.TXT
 [breathe license]: https://github.com/michaeljones/breathe/blob/master/LICENSE
@@ -392,6 +397,8 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [dwarf export license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
 [IDB Import]: https://github.com/Vector35/binaryninja-api/tree/dev/plugins/idb_import
 [idb import license]: https://github.com/Vector35/binaryninja-api/blob/dev/LICENSE.txt
+[SCC]: https://github.com/Vector35/scc/
+[scc license]: https://github.com/Vector35/scc/blob/master/LICENSE.txt
 
 [Rust]: https://www.rust-lang.org/
 [Rust license]: https://github.com/rust-lang/rust/blob/master/LICENSE-MIT

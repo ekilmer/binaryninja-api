@@ -2,9 +2,59 @@
 #include "inttypes.h"
 #include <optional>
 
+#define RELEASE_ASSERT(condition) ((condition) ? (void)0 : (std::abort(), (void)0))
+
 using namespace BinaryNinja;
 
 namespace {
+
+	// ScopedSingleton is a thread-local singleton that allows for scoped
+	// instantiation and destruction of an object. It is useful for managing
+	// resources that should only exist during a specific scope, but where it
+	// would be inconvenient to pass the object around explicitly.
+	//
+	// Calling `Make` initializes the thread-local singleton and returns a `Guard`
+	// object. When the `Guard` object goes out of scope, the singleton is destroyed.
+	template <typename T>
+	class ScopedSingleton
+	{
+		static thread_local T* current;
+
+	public:
+		class Guard
+		{
+			friend class ScopedSingleton;
+			Guard() = default;
+
+		public:
+			~Guard()
+			{
+				delete current;
+				current = nullptr;
+			}
+			Guard(Guard&&) = default;
+			Guard(const Guard&) = delete;
+			Guard& operator=(const Guard&) = delete;
+		};
+
+		static T& Get()
+		{
+			RELEASE_ASSERT(current);
+			return *current;
+		}
+
+		static Guard Make()
+		{
+			RELEASE_ASSERT(!current);
+			current = new T();
+			return Guard {};
+		}
+	};
+
+	template <typename T>
+	thread_local T* ScopedSingleton<T>::current = nullptr;
+
+	using ScopedSymbolQueue = ScopedSingleton<SymbolQueue>;
 
 	// Attempt to recover an Objective-C class name from the symbol's name.
 	// Note: classes defined in the current image should be looked up in m_classes
@@ -56,7 +106,14 @@ namespace {
 		return component;
 	}
 
-}
+	Ref<Type> NamedType(const std::string& name)
+	{
+		NamedTypeReferenceBuilder builder;
+		builder.SetName(QualifiedName(name));
+		return Type::NamedType(builder.Finalize());
+	}
+
+}  // namespace
 
 Ref<Metadata> ObjCProcessor::SerializeMethod(uint64_t loc, const Method& method)
 {
@@ -270,12 +327,12 @@ std::vector<QualifiedNameOrType> ObjCProcessor::ParseEncodedType(const std::stri
 			nameOrType.type = Type::PointerType(m_data->GetAddressSize(), Type::IntegerType(1, true));
 			break;
 		case '@':
-			qualifiedName = "id";
+			nameOrType.type = m_types.id;
 			// There can be a type after this, like @"NSString", that overrides this
 			// The handler for " will catch it and drop this "id" entry.
 			break;
 		case ':':
-			qualifiedName = "SEL";
+			nameOrType.type = m_types.sel;
 			break;
 		case '#':
 			qualifiedName = "objc_class_t";
@@ -369,7 +426,7 @@ void ObjCProcessor::DefineObjCSymbol(
 
 	if (!deferred)
 	{
-		m_symbolQueue->Append(process, defineSymbol);
+		ScopedSymbolQueue::Get().Append(process, defineSymbol);
 	}
 	else
 	{
@@ -838,9 +895,14 @@ void ObjCProcessor::LoadProtocols(ObjCReader* reader, Ref<Section> listSection)
 
 void ObjCProcessor::GetRelativeMethod(ObjCReader* reader, method_t& meth)
 {
-	meth.name = reader->GetOffset() + reader->ReadS32();
-	meth.types = reader->GetOffset() + reader->ReadS32();
-	meth.imp = reader->GetOffset() + reader->ReadS32();
+	uint64_t offset = reader->GetOffset();
+	meth.name = offset + reader->ReadS32();
+
+	offset += sizeof(int32_t);
+	meth.types = offset + reader->ReadS32();
+
+	offset += sizeof(int32_t);
+	meth.imp = offset + reader->ReadS32();
 }
 
 void ObjCProcessor::ReadListOfMethodLists(ObjCReader* reader, ClassBase& cls, std::string_view name, view_ptr_t start)
@@ -1159,11 +1221,11 @@ bool ObjCProcessor::ApplyMethodType(Class& cls, Method& method, bool isInstanceM
 
 	params.push_back({"self",
 		cls.associatedName.IsEmpty() ?
-			Type::NamedType(m_data, {"id"}) :
+			m_types.id :
 			Type::PointerType(m_data->GetAddressSize(), Type::NamedType(m_data, cls.associatedName)),
 		true, BinaryNinja::Variable()});
 
-	params.push_back({"sel", Type::NamedType(m_data, {"SEL"}), true, BinaryNinja::Variable()});
+	params.push_back({"sel", m_types.sel, true, BinaryNinja::Variable()});
 
 	for (size_t i = 3; i < typeTokens.size(); i++)
 	{
@@ -1287,10 +1349,13 @@ void ObjCProcessor::PostProcessObjCSections(ObjCReader* reader)
 	{
 		auto start = ivars->GetStart();
 		auto end = ivars->GetEnd();
-		auto ivarSectionEntryTypeBuilder = new TypeBuilder(Type::IntegerType(8, false));
-		ivarSectionEntryTypeBuilder->SetConst(true);
-		auto type = ivarSectionEntryTypeBuilder->Finalize();
-		for (view_ptr_t i = start; i < end; i += ptrSize)
+		// The ivar section contains entries of type `long` for for all architectures
+		// except arm64, which uses `int` for the ivar offset.
+		size_t ivarOffsetSize = m_data->GetDefaultArchitecture()->GetName() == "aarch64" ? 4 : ptrSize;
+		TypeBuilder ivarSectionEntryTypeBuilder(Type::IntegerType(ivarOffsetSize, false));
+		ivarSectionEntryTypeBuilder.SetConst(true);
+		auto type = ivarSectionEntryTypeBuilder.Finalize();
+		for (view_ptr_t i = start; i < end; i += ivarOffsetSize)
 		{
 			m_data->DefineDataVariable(i, type);
 		}
@@ -1312,6 +1377,10 @@ ObjCProcessor::ObjCProcessor(BinaryView* data, const char* loggerName, bool skip
 	 m_skipClassBaseProtocols(skipClassBaseProtocols), m_data(data)
 {
 	m_logger = m_data->CreateLogger(loggerName);
+
+	m_types.id = NamedType("id");
+	m_types.sel = NamedType("SEL");
+	m_types.BOOL = NamedType("BOOL");
 }
 
 uint64_t ObjCProcessor::GetObjCRelativeMethodBaseAddress(ObjCReader* reader)
@@ -1326,13 +1395,9 @@ Ref<Symbol> ObjCProcessor::GetSymbol(uint64_t address)
 
 void ObjCProcessor::ProcessObjCData()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
+
 	auto addrSize = m_data->GetAddressSize();
-
-	m_typeNames.id = defineTypedef(m_data, {"id"}, Type::PointerType(addrSize, Type::VoidType()));
-	m_typeNames.sel = defineTypedef(m_data, {"SEL"}, Type::PointerType(addrSize, Type::IntegerType(1, false)));
-
-	m_typeNames.BOOL = defineTypedef(m_data, {"BOOL"}, Type::IntegerType(1, false));
 	m_typeNames.nsInteger = defineTypedef(m_data, {"NSInteger"}, Type::IntegerType(addrSize, true));
 	m_typeNames.nsuInteger = defineTypedef(m_data, {"NSUInteger"}, Type::IntegerType(addrSize, false));
 	m_typeNames.cgFloat = defineTypedef(m_data, {"CGFloat"}, Type::FloatType(addrSize));
@@ -1520,9 +1585,8 @@ void ObjCProcessor::ProcessObjCData()
 
 	PostProcessObjCSections(reader.get());
 
-	m_symbolQueue->Process();
+	ScopedSymbolQueue::Get().Process();
 	m_data->EndBulkModifySymbols();
-	delete m_symbolQueue;
 
 	auto meta = SerializeMetadata();
 	m_data->StoreMetadata("Objective-C", meta, true);
@@ -1530,10 +1594,20 @@ void ObjCProcessor::ProcessObjCData()
 	m_relocationPointerRewrites.clear();
 }
 
+void ObjCProcessor::ProcessObjCLiterals()
+{
+	ProcessCFStrings();
+	ProcessNSConstantArrays();
+	ProcessNSConstantDictionaries();
+	ProcessNSConstantIntegerNumbers();
+	ProcessNSConstantFloatingPointNumbers();
+	ProcessNSConstantDatas();
+}
 
 void ObjCProcessor::ProcessCFStrings()
 {
-	m_symbolQueue = new SymbolQueue();
+	auto guard = ScopedSymbolQueue::Make();
+
 	uint64_t ptrSize = m_data->GetAddressSize();
 	// https://github.com/apple/llvm-project/blob/next/clang/lib/CodeGen/CodeGenModule.cpp#L6129
 	// See also ASTContext.cpp ctrl+f __NSConstantString_tag
@@ -1640,9 +1714,271 @@ void ObjCProcessor::ProcessCFStrings()
 				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.cfString), "cfstr_" + str, i, true);
 			}
 		}
-		m_symbolQueue->Process();
+
+		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		delete m_symbolQueue;
+	}
+}
+
+void ObjCProcessor::ProcessNSConstantArrays()
+{
+	auto guard = ScopedSymbolQueue::Make();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantArrayBuilder;
+	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantArrayBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
+	nsConstantArrayBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "objects");
+	auto type = finalizeStructureBuilder(m_data, nsConstantArrayBuilder, "__NSConstantArray");
+	m_typeNames.nsConstantArray = type.first;
+
+	auto reader = GetReader();
+	if (auto arrays = GetSectionWithName("__objc_arrayobj"))
+	{
+		auto start = arrays->GetStart();
+		auto end = arrays->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantArray)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t count = reader->ReadPointer();
+			auto dataLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(
+				DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsarray_{:x}_data", i), dataLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantArray),
+				fmt::format("nsarray_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		ScopedSymbolQueue::Get().Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+	
+}
+
+void ObjCProcessor::ProcessNSConstantDictionaries()
+{
+	auto guard = ScopedSymbolQueue::Make();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantDictionaryBuilder;
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "options");
+	nsConstantDictionaryBuilder.AddMember(Type::IntegerType(ptrSize, false), "count");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "keys");
+	nsConstantDictionaryBuilder.AddMember(Type::PointerType(ptrSize, m_types.id), "objects");
+	auto type = finalizeStructureBuilder(m_data, nsConstantDictionaryBuilder, "__NSConstantDictionary");
+	m_typeNames.nsConstantDictionary = type.first;
+
+	auto reader = GetReader();
+	if (auto dicts = GetSectionWithName("__objc_dictobj"))
+	{
+		auto start = dicts->GetStart();
+		auto end = dicts->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDictionary)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + (ptrSize * 2));
+			// TODO: Do we need to do anything with `options`? It appears to always be 1.
+			uint64_t count = reader->ReadPointer();
+			auto keysLoc = ReadPointerAccountingForRelocations(reader.get());
+			auto objectsLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(
+				DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsdict_{:x}_keys", i), keysLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::ArrayType(m_types.id, count), fmt::format("nsdict_{:x}_objects", i),
+				objectsLoc, true);
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantDictionary),
+				fmt::format("nsdict_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		ScopedSymbolQueue::Get().Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+}
+
+void ObjCProcessor::ProcessNSConstantIntegerNumbers()
+{
+	auto guard = ScopedSymbolQueue::Make();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantIntegerNumberBuilder;
+	nsConstantIntegerNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantIntegerNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::IntegerType(1, true)), "encoding");
+	nsConstantIntegerNumberBuilder.AddMember(Type::IntegerType(ptrSize, true), "value");
+	auto type = finalizeStructureBuilder(m_data, nsConstantIntegerNumberBuilder, "__NSConstantIntegerNumber");
+	m_typeNames.nsConstantIntegerNumber = type.first;
+
+	auto reader = GetReader();
+	if (auto numbers = GetSectionWithName("__objc_intobj"))
+	{
+		auto start = numbers->GetStart();
+		auto end = numbers->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t encodingLoc = ReadPointerAccountingForRelocations(reader.get());
+			uint64_t value = reader->Read64();
+			reader->Seek(encodingLoc);
+			uint8_t encoding = reader->Read8();
+
+			switch (encoding)
+			{
+			case 'c':
+			case 's':
+			case 'i':
+			case 'l':
+			case 'q':
+				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber),
+					fmt::format("nsint_{:x}_{}", i, (int64_t)value), i, true);
+				break;
+			case 'C':
+			case 'S':
+			case 'I':
+			case 'L':
+			case 'Q':
+				DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber),
+					fmt::format("nsint_{:x}_{}", i, value), i, true);
+				break;
+			default:
+				m_logger->LogWarn("Unknown type encoding '%c' in number literal object at %p", encoding, i);
+				continue;
+			}
+		}
+		auto id = m_data->BeginUndoActions();
+		ScopedSymbolQueue::Get().Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+}
+
+void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
+{
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantFloatNumberBuilder;
+	nsConstantFloatNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantFloatNumberBuilder.AddMember(Type::FloatType(4), "value");
+	auto type = finalizeStructureBuilder(m_data, nsConstantFloatNumberBuilder, "__NSConstantFloatNumber");
+	m_typeNames.nsConstantFloatNumber = type.first;
+
+	StructureBuilder nsConstantDoubleNumberBuilder;
+	nsConstantDoubleNumberBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDoubleNumberBuilder.AddMember(Type::FloatType(8), "value");
+	type = finalizeStructureBuilder(m_data, nsConstantDoubleNumberBuilder, "__NSConstantDoubleNumber");
+	m_typeNames.nsConstantDoubleNumber = type.first;
+
+	StructureBuilder nsConstantDateBuilder;
+	nsConstantDateBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDateBuilder.AddMember(Type::FloatType(8), "ti");
+	type = finalizeStructureBuilder(m_data, nsConstantDateBuilder, "__NSConstantDate");
+	m_typeNames.nsConstantDate = type.first;
+
+	enum SectionType
+	{
+		Float,
+		Double,
+		Date,
+	};
+
+	constexpr std::pair<std::string_view, SectionType> sections[] = {
+		{"__objc_floatobj", Float},
+		{"__objc_doubleobj", Double},
+		{"__objc_dateobj", Date},
+	};
+
+	auto reader = GetReader();
+	for (auto& [sectionName, sectionType] : sections)
+	{
+		auto numbers = GetSectionWithName(sectionName.data());
+		if (!numbers)
+			continue;
+
+		auto guard = ScopedSymbolQueue::Make();
+		auto start = numbers->GetStart();
+		auto end = numbers->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDoubleNumber)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+
+			QualifiedName* typeName = nullptr;
+			std::string name;
+
+			switch (sectionType)
+			{
+			case Float:
+			{
+				float value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsfloat_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantFloatNumber;
+				break;
+			}
+			case Double:
+			{
+				double value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsdouble_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantDoubleNumber;
+				break;
+			}
+			case Date:
+			{
+				double value = 0;
+				reader->Read(&value, sizeof(value));
+				name = fmt::format("nsdate_{:x}_{}", i, value);
+				typeName = &m_typeNames.nsConstantDate;
+				break;
+			}
+			}
+			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, *typeName), name, i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		ScopedSymbolQueue::Get().Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
+	}
+}
+
+void ObjCProcessor::ProcessNSConstantDatas()
+{
+	auto guard = ScopedSymbolQueue::Make();
+	uint64_t ptrSize = m_data->GetAddressSize();
+
+	StructureBuilder nsConstantDataBuilder;
+	nsConstantDataBuilder.AddMember(Type::PointerType(ptrSize, Type::VoidType()), "isa");
+	nsConstantDataBuilder.AddMember(Type::IntegerType(ptrSize, false), "length");
+	nsConstantDataBuilder.AddMember(Type::PointerType(ptrSize, Type::IntegerType(1, false)), "bytes");
+	auto type = finalizeStructureBuilder(m_data, nsConstantDataBuilder, "__NSConstantData");
+	m_typeNames.nsConstantData = type.first;
+
+	auto reader = GetReader();
+	if (auto datas = GetSectionWithName("__objc_dataobj"))
+	{
+		auto start = datas->GetStart();
+		auto end = datas->GetEnd();
+		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantData)->GetWidth();
+		m_data->BeginBulkModifySymbols();
+		for (view_ptr_t i = start; i < end; i += typeWidth)
+		{
+			reader->Seek(i + ptrSize);
+			uint64_t length = reader->ReadPointer();
+			auto dataLoc = ReadPointerAccountingForRelocations(reader.get());
+			DefineObjCSymbol(DataSymbol, Type::ArrayType(Type::IntegerType(1, false), length),
+				fmt::format("nsdata_{:x}_data", i), dataLoc, true);
+			DefineObjCSymbol(
+				DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantData), fmt::format("nsdata_{:x}", i), i, true);
+		}
+		auto id = m_data->BeginUndoActions();
+		ScopedSymbolQueue::Get().Process();
+		m_data->EndBulkModifySymbols();
+		m_data->ForgetUndoActions(id);
 	}
 }
 

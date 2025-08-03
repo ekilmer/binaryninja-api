@@ -151,7 +151,6 @@ class CoreVersionInfo:
 			self.build = core_version_info.build
 			if core_version_info.channel is not None:
 				self.channel = core_version_info.channel
-			core.BNFreeString(core_version_info.channel)
 		else:
 			self.major = major
 			if minor is not None:
@@ -462,6 +461,19 @@ def connect_vscode_debugger(port=5678):
 	debugpy.wait_for_client()
 	execute_on_main_thread(lambda: debugpy.debug_this_thread())
 
+def get_system_cache_directory() -> Optional[str]:
+	"""
+	Returns Binary Ninja's system cache directory on the system.
+
+	Supported default locations:
+
+	- macOS: ~/Library/Caches/Binary Ninja
+	- Linux: $XDG_CACHE_HOME/Binary Ninja or ~/.cache/Binary Ninja
+	- Windows: %LOCALAPPDATA%/Binary Ninja/cache
+
+	:return: Returns a string containing the system cache directory, or None on failure.
+	"""
+	return core.BNGetSystemCacheDirectory()
 
 class UIPluginInHeadlessError(Exception):
 	"""

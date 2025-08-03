@@ -87,6 +87,7 @@ extern "C"
     WARP_FFI_API bool BNWARPGetAnalysisFunctionGUID(BNFunction* analysisFunction, BNWARPFunctionGUID* result);
     WARP_FFI_API bool BNWARPIsLiftedInstructionVariant(BNLowLevelILFunction* liftedFunction, size_t idx);
     WARP_FFI_API bool BNWARPIsLiftedInstructionBlacklisted(BNLowLevelILFunction* liftedFunction, size_t idx);
+    WARP_FFI_API bool BNWARPIsLowLevelInstructionComputedVariant(BNLowLevelILFunction* llilFunction, size_t idx);
 
     WARP_FFI_API BNWARPFunction* BNWARPGetFunction(BNFunction* analysisFunction);
     WARP_FFI_API BNWARPFunction* BNWARPGetMatchedFunction(BNFunction* analysisFunction);
@@ -107,6 +108,8 @@ extern "C"
     WARP_FFI_API bool BNWARPContainerRemoveFunctions(BNWARPContainer* container, const BNWARPTarget* target, const BNWARPSource* source, BNWARPFunction** functions, size_t count);
     WARP_FFI_API bool BNWARPContainerRemoveTypes(BNWARPContainer* container, const BNWARPSource* source, BNWARPTypeGUID* types, size_t count);
 
+    WARP_FFI_API void BNWARPContainerFetchFunctions(BNWARPContainer* container, BNWARPTarget* target, const BNWARPTypeGUID* guids, size_t count);
+    
     WARP_FFI_API BNWARPSource* BNWARPContainerGetSourcesWithFunctionGUID(BNWARPContainer* container, const BNWARPTarget* target, const BNWARPFunctionGUID* guid, size_t* count);
     WARP_FFI_API BNWARPSource* BNWARPContainerGetSourcesWithTypeGUID(BNWARPContainer* container, const BNWARPTypeGUID* guid, size_t* count);
     WARP_FFI_API BNWARPFunction** BNWARPContainerGetFunctionsWithGUID(BNWARPContainer* container, const BNWARPTarget* target, const BNWARPSource* source, const BNWARPFunctionGUID* guid, size_t* count);

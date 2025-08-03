@@ -126,10 +126,26 @@ class ReferenceSource:
 		return self.function.get_low_level_il_at(self.address, self.arch)
 
 	@property
+	def llils(self) -> Iterator[lowlevelil.LowLevelILInstruction]:
+		"""Returns the low level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		return self.function.get_low_level_ils_at(self.address, self.arch)
+
+	@property
 	def mlil(self) -> Optional[mediumlevelil.MediumLevelILInstruction]:
 		"""Returns the medium level il instruction at the current location if one exists"""
 		llil = self.llil
 		return llil.mlil if llil is not None else None
+
+	@property
+	def mlils(self) -> Iterator[mediumlevelil.MediumLevelILInstruction]:
+		"""Returns the medium level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		for llil in self.llils:
+			for mlil in llil.mlils:
+				yield mlil
 
 	@property
 	def hlil(self) -> Optional[highlevelil.HighLevelILInstruction]:
@@ -137,6 +153,14 @@ class ReferenceSource:
 		mlil = self.mlil
 		return mlil.hlil if mlil is not None else None
 
+	@property
+	def hlils(self) -> Iterator[highlevelil.HighLevelILInstruction]:
+		"""Returns the high level il instructions at the current location if any exists"""
+		if self.function is None or self.arch is None:
+			return
+		for llil in self.llils:
+			for hlil in llil.hlils:
+				yield hlil
 
 class NotificationType(IntFlag):
 	NotificationBarrier = 1 << 0
@@ -2386,35 +2410,45 @@ class MemoryMap:
 		"""Whether the memory map is activated for the associated view."""
 		return core.BNIsMemoryMapActivated(self.handle)
 
-	def add_memory_region(self, name: str, start: int, source: Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor'], flags: SegmentFlag = 0) -> bool:
+	def add_memory_region(self, name: str, start: int, source: Optional[Union['os.PathLike', str, bytes, bytearray, 'BinaryView', 'databuffer.DataBuffer', 'fileaccessor.FileAccessor']] = None, flags: SegmentFlag = 0, fill: int = 0, length: Optional[int] = None) -> bool:
 		"""
 		Adds a memory region to the memory map. Depending on the source parameter, the memory region is created as one of the following types:
 
-		- **BinaryMemoryRegion** (***Unimplemented***): Represents a memory region loaded from a binary format, providing persistence across sessions.
-		- **DataMemoryRegion**: Represents a memory region loaded from flat files or raw bytes, providing persistence across sessions.
-		- **RemoteMemoryRegion**: Represents a memory region managed via a proxy callback interface. This region is ephemeral and not persisted across sessions.
+		- **BinaryMemoryRegion** (***Unimplemented***): Represents a memory region loaded from a binary format.
+		- **DataMemoryRegion**: Region backed by flat file or raw data (str, bytes, DataBuffer).
+		- **RemoteMemoryRegion**: Ephemeral memory region via FileAccessor.
+		- **UnbackedMemoryRegion**: Region not backed by any data source (requires `length` to be set).
 
-		The type of memory region created is determined by the `source` parameter:
-		- `os.PathLike` or `str`: Treated as a file path to be loaded into memory as a `DataMemoryRegion`.
+		The `source` parameter determines the type:
+		- `os.PathLike` or `str`: File path to be loaded into memory as a `DataMemoryRegion`.
 		- `bytes` or `bytearray`: Directly loaded into memory as a `DataMemoryRegion`.
 		- `databuffer.DataBuffer`: Loaded as a `DataMemoryRegion`.
-		- `fileaccessor.FileAccessor`: Creates a `RemoteMemoryRegion` that fetches data via a remote source.
-		- `BinaryView`: (Not yet implemented) Intended for future exploration.
+		- `fileaccessor.FileAccessor`: Remote proxy source.
+		- `BinaryView`: (Reserved for future).
+		- `None`: Creates an unbacked memory region (must specify `length`).
 
 		.. note:: If no flags are specified and the new memory region overlaps with one or more existing regions, the overlapping portions of the new region will inherit the flags of the respective underlying regions.
 
 		Parameters:
 			name (str): A unique name for the memory region.
-			start (int): The starting address in memory for the region.
-			source (Union[os.PathLike, str, bytes, bytearray, BinaryView, databuffer.DataBuffer, fileaccessor.FileAccessor]): The source from which the memory is loaded.
-			flags (SegmentFlag, optional): Flags to apply to the memory region. Defaults to 0 (no flags).
+			start (int): Starting address.
+			source (Optional[Union[os.PathLike, str, bytes, bytearray, BinaryView, databuffer.DataBuffer, fileaccessor.FileAccessor]]): Source of data or `None` for unbacked.
+			length (Optional[int]): Required if source is None (unbacked).
+			flags (SegmentFlag): Flags to apply to the memory region. Defaults to 0 (no flags).
+			fill (int): Fill byte for unbacked regions. Defaults to 0.
 
 		Returns:
 			bool: `True` if the memory region was successfully added, `False` otherwise.
 
 		Raises:
-			NotImplementedError: If the specified `source` type is unsupported.
+			NotImplementedError: If source type is unsupported.
+			ValueError: If source is None and length is not specified.
 		"""
+		if source is None:
+			if length is None:
+				raise ValueError("Must specify `length` when `source` is None for unbacked memory region")
+			return core.BNAddUnbackedMemoryRegion(self.handle, name, start, length, flags, fill)
+
 		if isinstance(source, os.PathLike):
 			source = str(source)
 		if isinstance(source, bytes) or isinstance(source, bytearray):
@@ -2433,7 +2467,7 @@ class MemoryMap:
 		elif isinstance(source, fileaccessor.FileAccessor):
 			return core.BNAddRemoteMemoryRegion(self.handle, name, start, source._cb, flags)
 		else:
-			raise NotImplementedError
+			raise NotImplementedError(f"Unsupported memory region source type: {type(source)}")
 
 	def remove_memory_region(self, name: str) -> bool:
 		return core.BNRemoveMemoryRegion(self.handle, name)
@@ -2465,6 +2499,9 @@ class MemoryMap:
 
 	def set_memory_region_fill(self, name: str, fill: int) -> bool:
 		return core.BNSetMemoryRegionFill(self.handle, name, fill)
+
+	def is_memory_region_local(self, name: str) -> bool:
+		return core.BNIsMemoryRegionLocal(self.handle, name)
 
 	def reset(self):
 		core.BNResetMemoryMap(self.handle)
@@ -5296,7 +5333,7 @@ class BinaryView:
 			return None
 		return basicblock.BasicBlock(block, self)
 
-	def get_code_refs(self, addr: int, length: Optional[int] = None) -> Generator['ReferenceSource', None, None]:
+	def get_code_refs(self, addr: int, length: Optional[int] = None, max_items: Optional[int] = None) -> Generator['ReferenceSource', None, None]:
 		"""
 		``get_code_refs`` returns a generator of :py:class:`~binaryninja.binaryview.ReferenceSource` objects (xrefs or cross-references) that point to the provided virtual address.
 		This function returns both autoanalysis ("auto") and user-specified ("user") xrefs.
@@ -5310,6 +5347,7 @@ class BinaryView:
 
 		:param int addr: virtual address to query for references
 		:param int length: optional length of query
+		:param int max_items: optional maximum number of references to fetch
 		:return: A generator of References for the given virtual address
 		:rtype: Generator[ReferenceSource, None, None]
 		:Example:
@@ -5320,11 +5358,13 @@ class BinaryView:
 
 		"""
 		count = ctypes.c_ulonglong(0)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
 		if length is None:
-			refs = core.BNGetCodeReferences(self.handle, addr, count)
+			refs = core.BNGetCodeReferences(self.handle, addr, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetCodeReferences returned None"
 		else:
-			refs = core.BNGetCodeReferencesInRange(self.handle, addr, length, count)
+			refs = core.BNGetCodeReferencesInRange(self.handle, addr, length, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetCodeReferencesInRange returned None"
 
 		try:
@@ -5372,7 +5412,7 @@ class BinaryView:
 			core.BNFreeAddressList(refs)
 		return result
 
-	def get_data_refs(self, addr: int, length: Optional[int] = None) -> Generator[int, None, None]:
+	def get_data_refs(self, addr: int, length: Optional[int] = None, max_items: Optional[int] = None) -> Generator[int, None, None]:
 		"""
 		``get_data_refs`` returns a list of virtual addresses of _data_ (not code) which references ``addr``, optionally specifying
 		a length. When ``length`` is set ``get_data_refs`` returns the data which references in the range ``addr``-``addr``+``length``.
@@ -5395,11 +5435,13 @@ class BinaryView:
 			>>>
 		"""
 		count = ctypes.c_ulonglong(0)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
 		if length is None:
-			refs = core.BNGetDataReferences(self.handle, addr, count)
+			refs = core.BNGetDataReferences(self.handle, addr, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetDataReferences returned None"
 		else:
-			refs = core.BNGetDataReferencesInRange(self.handle, addr, length, count)
+			refs = core.BNGetDataReferencesInRange(self.handle, addr, length, count, has_max_items, max_items_value)
 			assert refs is not None, "core.BNGetDataReferencesInRange returned None"
 
 		try:
@@ -5440,11 +5482,12 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_code_refs_for_type(self, name: str) -> Generator[ReferenceSource, None, None]:
+	def get_code_refs_for_type(self, name: str, max_items: Optional[int] = None) -> Generator[ReferenceSource, None, None]:
 		"""
 		``get_code_refs_for_type`` returns a Generator[ReferenceSource] objects (xrefs or cross-references) that reference the provided QualifiedName.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of References for the given type
 		:rtype: list(ReferenceSource)
 		:Example:
@@ -5456,7 +5499,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetCodeReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetCodeReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetCodeReferencesForType returned None"
 
 		try:
@@ -5465,13 +5510,13 @@ class BinaryView:
 		finally:
 			core.BNFreeCodeReferences(refs, count.value)
 
-	def get_code_refs_for_type_field(self, name: str,
-	                                 offset: int) -> Generator['_types.TypeFieldReference', None, None]:
+	def get_code_refs_for_type_field(self, name: str, offset: int, max_items: Optional[int] = None) -> Generator['_types.TypeFieldReference', None, None]:
 		"""
 		``get_code_refs_for_type`` returns a Generator[TypeFieldReference] objects (xrefs or cross-references) that reference the provided type field.
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: Generator of References for the given type
 		:rtype: Generator[TypeFieldReference]
 		:Example:
@@ -5483,7 +5528,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetCodeReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetCodeReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetCodeReferencesForTypeField returned None"
 
 		try:
@@ -5507,7 +5554,7 @@ class BinaryView:
 		finally:
 			core.BNFreeTypeFieldReferences(refs, count.value)
 
-	def get_data_refs_for_type(self, name: str) -> Generator[int, None, None]:
+	def get_data_refs_for_type(self, name: str, max_items: Optional[int] = None) -> Generator[int, None, None]:
 		"""
 		``get_data_refs_for_type`` returns a list of virtual addresses of data which references the type ``name``.
 		Note, the returned addresses are the actual start of the queried type. For example, suppose there is a DataVariable
@@ -5515,6 +5562,7 @@ class BinaryView:
 		return 0x1010 for it.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5525,7 +5573,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesForType returned None"
 
 		try:
@@ -5534,7 +5584,7 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_data_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int) -> List[int]:
+	def get_data_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List[int]:
 		"""
 		``get_data_refs_for_type_field`` returns a list of virtual addresses of data which references the type ``name``.
 		Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
@@ -5543,6 +5593,7 @@ class BinaryView:
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5553,7 +5604,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesForTypeField returned None"
 
 		result = []
@@ -5564,7 +5617,7 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_data_refs_from_for_type_field(self, name: '_types.QualifiedNameType', offset: int) -> List[int]:
+	def get_data_refs_from_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List[int]:
 		"""
 		``get_data_refs_from_for_type_field`` returns a list of virtual addresses of data which are referenced by the type ``name``.
 
@@ -5572,6 +5625,7 @@ class BinaryView:
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: list of integers
 		:rtype: list(integer)
 		:Example:
@@ -5582,7 +5636,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetDataReferencesFromForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetDataReferencesFromForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetDataReferencesFromForTypeField returned None"
 
 		result = []
@@ -5593,11 +5649,12 @@ class BinaryView:
 		finally:
 			core.BNFreeDataReferences(refs)
 
-	def get_type_refs_for_type(self, name: '_types.QualifiedNameType') -> List['_types.TypeReferenceSource']:
+	def get_type_refs_for_type(self, name: '_types.QualifiedNameType', max_items: Optional[int] = None) -> List['_types.TypeReferenceSource']:
 		"""
 		``get_type_refs_for_type`` returns a list of TypeReferenceSource objects (xrefs or cross-references) that reference the provided QualifiedName.
 
 		:param QualifiedName name: name of type to query for references
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of references for the given type
 		:rtype: list(TypeReferenceSource)
 		:Example:
@@ -5609,7 +5666,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetTypeReferencesForType(self.handle, _name, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetTypeReferencesForType(self.handle, _name, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetTypeReferencesForType returned None"
 
 		result = []
@@ -5623,13 +5682,13 @@ class BinaryView:
 		finally:
 			core.BNFreeTypeReferences(refs, count.value)
 
-	def get_type_refs_for_type_field(self, name: '_types.QualifiedNameType',
-	                                 offset: int) -> List['_types.TypeReferenceSource']:
+	def get_type_refs_for_type_field(self, name: '_types.QualifiedNameType', offset: int, max_items: Optional[int] = None) -> List['_types.TypeReferenceSource']:
 		"""
 		``get_type_refs_for_type`` returns a list of TypeReferenceSource objects (xrefs or cross-references) that reference the provided type field.
 
 		:param QualifiedName name: name of type to query for references
 		:param int offset: offset of the field, relative to the type
+		:param int max_items: optional maximum number of references to fetch
 		:return: List of references for the given type
 		:rtype: list(TypeReferenceSource)
 		:Example:
@@ -5641,7 +5700,9 @@ class BinaryView:
 		"""
 		count = ctypes.c_ulonglong(0)
 		_name = _types.QualifiedName(name)._to_core_struct()
-		refs = core.BNGetTypeReferencesForTypeField(self.handle, _name, offset, count)
+		has_max_items = max_items is not None
+		max_items_value = max_items if has_max_items else 0
+		refs = core.BNGetTypeReferencesForTypeField(self.handle, _name, offset, count, has_max_items, max_items_value)
 		assert refs is not None, "core.BNGetTypeReferencesForTypeField returned None"
 
 		result = []
@@ -6355,7 +6416,7 @@ class BinaryView:
 		core.BNDefineAutoSymbol(self.handle, sym.handle)
 
 	def define_auto_symbol_and_var_or_function(
-	    self, sym: '_types.CoreSymbol', type: '_types.Type', plat: Optional['_platform.Platform'] = None
+		self, sym: '_types.CoreSymbol', type: Optional['_types.Type'] = None, plat: Optional['_platform.Platform'] = None, type_confidence: Optional[int] = 0
 	) -> Optional['_types.CoreSymbol']:
 		"""
 		``define_auto_symbol_and_var_or_function`` Defines an "Auto" symbol, and a Variable/Function alongside it.
@@ -6365,6 +6426,7 @@ class BinaryView:
 		:param sym: Symbol to define
 		:param type: Type for the function/variable being defined (can be None)
 		:param plat: Platform (optional)
+		:param type_confidence: Optional confidence value for the type
 		:rtype: Optional[CoreSymbol]
 		"""
 		if plat is None:
@@ -6374,12 +6436,16 @@ class BinaryView:
 		elif not isinstance(plat, _platform.Platform):
 			raise ValueError("Provided platform is not of type `Platform`")
 
+		tc = core.BNTypeWithConfidence()
+		tc.type = None
+		tc.confidence = 0
 		if isinstance(type, _types.Type):
-			type = type.handle
+			tc.type = type.handle
+			tc.confidence = type_confidence
 		elif type is not None:
 			raise ValueError("Provided type is not of type `binaryninja.Type`")
 
-		_sym = core.BNDefineAutoSymbolAndVariableOrFunction(self.handle, plat.handle, sym.handle, type)
+		_sym = core.BNDefineAutoSymbolAndVariableOrFunction(self.handle, plat.handle, sym.handle, tc)
 		if _sym is None:
 			return None
 		return _types.CoreSymbol(_sym)
@@ -7773,9 +7839,9 @@ class BinaryView:
 		finally:
 			core.BNFreeQualifiedNameAndType(result)
 
-	def parse_types_from_string(self, text: str, options: Optional[List[str]] = None, include_dirs: Optional[List[str]] = None, import_dependencies: bool = True) -> '_types.TypeParserResult':
+	def parse_types_from_string(self, text: str, options: Optional[List[str]] = None, include_dirs: Optional[List[str]] = None, import_dependencies: bool = True) -> '_types.BasicTypeParserResult':
 		"""
-		``parse_types_from_string`` parses string containing C into a :py:class:`TypeParserResult` objects. This API
+		``parse_types_from_string`` parses string containing C into a :py:class:`BasicTypeParserResult` objects. This API
 		unlike the :py:func:`~binaryninja.platform.Platform.parse_types_from_source` allows the reference of types already defined
 		in the BinaryView.
 
@@ -7783,8 +7849,8 @@ class BinaryView:
 		:param options: Optional list of string options to be passed into the type parser
 		:param include_dirs: Optional list of header search directories
 		:param import_dependencies: If Type Library types should be imported during parsing
-		:return: :py:class:`~binaryninja.typeparser.TypeParserResult` (a SyntaxError is thrown on parse error)
-		:rtype: TypeParserResult
+		:return: :py:class:`~binaryninja.typeparser.BasicTypeParserResult` (a SyntaxError is thrown on parse error)
+		:rtype: BasicTypeParserResult
 		:Example:
 
 			>>> bv.parse_types_from_string('int foo;\\nint bar(int x);\\nstruct bas{int x,y;};\\n')
@@ -7839,7 +7905,7 @@ class BinaryView:
 				functions[name] = _types.Type.create(
 				    core.BNNewTypeReference(parse.functions[i].type), platform=self.platform
 				)
-			return _types.TypeParserResult(type_dict, variables, functions)
+			return _types.BasicTypeParserResult(type_dict, variables, functions)
 		finally:
 			core.BNFreeTypeParserResult(parse)
 
@@ -8255,6 +8321,26 @@ class BinaryView:
 		_old_name = _types.QualifiedName(old_name)._to_core_struct()
 		_new_name = _types.QualifiedName(new_name)._to_core_struct()
 		core.BNRenameAnalysisType(self.handle, _old_name, _new_name)
+
+	def get_system_call_type(self, id: int, platform: Optional['_platform.Platform'] = None) -> Optional['_types.Type']:
+		if platform is None:
+			platform = self.platform
+		if platform is None:
+			raise Exception("Unable to retrieve system call type without a platform")
+		handle = core.BNGetAnalysisSystemCallType(self.handle, platform.handle, id)
+		if handle is None:
+			return None
+		return _types.Type.create(handle, platform=platform)
+
+	def get_system_call_name(self, id: int, platform: Optional['_platform.Platform'] = None) -> Optional[str]:
+		if platform is None:
+			platform = self.platform
+		if platform is None:
+			raise Exception("Unable to retrieve system call type without a platform")
+		result = core.BNGetAnalysisSystemCallName(self.handle, platform.handle, id)
+		if result is None:
+			return None
+		return result
 
 	def import_library_type(self, name: str, lib: Optional[typelibrary.TypeLibrary] = None) -> Optional['_types.Type']:
 		"""

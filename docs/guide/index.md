@@ -210,7 +210,7 @@ Errors or warnings during the load of the binary are also shown in the status ba
 
 If you wish to speed up analysis, you have several options. The first is to use the `File/Open for Triage` menu which activates the Triage file picker. By default, [Triage mode](https://binary.ninja/2019/04/01/hackathon-2019-summary.html#triage-mode-rusty) will enable a faster set of default analysis options that doesn't provide as much in-depth analysis but is significantly faster.
 
-Additionally, using the [open with options](#loading-files) feature allows for customization of a number of analysis options on a per-binary basis. See [all settings](settings.md#all-settings) under the `analysis` category for more details.
+Additionally, using the [open with options](#loading-files) feature allows for customization of a number of analysis options on a per-binary basis. See [all settings](settings.md#settings-reference) under the `analysis` category for more details.
 
 ## Navigating
 
@@ -374,6 +374,9 @@ The first of the two drop down boxes allows the selection of incoming, outgoing,
 By default, Binary Ninja's cross-reference pane is dynamic, allowing quick navigation to relevant references. Sometimes you might rather have the current references stick around, so they can be used as a sort of work-list. This workflow is supported in four different ways. First is the `Pin` checkbox (which is only visible if the `Filter` drop-down is open). This prevents the list of cross-references from being updated even after the current selection is changed.
 
 Alternatively clicking the `Pin Cross References to New Pane` button at the top right of the cross references pane in the sidebar, selecting `Pin Cross References` in the context menu or command palette, or using the `SHIFT+X` shortcut pops up a `Pinned Cross References` pane. This pane has a static address range which can only be updated through the `Pin Cross References` action. The third way would be to select (or multi-select in table view) a set of cross-references then right-click `Tag Selected Rows`. The tag pane can then be used to navigate those references. Tags allow for persistent lists to be saved to an analysis database whereas the other options only last for the current session.
+
+???+ Tip "Tip"
+    The dynamic cross-reference pane limits the number of references that are displayed at one time to keep the user interface responsive. If the list of references is not complete, a `+` will appear next to the count of references. Clicking the `Pin Cross References to New Pane` button will increase the limit substantially and allow you to see the missing references. The limits for both the dynamic pane and the pinned references can be controlled in the settings.
 
 #### Cross-Reference Hotkeys
 

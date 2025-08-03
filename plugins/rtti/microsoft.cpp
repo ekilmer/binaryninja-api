@@ -639,7 +639,7 @@ MicrosoftRTTIProcessor::MicrosoftRTTIProcessor(const Ref<BinaryView> &view, bool
 
 void MicrosoftRTTIProcessor::ProcessRTTI()
 {
-    auto bgTask = new BackgroundTask("Scanning for Microsoft RTTI...", true);
+    Ref<BackgroundTask> bgTask = new BackgroundTask("Scanning for Microsoft RTTI...", true);
     auto start_time = std::chrono::high_resolution_clock::now();
     uint64_t startAddr = m_view->GetOriginalImageBase();
     uint64_t endAddr = m_view->GetEnd();
@@ -714,7 +714,7 @@ void MicrosoftRTTIProcessor::ProcessRTTI()
 
 void MicrosoftRTTIProcessor::ProcessVFT()
 {
-    auto bgTask = new BackgroundTask("Scanning for Microsoft VFT...", true);
+    Ref<BackgroundTask> bgTask = new BackgroundTask("Scanning for Microsoft VFT...", true);
     std::map<uint64_t, uint64_t> vftMap = {};
     std::unordered_set<uint64_t> vftFinished = {};
     auto start_time = std::chrono::high_resolution_clock::now();

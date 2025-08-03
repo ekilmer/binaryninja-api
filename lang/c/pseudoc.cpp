@@ -587,8 +587,8 @@ void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& var, u
 
 						tokens.Append(FieldNameToken, member.name, structOffset + member.offset, 0, 0,
 							BN_FULL_CONFIDENCE, nameList);
-					}),
-				memberIndexHint)
+					},
+					memberIndexHint))
 				return;
 
 			// Part of structure but no defined field, use __offset syntax
@@ -2569,7 +2569,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			if (type && (type->GetClass() == NamedTypeReferenceClass))
 				type = GetFunction()->GetView()->GetTypeByRef(type->GetNamedTypeReference());
 
-			bool derefOffset = false;
+			// Handle structure member access
 			if (type && (type->GetClass() == StructureTypeClass))
 			{
 				std::optional<size_t> memberIndexHint;
@@ -2610,50 +2610,61 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 					memberIndexHint)
 					return;
 			}
-			else if (type && (type->GetClass() == StructureTypeClass))
+
+			// For non-struct types or when struct member resolution fails,
+			// render as pointer arithmetic: *[(type*)]([(char*)]expr[ + offset])
+			bool hasOffset = offset != 0;
+			bool needsOuterParens = precedence > UnaryOperatorPrecedence;
+			bool showTypeCasts = !settings || settings->IsOptionSet(ShowTypeCasts);
+			
+			if (needsOuterParens)
+				tokens.AppendOpenParen();
+
+			tokens.Append(OperationToken, "*");
+
+			// Skip the outer cast if we're dereferencing a single byte and are
+			// already casting to char* for the pointer arithmetic
+			bool skipOuterCast = hasOffset && instr.size == 1;
+			if (showTypeCasts && !skipOuterCast)
 			{
-				derefOffset = true;
+				tokens.AppendOpenParen();
+				AppendSizeToken(hasOffset && type ? srcExpr.size : instr.size, true, tokens);
+				tokens.Append(TextToken, "*");
+				tokens.AppendCloseParen();
 			}
 
-			if (derefOffset || offset != 0)
+			if (hasOffset)
 			{
-				bool parens = precedence > UnaryOperatorPrecedence;
-				if (parens)
-					tokens.AppendOpenParen();
-
-				tokens.Append(OperationToken, "*");
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendOpenParen();
-					AppendSizeToken(!derefOffset ? srcExpr.size : instr.size, true, tokens);
-					tokens.Append(TextToken, "*");
-					tokens.AppendCloseParen();
-				}
 				tokens.AppendOpenParen();
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
+				if (showTypeCasts)
 				{
 					tokens.AppendOpenParen();
 					tokens.Append(TypeNameToken, "char");
 					tokens.Append(TextToken, "*");
 					tokens.AppendCloseParen();
 				}
+			}
 
-				if (srcExpr.operation == HLIL_CONST_PTR)
-				{
-					const auto constant = srcExpr.GetConstant<HLIL_CONST_PTR>();
-					tokens.AppendPointerTextToken(srcExpr, constant, settings, DisplaySymbolOnly, precedence);
-				}
-				else
-				{
-					GetExprTextInternal(srcExpr, tokens, settings, AddOperatorPrecedence);
-				}
+			if (srcExpr.operation == HLIL_CONST_PTR)
+			{
+				const auto constant = srcExpr.GetConstant<HLIL_CONST_PTR>();
+				tokens.AppendPointerTextToken(srcExpr, constant, settings, DisplaySymbolOnly, precedence);
+			}
+			else
+			{
+				GetExprTextInternal(srcExpr, tokens, settings, 
+					hasOffset ? AddOperatorPrecedence : UnaryOperatorPrecedence);
+			}
 
+			if (hasOffset)
+			{
 				tokens.Append(OperationToken, " + ");
 				tokens.AppendIntegerTextToken(instr, offset, instr.size);
 				tokens.AppendCloseParen();
-				if (parens)
-					tokens.AppendCloseParen();
 			}
+
+			if (needsOuterParens)
+				tokens.AppendCloseParen();
 
 			if (statement)
 				tokens.AppendSemicolon();
@@ -2705,13 +2716,14 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			if (GetFunction() && (operandList.size() > 0) && (operandList[0].operation == HLIL_CONST))
 			{
 				const auto platform = GetFunction()->GetPlatform();
+				const auto view = GetFunction()->GetView();
 				if (platform)
 				{
 					const auto syscall = (uint32_t)operandList[0].GetConstant<HLIL_CONST>();
-					const auto syscallName = platform->GetSystemCallName(syscall);
+					const auto syscallName = view->GetSystemCallName(platform, syscall);
 					if (settings && settings->GetCallParameterHints() != NeverShowParameterHints)
 					{
-						const auto functionType = platform->GetSystemCallType(syscall);
+						const auto functionType = view->GetSystemCallType(platform, syscall);
 						if (functionType && (functionType->GetClass() == FunctionTypeClass))
 							namedParams = functionType->GetParameters();
 					}

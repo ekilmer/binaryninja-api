@@ -7,7 +7,7 @@ using namespace BinaryNinja::DSC;
 BNSharedCacheImage ImageToApi(const CacheImage& image)
 {
 	BNSharedCacheImage apiImage;
-	apiImage.name = BNAllocString(image.path.c_str());
+	apiImage.name = BNAllocStringWithLength(image.path.c_str(), image.path.size());
 	apiImage.headerAddress = image.headerAddress;
 	apiImage.regionStartCount = image.regionStarts.size();
 	uint64_t* regionStarts = new uint64_t[image.regionStarts.size()];
@@ -65,7 +65,7 @@ BNSharedCacheRegion RegionToApi(const CacheRegion& region)
 {
 	BNSharedCacheRegion apiRegion;
 	apiRegion.vmAddress = region.start;
-	apiRegion.name = BNAllocString(region.name.c_str());
+	apiRegion.name = BNAllocStringWithLength(region.name.c_str(), region.name.size());
 	apiRegion.size = region.size;
 	apiRegion.flags = region.flags;
 	apiRegion.regionType = RegionTypeToApi(region.type);
@@ -88,7 +88,7 @@ CacheRegion RegionFromApi(const BNSharedCacheRegion& apiRegion)
 BNSharedCacheSymbol SymbolToApi(const CacheSymbol& symbol)
 {
 	BNSharedCacheSymbol apiSymbol;
-	apiSymbol.name = BNAllocString(symbol.name.c_str());
+	apiSymbol.name = BNAllocStringWithLength(symbol.name.data(), symbol.name.size());
 	apiSymbol.address = symbol.address;
 	apiSymbol.symbolType = symbol.type;
 	return apiSymbol;
@@ -133,8 +133,10 @@ BNSharedCacheMappingInfo MappingToApi(const dyld_cache_mapping_info& mapping)
 BNSharedCacheEntry EntryToApi(const CacheEntry& entry)
 {
 	BNSharedCacheEntry apiEntry;
-	apiEntry.path = BNAllocString(entry.GetFilePath().c_str());
-	apiEntry.name = BNAllocString(entry.GetFileName().c_str());
+	auto path = entry.GetFilePath();
+	auto name = entry.GetFileName();
+	apiEntry.path = BNAllocStringWithLength(path.c_str(), path.size());
+	apiEntry.name = BNAllocStringWithLength(name.c_str(), name.size());
 	apiEntry.entryType = EntryTypeToApi(entry.GetType());
 	const auto& mappings = entry.GetMappings();
 	apiEntry.mappingCount = mappings.size();

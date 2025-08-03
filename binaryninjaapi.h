@@ -1241,6 +1241,12 @@ namespace BinaryNinja {
 	void SetBundledPluginDirectory(const std::string& path);
 	std::string GetUserDirectory();
 
+	/*! Get the Binary Ninja system cache directory
+	 *
+	 * @return std::string - Binary Ninja's cache directory on a given system
+	 */
+	std::string GetSystemCacheDirectory();
+
 	std::string GetSettingsFileName();
 	std::string GetRepositoriesDirectory();
 	std::string GetInstallDirectory();
@@ -4548,6 +4554,13 @@ namespace BinaryNinja {
 		BNRegisterValue ToAPIObject();
 	};
 
+	struct AllTypeReferences
+	{
+		std::vector<ReferenceSource> codeRefs;
+		std::vector<uint64_t> dataRefs;
+		std::vector<TypeReferenceSource> typeRefs;
+	};
+
 	struct AllTypeFieldReferences
 	{
 		std::vector<TypeFieldReference> codeRefs;
@@ -5507,9 +5520,27 @@ namespace BinaryNinja {
 		*/
 		std::vector<ReferenceSource> GetCodeReferences(uint64_t addr, uint64_t len);
 
+		/*! Get a list of references made from code (instructions) to a virtual address
+
+		    \param addr Address to check
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of ReferenceSources referencing the virtual address
+		*/
+		std::vector<ReferenceSource> GetCodeReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems = std::nullopt);
+
+		/*! Get a list of references from code (instructions) to a range of addresses
+
+		    \param addr Address to check
+		    \param len Length of query
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of ReferenceSources referencing the virtual address range
+		*/
+		std::vector<ReferenceSource> GetCodeReferencesInRangeWithLimit(
+			uint64_t addr, uint64_t len, std::optional<size_t> maxItems = std::nullopt);
+
 		/*! Get code references made by a particular "ReferenceSource"
 
-			A ReferenceSource contains a given function, architecture of that function, and an address within it.
+		    A ReferenceSource contains a given function, architecture of that function, and an address within it.
 
 		    \param src reference source
 		    \return List of virtual addresses referenced by this source
@@ -5542,6 +5573,24 @@ namespace BinaryNinja {
 		    \return vector of virtual addresses referencing the virtual address range
 		*/
 		std::vector<uint64_t> GetDataReferences(uint64_t addr, uint64_t len);
+
+		/*! Get references made by data ('DataVariables') to a virtual address
+
+		    \param addr Address to check
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of virtual addresses referencing the virtual address
+		*/
+		std::vector<uint64_t> GetDataReferencesWithLimit(uint64_t addr, std::optional<size_t> maxItems = std::nullopt);
+
+		/*! Get references made by data ('DataVariables') in a given range, to a virtual address
+
+		    \param addr Address to check
+		    \param len Length of query
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of virtual addresses referencing the virtual address range
+		*/
+		std::vector<uint64_t> GetDataReferencesInRangeWithLimit(
+			uint64_t addr, uint64_t len, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get references made by data ('DataVariables') located at a virtual address.
 
@@ -5592,43 +5641,53 @@ namespace BinaryNinja {
 		/*! Get code references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of ReferenceSources
 		*/
-		std::vector<ReferenceSource> GetCodeReferencesForType(const QualifiedName& type);
+		std::vector<ReferenceSource> GetCodeReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get data references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of virtual addresses referencing this Type
 		*/
-		std::vector<uint64_t> GetDataReferencesForType(const QualifiedName& type);
+		std::vector<uint64_t> GetDataReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Get Type references to a Type
 
 		    \param type QualifiedName for a Type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return vector of TypeReferenceSources to this Type
 		*/
-		std::vector<TypeReferenceSource> GetTypeReferencesForType(const QualifiedName& type);
+		std::vector<TypeReferenceSource> GetTypeReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of references to a specific type field
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return vector of TypeFieldReferences
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of TypeFieldReferences
 		*/
-		std::vector<TypeFieldReference> GetCodeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<TypeFieldReference> GetCodeReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of virtual addresses of data which references the type \c type .
 
-			Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
-			DataVariable at \c 0x1000 that has type \c A , and type \c A contains type \c B at offset \c 0x10 .
-			Then <tt>GetDataReferencesForTypeField(bQualifiedName, 0x8)</tt> will return \c 0x1018 for it.
+		    Note, the returned addresses are the actual start of the queried type field. For example, suppose there is a
+		    DataVariable at \c 0x1000 that has type \c A , and type \c A contains type \c B at offset \c 0x10 .
+		    Then <tt>GetDataReferencesForTypeField(bQualifiedName, 0x8)</tt> will return \c 0x1018 for it.
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return List of DataVariable start addresses containing references to the type field
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return List of DataVariable start addresses containing references to the type field
 		*/
-		std::vector<uint64_t> GetDataReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<uint64_t> GetDataReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of virtual addresses of data which are referenced from the type \c type .
 
@@ -5636,25 +5695,40 @@ namespace BinaryNinja {
 
 		    \param type QualifiedName of the type
 		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return List of addresses referenced from the type field
 		*/
-		std::vector<uint64_t> GetDataReferencesFromForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<uint64_t> GetDataReferencesFromForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of type references to a specific type field
 
-			\param type QualifiedName of the type
-			\param offset Offset of the field, relative to the start of the type
-			\return vector of TypeReferenceSources
+		    \param type QualifiedName of the type
+		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return vector of TypeReferenceSources
 		*/
-		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		std::vector<TypeReferenceSource> GetTypeReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
+
+		/*! Returns a all references to a specific type. This includes code, data, and type references.
+
+		    \param type QualifiedName of the type
+		    \param maxItems Optional maximum number of items to fetch
+		    \return AllTypeReferences structure with all references
+		*/
+		AllTypeReferences GetAllReferencesForType(
+			const QualifiedName& type, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a all references to a specific type field. This includes code, data, and type references.
 
 		    \param type QualifiedName of the type
 		    \param offset Offset of the field, relative to the start of the type
+		    \param maxItems Optional maximum number of items to fetch
 		    \return AllTypeFieldReferences structure with all references
 		*/
-		AllTypeFieldReferences GetAllReferencesForTypeField(const QualifiedName& type, uint64_t offset);
+		AllTypeFieldReferences GetAllReferencesForTypeField(
+			const QualifiedName& type, uint64_t offset, std::optional<size_t> maxItems = std::nullopt);
 
 		/*! Returns a list of types referenced by code at ReferenceSource \c src
 
@@ -6419,6 +6493,8 @@ namespace BinaryNinja {
 		void UndefineType(const std::string& id);
 		void UndefineUserType(const QualifiedName& name);
 		void RenameType(const QualifiedName& oldName, const QualifiedName& newName);
+		Ref<Type> GetSystemCallType(Platform* platform, uint32_t id);
+		std::string GetSystemCallName(Platform* platform, uint32_t id);
 
 		void RegisterPlatformTypes(Platform* platform);
 
@@ -7196,6 +7272,11 @@ namespace BinaryNinja {
 			return BNAddRemoteMemoryRegion(m_object, name.c_str(), start, source->GetCallbacks(), flags);
 		}
 
+		bool AddUnbackedMemoryRegion(const std::string& name, uint64_t start, uint64_t length, uint32_t flags = 0, uint8_t fill = 0)
+		{
+			return BNAddUnbackedMemoryRegion(m_object, name.c_str(), start, length, flags, fill);
+		}
+
 		bool RemoveMemoryRegion(const std::string& name)
 		{
 			return BNRemoveMemoryRegion(m_object, name.c_str());
@@ -7247,6 +7328,11 @@ namespace BinaryNinja {
 		bool SetMemoryRegionFill(const std::string& name, uint8_t fill)
 		{
 			return BNSetMemoryRegionFill(m_object, name.c_str(), fill);
+		}
+
+		bool IsMemoryRegionLocal(const std::string& name)
+		{
+			return BNIsMemoryRegionLocal(m_object, name.c_str());
 		}
 
 		void Reset()
@@ -8178,9 +8264,10 @@ namespace BinaryNinja {
 		BasicBlockAnalysisContext(BNBasicBlockAnalysisContext* context);
 
 		BNFunctionAnalysisSkipOverride GetAnalysisSkipOverride() const { return m_context->analysisSkipOverride; }
+		bool GetGuidedAnalysisMode() const { return m_context->guidedAnalysisMode; }
+		bool GetTriggerGuidedOnInvalidInstruction() const { return m_context->triggerGuidedOnInvalidInstruction; }
 		bool GetTranslateTailCalls() const { return m_context->translateTailCalls; }
 		bool GetDisallowBranchToString() const { return m_context->disallowBranchToString; }
-		bool GetHaltOnInvalidInstructions() const { return m_context->haltOnInvalidInstructions; }
 		uint64_t GetMaxFunctionSize() const { return m_context->maxFunctionSize; }
 
 		bool GetMaxSizeReached() const { return m_context->maxSizeReached; }
@@ -11328,16 +11415,6 @@ namespace BinaryNinja {
 		*/
 		Ref<LowLevelILFunction> GetLowLevelILIfAvailable() const;
 
-		/*! Get the Low Level IL Instruction start for an instruction at an address
-
-			\param arch Architecture for the instruction
-			\param addr Address of the instruction
-			\return Start address of the instruction
-		*/
-		size_t GetLowLevelILForInstruction(Architecture* arch, uint64_t addr);
-		std::set<size_t> GetLowLevelILInstructionsForAddress(Architecture* arch, uint64_t addr);
-		std::vector<size_t> GetLowLevelILExitsForInstruction(Architecture* arch, uint64_t addr);
-
 		std::pair<DataBuffer, BNBuiltinType> GetConstantData(
 			BNRegisterValueType state, uint64_t value, size_t size = 0);
 
@@ -11519,11 +11596,13 @@ namespace BinaryNinja {
 		void SetUserIndirectBranches(
 		    Architecture* sourceArch, uint64_t source, const std::vector<ArchAndAddr>& branches);
 
-		// Guided Disassembly Support
+		// Guided Analysis Support
 		void SetGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
 		void AddGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
 		void RemoveGuidedSourceBlocks(const std::vector<ArchAndAddr>& addresses);
+		bool IsGuidedSourceBlock(Architecture* arch, uint64_t addr) const;
 		std::vector<ArchAndAddr> GetGuidedSourceBlocks();
+		bool HasGuidedSourceBlocks() const;
 
 		std::vector<IndirectBranchInfo> GetIndirectBranches();
 		std::vector<IndirectBranchInfo> GetIndirectBranchesAt(Architecture* arch, uint64_t addr);
@@ -12271,6 +12350,9 @@ namespace BinaryNinja {
 		uint64_t GetCurrentAddress() const;
 		void SetCurrentAddress(Architecture* arch, uint64_t addr);
 		size_t GetInstructionStart(Architecture* arch, uint64_t addr);
+		std::set<size_t> GetInstructionsAt(Architecture* arch, uint64_t addr);
+
+		std::vector<size_t> GetExitsForInstruction(size_t i);
 
 		void ClearIndirectBranches();
 		void SetIndirectBranches(const std::vector<ArchAndAddr>& branches);
@@ -13680,7 +13762,7 @@ namespace BinaryNinja {
 	        BNFreeMediumLevelILFunction>
 	{
 	  public:
-		MediumLevelILFunction(Architecture* arch, Function* func, LowLevelILFunction* lowLevelIL);
+		MediumLevelILFunction(Architecture* arch, Function* func = nullptr, LowLevelILFunction* lowLevelIL = nullptr);
 		MediumLevelILFunction(BNMediumLevelILFunction* func);
 
 		Ref<Function> GetFunction() const;
@@ -14364,6 +14446,8 @@ namespace BinaryNinja {
 		size_t desiredLineLength;
 		size_t minimumContentLength;
 		size_t tabWidth;
+		size_t maximumAnnotationLength;
+		size_t stringWrappingWidth;
 		std::string languageName;
 		std::string commentStartString;
 		std::string commentEndString;
@@ -19270,7 +19354,6 @@ namespace BinaryNinja {
 	{
 	public:
 		FirmwareNinjaRelationship(Ref<BinaryView> view, BNFirmwareNinjaRelationship* relationship = nullptr);
-		~FirmwareNinjaRelationship();
 
 		/*! Set the primary relationship object to an address
 

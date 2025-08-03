@@ -329,6 +329,7 @@ struct CrossReferenceFunctionList
 	void updateFunction(BinaryNinja::Function* func);
 	std::optional<uint64_t> getFunctionVersion(BinaryNinja::Function* func) const;
 	bool checkForUpdates();
+	void invalidateCache();
 };
 
 /*!
@@ -349,7 +350,7 @@ class BINARYNINJAUIAPI CrossReferenceTreeModel : public QAbstractItemModel
 	std::optional<BinaryNinja::FunctionViewType> m_graphType;
 	SelectionInfoForXref m_curRef;
 
-  public:
+public:
 	CrossReferenceTreeModel(QWidget* parent, BinaryViewRef data, ViewFrame* view);
 	virtual ~CrossReferenceTreeModel();
 
@@ -371,6 +372,7 @@ class BINARYNINJAUIAPI CrossReferenceTreeModel : public QAbstractItemModel
 	size_t getMaxUIItems() const { return m_maxUIItems; }
 	void setGraphType(const BinaryNinja::FunctionViewType& type);
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void needRepaint();
@@ -436,6 +438,7 @@ class BINARYNINJAUIAPI CrossReferenceTableModel : public QAbstractTableModel
 	size_t getMaxUIItems() const { return m_maxUIItems; }
 	void setGraphType(const BinaryNinja::FunctionViewType& type);
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void needRepaint();
@@ -457,8 +460,9 @@ class BINARYNINJAUIAPI CrossReferenceItemDelegate : public QStyledItemDelegate
 	QImage m_xrefTo, m_xrefFrom;
 	bool m_table;
 	size_t m_maxUIItems;
+	bool m_dependentRefsExceeded = false;
 
-  public:
+public:
 	CrossReferenceItemDelegate(QWidget* parent, bool table);
 
 	void updateFonts();
@@ -469,6 +473,7 @@ class BINARYNINJAUIAPI CrossReferenceItemDelegate : public QStyledItemDelegate
 	virtual QImage DrawArrow(bool direction) const;
 	void updateMaxUIItems(size_t count);
 	size_t getMaxUIItems() const { return m_maxUIItems; }
+	void setDependentRefsExceeded(bool value) { m_dependentRefsExceeded = value; }
 };
 
 /*!
@@ -529,7 +534,8 @@ class BINARYNINJAUIAPI CrossReferenceContainer
 	virtual QModelIndex prevIndex() = 0;
 	virtual QModelIndexList selectedRows() const = 0;
 	virtual bool hasSelection() const = 0;
-	virtual void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref) = 0;
+	virtual void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref,
+		bool dependentRefsExceeded) = 0;
 	virtual void updateFonts() = 0;
 	virtual int leafCount() const = 0;
 	virtual int filteredCount() const = 0;
@@ -557,7 +563,8 @@ public:
 	CrossReferenceTree(CrossReferenceWidget* parent, ViewFrame* view, BinaryViewRef data);
 	virtual ~CrossReferenceTree();
 
-	void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref) override;
+	void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref,
+		bool dependentRefsExceeded) override;
 	virtual QModelIndex nextIndex() override;
 	virtual QModelIndex prevIndex() override;
 	virtual bool hasSelection() const override { return selectionModel()->selectedRows().size() != 0; }
@@ -575,6 +582,7 @@ public:
 	void setGraphType(const BinaryNinja::FunctionViewType& type) { m_tree->setGraphType(type); }
 	virtual void OnAnalysisFunctionUpdated(BinaryNinja::BinaryView* view, BinaryNinja::Function* func) override;
 	void notifyRefresh();
+	void invalidateCache();
 
 Q_SIGNALS:
 	void newSelection();
@@ -602,7 +610,8 @@ class BINARYNINJAUIAPI CrossReferenceTable : public QTableView, public CrossRefe
 	virtual ~CrossReferenceTable();
 
 	void updateFontAndHeaderSize();
-	void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref) override;
+	void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref,
+		bool dependentRefsExceeded) override;
 	virtual QModelIndex nextIndex() override;
 	virtual QModelIndex prevIndex() override;
 	virtual bool hasSelection() const override { return selectionModel()->selectedRows().size() != 0; }
@@ -620,6 +629,7 @@ class BINARYNINJAUIAPI CrossReferenceTable : public QTableView, public CrossRefe
 	void setGraphType(const BinaryNinja::FunctionViewType& type) { m_table->setGraphType(type); }
 	virtual void OnAnalysisFunctionUpdated(BinaryNinja::BinaryView* view, BinaryNinja::Function* func) override;
 	void notifyRefresh();
+	void invalidateCache();
 
 public Q_SLOTS:
 	void doRepaint();
@@ -710,6 +720,8 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 
 	virtual void OnNewSelectionForXref(
 	    UIContext* context, ViewFrame* frame, View* view, const SelectionInfoForXref& selection) override;
+	void OnILViewTypeChange(
+		UIContext* context, ViewFrame* frame, View* view, const BinaryNinja::FunctionViewType& viewType) override;
 
 	virtual QWidget* headerWidget() override { return m_header; }
 	virtual void setPrimaryOrientation(Qt::Orientation orientation) override;

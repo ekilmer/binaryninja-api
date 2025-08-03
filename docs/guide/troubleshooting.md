@@ -222,7 +222,7 @@ The following environment variables may be helpful when troubleshooting issues:
 | BN_DISABLE_USER_SETTINGS | Flag (True if exists) | This flag will cause Binary Ninja to ignore any [`settings.json`](https://docs.binary.ninja/guide/settings.html).|
 | BN_SCREENSHOT | Flag (True if exists) | This flag removes some small UI clutter to enable cleaner screenshots. |
 | BN_DEBUG_HTTP | Flag (True if exists) | This flag enables additional debug logging of HTTP activity. |
-| BN_DEBUG_EXCEPTION_TRACES | Flag (Enabled by default, disabled if set to "0") | This variable includes stack traces when exceptions are handled (MacOS and Linux only). |
+| BN_DEBUG_EXCEPTION_TRACES | Flag (Disabled by default, enabled if set to "1") | This variable includes stack traces when exceptions are handled. |
 | BN_DEBUG_CLANG | Flag (True if exists) | If set, this flag adds additional debugging information to stdout from clang type parsing. |
 
 
@@ -261,7 +261,7 @@ By default, Binary Ninja does full analysis of the binary and decompiles every f
 * Changing `analysis.mode` to an option less than `full` will prevent Binary Ninja from doing full decompilation for every function.
 * Turning on `analysis.suppressNewAutoFunctionAnalysis` will prevent new functions from being analyzed at all until they are accessed.
 
-Other [analysis settings](settings.md#all-settings) can also help. Check the descriptions to see what they do.
+Other [analysis settings](settings.md#settings-reference) can also help. Check the descriptions to see what they do.
 
 
 ## Collaboration Issues

@@ -60,6 +60,15 @@ impl Command for RunMatcher {
     fn action(&self, view: &BinaryView) {
         let view = view.to_owned();
         std::thread::spawn(move || {
+            // For embedded targets the user may not have set the sections up.
+            // Alert the user if we have no actual regions (+1 comes from the synthetic section).
+            let regions = relocatable_regions(&view);
+            if regions.len() <= 1 && view.memory_map().is_activated() {
+                log::warn!(
+                    "No relocatable regions found, for best results please define sections for the binary!"
+                );
+            }
+
             run_matcher(&view);
         });
     }
@@ -74,14 +83,6 @@ pub fn run_matcher(view: &BinaryView) {
     let undo_id = view.file().begin_undo_actions(false);
     let _ = get_warp_tag_type(view);
     view.file().forget_undo_actions(&undo_id);
-
-    // Alert the user if we have no actual regions (one comes from the synthetic section).
-    let regions = relocatable_regions(view);
-    if regions.len() <= 1 && view.memory_map().is_activated() {
-        log::warn!(
-            "No relocatable regions found, for best results please define sections for the binary!"
-        );
-    }
 
     // Then we want to actually find matching functions.
     let background_task = BackgroundTask::new("Matching on WARP functions...", true);
@@ -103,6 +104,28 @@ pub fn run_matcher(view: &BinaryView) {
             Some(((guid, target), f.to_owned()))
         })
         .into_group_map();
+
+    if functions_by_target_and_guid.is_empty() && !view.functions().is_empty() {
+        // The user is likely trying to run the matcher on a database before guids were automatically
+        // generated, we should alert them and ask if they would like to reanalyze.
+        // NOTE: We only alert if we actually have the GUID activity enabled.
+        if let Some(sample_function) = view.functions().iter().next() {
+            let function_workflow = sample_function
+                .workflow()
+                .expect("Function has no workflow");
+            if function_workflow.contains(GUID_ACTIVITY_NAME) {
+                log::error!("No function guids in database, please reanalyze the database.");
+            } else {
+                log::error!(
+                    "Activity '{}' is not in workflow '{}', create function guids manually to run matcher...",
+                    GUID_ACTIVITY_NAME,
+                    function_workflow.name()
+                )
+            }
+        }
+        background_task.finish();
+        return;
+    }
 
     // TODO: Par iter this? Using dashmap
     let guids_by_target: HashMap<Target, Vec<FunctionGUID>> = functions_by_target_and_guid
@@ -154,7 +177,11 @@ pub fn run_matcher(view: &BinaryView) {
         log::info!("Matcher was cancelled by user, you may run it again by running the 'Run Matcher' command.");
     }
 
-    log::info!("Function matching took {:?}", start.elapsed());
+    // It is noisy to show this every time, so we only show it in cases where a user can reasonably perceive.
+    let elapsed = start.elapsed();
+    if elapsed > std::time::Duration::from_secs(1) {
+        log::info!("Function matching took {:?}", elapsed);
+    }
     background_task.finish();
 
     // Now we want to trigger re-analysis.
@@ -231,22 +258,21 @@ pub fn insert_workflow() {
         }
     };
 
-    let old_function_meta_workflow = Workflow::instance("core.function.metaAnalysis");
-    let function_meta_workflow = old_function_meta_workflow.clone_to("core.function.metaAnalysis");
     let guid_activity = Activity::new_with_action(GUID_ACTIVITY_CONFIG, guid_activity);
     let apply_activity = Activity::new_with_action(APPLY_ACTIVITY_CONFIG, apply_activity);
-    function_meta_workflow
-        .register_activity(&guid_activity)
-        .unwrap();
-    // Because we are going to impact analysis with application we must make sure the function update is triggered to continue to update analysis.
-    function_meta_workflow
-        .register_activity(&apply_activity)
-        .unwrap();
-    function_meta_workflow
-        .insert_after("core.function.runFunctionRecognizers", [GUID_ACTIVITY_NAME]);
-    function_meta_workflow
-        .insert_after("core.function.generateMediumLevelIL", [APPLY_ACTIVITY_NAME]);
-    function_meta_workflow.register().unwrap();
+
+    let add_function_activities = |workflow: &Workflow| {
+        let new_workflow = workflow.clone_to(&workflow.name());
+        new_workflow.register_activity(&guid_activity).unwrap();
+        new_workflow.register_activity(&apply_activity).unwrap();
+        new_workflow.insert_after("core.function.runFunctionRecognizers", [GUID_ACTIVITY_NAME]);
+        new_workflow.insert_after("core.function.generateMediumLevelIL", [APPLY_ACTIVITY_NAME]);
+        new_workflow.register().unwrap();
+    };
+
+    add_function_activities(&Workflow::instance("core.function.metaAnalysis"));
+    // TODO: Remove this once the objectivec workflow is registered on the meta workflow.
+    add_function_activities(&Workflow::instance("core.function.objectiveC"));
 
     let old_module_meta_workflow = Workflow::instance("core.module.metaAnalysis");
     let module_meta_workflow = old_module_meta_workflow.clone_to("core.module.metaAnalysis");

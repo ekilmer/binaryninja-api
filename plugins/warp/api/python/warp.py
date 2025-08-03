@@ -87,7 +87,7 @@ class WarpFunctionComment:
     @staticmethod
     def from_api(comment: warpcore.BNWARPFunctionComment) -> 'WarpFunctionComment':
         return WarpFunctionComment(
-            text=comment.text.decode('utf-8'),
+            text=comment.text,
             offset=comment.offset
         )
 
@@ -305,6 +305,13 @@ class WarpContainer(metaclass=_WarpContainerMetaclass):
             core_guids[i] = guids[i].uuid
         return warpcore.BNWARPContainerRemoveTypes(self.handle, source.uuid, core_guids, count)
 
+    def fetch_functions(self, target: WarpTarget, guids: List[FunctionGUID]):
+        count = len(guids)
+        core_guids = (warpcore.BNWARPFunctionGUID * count)()
+        for i in range(count):
+            core_guids[i] = guids[i].uuid
+        warpcore.BNWARPContainerFetchFunctions(self.handle, target.handle, core_guids, count)
+
     def get_sources_with_function_guid(self, target: WarpTarget, guid: FunctionGUID) -> List[Source]:
         count = ctypes.c_size_t()
         sources = warpcore.BNWARPContainerGetSourcesWithFunctionGUID(self.handle, target.handle, guid.uuid, count)
@@ -364,6 +371,12 @@ def is_instruction_variant(function: LowLevelILFunction, variant: LowLevelILInst
 
 def is_instruction_blacklisted(function: LowLevelILFunction, variant: LowLevelILInstruction) -> bool:
     return warpcore.BNWARPIsLiftedInstructionBlacklisted(function.handle, variant.instr_index)
+
+def is_instruction_computed_variant(function: LowLevelILFunction, variant: LowLevelILInstruction) -> bool:
+    """
+    Checks to see if the instruction is variant due to some computed value. **Must use LLIL.**
+    """
+    return warpcore.BNWARPIsLowLevelInstructionComputedVariant(function.handle, variant.instr_index)
 
 def get_function_guid(function: Function) -> Optional[FunctionGUID]:
     guid = warpcore.BNWARPUUID()

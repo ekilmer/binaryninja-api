@@ -1852,16 +1852,33 @@ class Function:
 			>>> func.get_low_level_il_at(func.start)
 			<il: push(rbp)>
 		"""
-		if arch is None:
-			arch = self.arch
-
-		idx = core.BNGetLowLevelILForInstruction(self.handle, arch.handle, addr)
-
 		llil = self.llil
-		if llil is None or idx == len(llil):
+		if llil is None:
 			return None
-
+		idx = llil.get_instruction_start(addr, arch)
+		if idx is None:
+			return None
 		return llil[idx]
+
+	def get_low_level_ils_at(self, addr: int,
+	                 arch: Optional['architecture.Architecture'] = None) -> List['lowlevelil.LowLevelILInstruction']:
+		"""
+		``get_low_level_ils_at`` gets the LowLevelILInstruction(s) corresponding to the given virtual address
+		See the `developer docs <https://dev-docs.binary.ninja/dev/concepts.html#mapping-between-ils>`_ for more information.
+
+		:param int addr: virtual address of the instruction to be queried
+		:param Architecture arch: (optional) Architecture for the given function
+		:rtype: list(LowLevelILInstruction)
+		:Example:
+
+			>>> func = next(bv.functions)
+			>>> func.get_low_level_ils_at(func.start)
+			[<il: push(rbp)>]
+		"""
+		llil = self.llil
+		if llil is None:
+			return []
+		return [llil[i] for i in llil.get_instructions_at(addr, arch)]
 
 	def get_llil_at(self, addr: int,
 	                arch: Optional['architecture.Architecture'] = None) -> Optional['lowlevelil.LowLevelILInstruction']:
@@ -1897,33 +1914,16 @@ class Function:
 		llil = self.llil
 		if llil is None:
 			return []
-
-		if arch is None:
-			arch = self.arch
-		count = ctypes.c_ulonglong()
-		instrs = core.BNGetLowLevelILInstructionsForAddress(self.handle, arch.handle, addr, count)
-		assert instrs is not None, "core.BNGetLowLevelILInstructionsForAddress returned None"
-		try:
-			result = []
-			for i in range(0, count.value):
-				result.append(llil[instrs[i]])
-			return result
-		finally:
-			core.BNFreeILInstructionList(instrs)
+		return [llil[i] for i in llil.get_instructions_at(addr, arch)]
 
 	def get_low_level_il_exits_at(self, addr: int, arch: Optional['architecture.Architecture'] = None) -> List[int]:
-		if arch is None:
-			arch = self.arch
-		count = ctypes.c_ulonglong()
-		exits = core.BNGetLowLevelILExitsForInstruction(self.handle, arch.handle, addr, count)
-		assert exits is not None, "core.BNGetLowLevelILExitsForInstruction returned None"
-		try:
-			result = []
-			for i in range(0, count.value):
-				result.append(exits[i])
-			return result
-		finally:
-			core.BNFreeILInstructionList(exits)
+		llil = self.llil
+		if llil is None:
+			return []
+		idx = llil.get_instruction_start(addr, arch)
+		if idx is None:
+			return []
+		return llil.get_exits_for_instr(idx)
 
 	def get_constant_data(self, state: RegisterValueType, value: int, size: int = 0) -> databuffer.DataBuffer:
 		return databuffer.DataBuffer(handle=core.BNGetConstantData(self.handle, state, value, size, None))
@@ -2112,15 +2112,13 @@ class Function:
 	def get_lifted_il_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
 	) -> Optional['lowlevelil.LowLevelILInstruction']:
-		if arch is None:
-			arch = self.arch
-
-		idx = core.BNGetLiftedILForInstruction(self.handle, arch.handle, addr)
-
-		if idx == len(self.lifted_il):
+		lifted_il = self.lifted_il
+		if lifted_il is None:
 			return None
-
-		return self.lifted_il[idx]
+		idx = lifted_il.get_instruction_start(addr, arch)
+		if idx is None:
+			return None
+		return lifted_il[idx]
 
 	def get_lifted_ils_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
@@ -2136,16 +2134,10 @@ class Function:
 			>>> func.get_lifted_ils_at(func.start)
 			[<il: push(rbp)>]
 		"""
-		if arch is None:
-			arch = self.arch
-		count = ctypes.c_ulonglong()
-		instrs = core.BNGetLiftedILInstructionsForAddress(self.handle, arch.handle, addr, count)
-		assert instrs is not None, "core.BNGetLiftedILInstructionsForAddress returned None"
-		result = []
-		for i in range(0, count.value):
-			result.append(self.lifted_il[instrs[i]])
-		core.BNFreeILInstructionList(instrs)
-		return result
+		lifted_il = self.lifted_il
+		if lifted_il is None:
+			return []
+		return [lifted_il[i] for i in lifted_il.get_instructions_at(addr, arch)]
 
 	def get_constants_referenced_by(self, addr: int,
 	                                arch: Optional['architecture.Architecture'] = None) -> List[variable.ConstantReference]:
@@ -2302,6 +2294,15 @@ class Function:
 	def set_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``set_guided_source_blocks`` sets the complete list of guided source blocks for this function.
+		Only blocks in this set will have their direct outgoing branch targets analyzed. This replaces
+		any existing guided source blocks and automatically enables or disables the ``analysis.guided.enable``
+		setting based on whether addresses are provided.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
@@ -2311,6 +2312,14 @@ class Function:
 	def add_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``add_guided_source_blocks`` adds blocks to the guided source block list for this function.
+		The specified blocks will have their direct outgoing branch targets analyzed. This automatically
+		enables the ``analysis.guided.enable`` setting if it is not already enabled.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples to add
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
@@ -2320,15 +2329,42 @@ class Function:
 	def remove_guided_source_blocks(
 	    self, addresses: List[Tuple['architecture.Architecture', int]]
 	) -> None:
+		"""
+		``remove_guided_source_blocks`` removes blocks from the guided source block list for this function.
+		The specified blocks will no longer have their direct outgoing branch targets analyzed.
+		This automatically enables the ``analysis.guided.enable`` setting if it is not already enabled.
+
+		:param List[Tuple[architecture.Architecture, int]] addresses: List of (architecture, address) tuples to remove
+		:rtype: None
+		"""
 		address_list = (core.BNArchitectureAndAddress * len(addresses))()
 		for i in range(len(addresses)):
 			address_list[i].arch = addresses[i][0].handle
 			address_list[i].address = addresses[i][1]
 		core.BNRemoveGuidedSourceBlocks(self.handle, address_list, len(addresses))
 
+	def is_guided_source_block(
+	    self, arch: 'architecture.Architecture', addr: int
+	) -> bool:
+		"""
+		``is_guided_source_block`` checks if the given address is a guided source block.
+
+		:param architecture.Architecture arch: Architecture of the address to check
+		:param int addr: Address to check
+		:rtype: bool
+		"""
+		return core.BNIsGuidedSourceBlock(self.handle, arch.handle, addr)
+
 	def get_guided_source_blocks(
 	    self
 	) -> List[Tuple['architecture.Architecture', int]]:
+		"""
+		``get_guided_source_blocks`` returns the current list of guided source blocks for this function.
+		These blocks have their direct outgoing branch targets analyzed.
+
+		:rtype: List[Tuple[architecture.Architecture, int]]
+		:return: List of (architecture, address) tuples representing current guided source blocks
+		"""
 		count = ctypes.c_ulonglong()
 		addresses = core.BNGetGuidedSourceBlocks(self.handle, count)
 		try:
@@ -2343,6 +2379,16 @@ class Function:
 		finally:
 			if addresses is not None:
 				core.BNFreeArchitectureAndAddressList(addresses)
+
+	def has_guided_source_blocks(self) -> bool:
+		"""
+		``has_guided_source_blocks`` checks if this function has any guided source blocks configured.
+		This indicates whether guided analysis is active for this function.
+
+		:rtype: bool
+		:return: True if the function has guided source blocks, False otherwise
+		"""
+		return core.BNHasGuidedSourceBlocks(self.handle)
 
 	def get_indirect_branches_at(
 	    self, addr: int, arch: Optional['architecture.Architecture'] = None
@@ -3249,8 +3295,9 @@ class Function:
 		:rtype: list(ReferenceSource)
 		"""
 		for site in self.view.get_code_refs(self.start):
-			if isinstance(site.llil, Localcall):
-				yield site
+			for llil in site.llils:
+				if isinstance(llil, Localcall) and llil.dest.value == self.start:
+					yield site
 
 	@property
 	def workflow(self):

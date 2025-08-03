@@ -101,6 +101,17 @@ std::optional<uint64_t> getInvertableConditionAddress(BinaryNinja::HighLevelILFu
 std::optional<uint64_t> getEarlyReturnAddress(BinaryNinja::HighLevelILFunction* hlil, size_t instrIndex);
 std::optional<uint64_t> getSwitchRecoveryAddress(BinaryNinja::HighLevelILFunction* hlil, size_t instrIndex);
 
+
+struct BINARYNINJAUIAPI BinaryViewWriteTarget
+{
+	BinaryViewRef view;
+	uint64_t address;
+	bool updateMemoryMap;
+};
+
+BinaryViewWriteTarget BINARYNINJAUIAPI resolveTargetWriteBinaryView(BinaryViewRef view, uint64_t addr);
+void BINARYNINJAUIAPI updateBinaryViewMemoryMap(BinaryViewRef view, uint64_t writeAddr, size_t writeLen, uint64_t dataOffset);
+
 /*!
     @}
 */

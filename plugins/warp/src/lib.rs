@@ -105,34 +105,44 @@ pub fn build_variables(func: &BNFunction) -> Vec<FunctionVariable> {
     variables
 }
 
+// TODO: Get rid of the minimal bool.
 pub fn build_function<M: FunctionMutability>(
     func: &BNFunction,
     lifted_il: &LowLevelILFunction<M, NonSSA>,
+    minimal: bool,
 ) -> Function {
-    let comments = func
+    let mut function = Function {
+        guid: cached_function_guid(func, lifted_il),
+        symbol: from_bn_symbol(&func.symbol()),
+        // NOTE: Adding adjacent only works if analysis is complete.
+        // NOTE: We do not filter out adjacent functions here.
+        constraints: cached_constraints(func, |_| true),
+        ty: None,
+        comments: vec![],
+        variables: vec![],
+    };
+
+    if minimal {
+        return function;
+    }
+
+    // Currently we only store the type if its a user type.
+    // TODO: In the future we might want to make this configurable.
+    function.ty = match func.has_user_type() || func.has_explicitly_defined_type() {
+        true => Some(from_bn_type(
+            &func.view(),
+            &func.function_type(),
+            MAX_CONFIDENCE,
+        )),
+        false => None,
+    };
+    function.comments = func
         .comments()
         .iter()
         .map(|c| bn_comment_to_comment(func, c))
         .collect();
-    Function {
-        guid: cached_function_guid(func, lifted_il),
-        symbol: from_bn_symbol(&func.symbol()),
-        // Currently we only store the type if its a user type.
-        // TODO: In the future we might want to make this configurable.
-        ty: match func.has_user_type() || func.has_explicitly_defined_type() {
-            true => Some(from_bn_type(
-                &func.view(),
-                &func.function_type(),
-                MAX_CONFIDENCE,
-            )),
-            false => None,
-        },
-        // NOTE: Adding adjacent only works if analysis is complete.
-        // NOTE: We do not filter out adjacent functions here.
-        constraints: cached_constraints(func, |_| true),
-        comments,
-        variables: build_variables(func),
-    }
+    function.variables = build_variables(func);
+    function
 }
 
 /// Basic blocks sorted from high to low.
@@ -186,7 +196,7 @@ pub fn basic_block_guid<M: FunctionMutability>(
             instr_bytes.truncate(instr_info.length);
 
             // Find variant and blacklisted instructions using lifted il.
-            for lifted_il_instr in lifted_il.instructions_at(instr_addr) {
+            for lifted_il_instr in filtered_instructions_at(lifted_il, instr_addr) {
                 // If instruction is blacklisted, don't include the bytes.
                 if is_blacklisted_instruction(&lifted_il_instr) {
                     continue;
@@ -209,7 +219,7 @@ pub fn basic_block_guid<M: FunctionMutability>(
             // TODO: A "mapped llil" or having some simple data flow, the simple data flow is the most attractive
             // TODO: "solution", but it would require
             if let Ok(llil) = &low_level_il {
-                for low_level_instr in llil.instructions_at(instr_addr) {
+                for low_level_instr in filtered_instructions_at(llil, instr_addr) {
                     if is_computed_variant_instruction(relocatable_regions, &low_level_instr) {
                         // Found a computed variant instruction, mask off the entire instruction.
                         instr_bytes.fill(0);
@@ -224,6 +234,25 @@ pub fn basic_block_guid<M: FunctionMutability>(
     }
 
     BasicBlockGUID::from(basic_block_bytes.as_slice())
+}
+
+pub fn filtered_instructions_at<M: FunctionMutability>(
+    il: &LowLevelILFunction<M, NonSSA>,
+    addr: u64,
+) -> Vec<LowLevelILInstruction<M, NonSSA>> {
+    il.instructions_at(addr)
+        .into_iter()
+        .enumerate()
+        .take_while(|(i, instr)| match instr.kind() {
+            // Stop collecting instructions after we see a LLIL_RET, LLIL_NO_RET.
+            LowLevelILInstructionKind::NoRet(_) | LowLevelILInstructionKind::Ret(_) => false,
+            // Stop collecting instruction if we are probably the end function jump in lifted IL. This
+            // is emitted at the end of the function and will mess with our GUID.
+            LowLevelILInstructionKind::Jump(_) => *i == 0,
+            _ => true,
+        })
+        .map(|(_, instr)| instr)
+        .collect()
 }
 
 /// Is the instruction not included in the masked byte sequence?
@@ -301,7 +330,7 @@ pub fn is_computed_variant_instruction<M: FunctionMutability>(
     instr: &LowLevelILInstruction<M, NonSSA>,
 ) -> bool {
     let is_expr_constant = |expr: &LowLevelILExpression<M, NonSSA, ValueExpr>| match expr.kind() {
-        LowLevelILExpressionKind::Const(_) => true,
+        LowLevelILExpressionKind::Const(_) | LowLevelILExpressionKind::ConstPtr(_) => true,
         _ => false,
     };
 
@@ -371,14 +400,30 @@ pub fn is_address_relocatable(relocatable_regions: &[Range<u64>], address: u64) 
 // TODO: This might need to be configurable, in that case we better remove this function.
 /// Get the relocatable regions of the view.
 ///
-/// Currently, this is all the sections, however, this might be refined later.
+/// Currently, segments are used by default, however, if the only segment is based at 0, then we fall
+/// back to using sections.
 pub fn relocatable_regions(view: &BinaryView) -> Vec<Range<u64>> {
-    // NOTE: We cannot use segments here as there will be a zero-based segment.
-    view.sections()
+    // NOTE: We used to use sections because the image base for some object files would start
+    // at zero, masking non-relocatable instructions, since then we have started adjusting the
+    // image base to 0x10000 or higher so we can use segments directly, which improves the accuracy
+    // of function GUIDs for binaries which have no or bad section definitions, common of firmware.
+    let mut ranges = view
+        .segments()
         .iter()
-        .map(|s| Range {
-            start: s.start(),
-            end: s.end(),
-        })
-        .collect()
+        .filter(|s| s.address_range().start != 0)
+        .map(|s| s.address_range())
+        .collect::<Vec<_>>();
+
+    if ranges.is_empty() {
+        // Realistically only happens if the only defined segment was based at 0, in which case
+        // we hope the user has set up correct sections. If not we are going to be masking off too many
+        // or too little instructions.
+        ranges = view
+            .sections()
+            .iter()
+            .map(|s| s.address_range())
+            .collect::<Vec<_>>();
+    }
+
+    ranges
 }

@@ -134,8 +134,7 @@ void WarpSidebarWidget::focus()
 void WarpSidebarWidget::Update()
 {
 	m_matchedWidget->Update();
-	if (!GetMatcherTask())
-		setMatcherActionIcon(false);
+	setMatcherActionIcon(false);
 }
 
 void WarpSidebarWidget::setMatcherActionIcon(bool running)
@@ -170,6 +169,9 @@ void WarpSidebarWidget::notifyViewChanged(ViewFrame *view)
 
 void WarpSidebarWidget::notifyViewLocationChanged(View *view, const ViewLocation &location)
 {
+	// Warp sidebar really should only update if it is visible, otherwise its a waste of cycles.
+	if (!this->isVisible())
+		return;
 	auto function = location.getFunction();
 	// TODO: Only update if the function exists?
 	// NOTE: The function called will exit early if it is the same function.

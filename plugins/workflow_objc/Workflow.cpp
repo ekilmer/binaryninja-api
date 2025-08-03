@@ -86,7 +86,7 @@ bool Workflow::rewriteMethodCall(LLILFunctionRef ssa, size_t insnIndex)
     const auto bv = function->GetView();
     const auto llil = ssa->GetNonSSAForm();
     const auto insn = ssa->GetInstruction(insnIndex);
-    const auto params = insn.GetParameterExprs<LLIL_CALL_SSA>();
+    const auto params = insn.GetParameterExprs();
 
     // The second parameter passed to the objc_msgSend call is the address of
     // either the selector reference or the method's name, which in both cases
@@ -184,12 +184,27 @@ bool Workflow::rewriteMethodCall(LLILFunctionRef ssa, size_t insnIndex)
     const auto llilIndex = ssa->GetNonSSAInstructionIndex(insnIndex);
     auto llilInsn = llil->GetInstruction(llilIndex);
 
-    // Change the destination expression of the LLIL_CALL operation to point to
+    // Change the destination expression of the call operation to point to
     // the method implementation. This turns the "indirect call" piped through
     // `objc_msgSend` and makes it a normal C-style function call.
-    auto callDestExpr = llilInsn.GetDestExpr<LLIL_CALL>();
-    callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
-    llilInsn.Replace(llil->Call(callDestExpr.exprIndex, llilInsn));
+    switch (llilInsn.operation) {
+        case LLIL_CALL: {
+            auto callDestExpr = llilInsn.GetDestExpr<LLIL_CALL>();
+            callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
+            llilInsn.Replace(llil->Call(callDestExpr.exprIndex, llilInsn));
+            break;
+        }
+        case LLIL_TAILCALL: {
+            auto callDestExpr = llilInsn.GetDestExpr<LLIL_TAILCALL>();
+            callDestExpr.Replace(llil->ConstPointer(callDestExpr.size, implAddress, callDestExpr));
+            llilInsn.Replace(llil->TailCall(callDestExpr.exprIndex, llilInsn));
+            break;
+        }
+        default:
+            const auto log = BinaryNinja::LogRegistry::GetLogger(PluginLoggerName);
+            log->LogDebugF("Unexpected LLIL operation {} for objc_msgSend call at {:#0x}", llilInsn.operation, llilInsn.address);
+            return false;
+    }
 
     return true;
 }
@@ -225,7 +240,7 @@ void Workflow::inlineMethodCalls(AnalysisContextRef ac)
 
     if (auto info = GlobalState::analysisInfo(bv))
     {
-        if (info->hasObjcStubs && func->GetStart() > info->objcStubsStartEnd.first && func->GetStart() < info->objcStubsStartEnd.second)
+        if (info->hasObjcStubs && func->GetStart() >= info->objcStubsStartEnd.first && func->GetStart() < info->objcStubsStartEnd.second)
         {
             func->SetAutoInlinedDuringAnalysis({true, BN_FULL_CONFIDENCE});
             // Do no further cleanup, this is a stub and it will be cleaned up after inlining
@@ -254,12 +269,13 @@ void Workflow::inlineMethodCalls(AnalysisContextRef ac)
     const auto rewriteIfEligible = [bv, messageHandler, ssa](size_t insnIndex) {
         auto insn = ssa->GetInstruction(insnIndex);
 
-        if (insn.operation == LLIL_CALL_SSA)
+        if (insn.operation == LLIL_CALL_SSA || insn.operation == LLIL_TAILCALL_SSA)
         {
             // Filter out calls that aren't to `objc_msgSend`.
-            auto callExpr = insn.GetDestExpr<LLIL_CALL_SSA>();
-            bool isMessageSend = messageHandler->isMessageSend(callExpr.GetValue().value);
-            if (auto symbol = bv->GetSymbolByAddress(callExpr.GetValue().value))
+            auto callExpr = insn.GetDestExpr();
+            auto callTarget = callExpr.GetValue().value;
+            bool isMessageSend = messageHandler->isMessageSend(callTarget);
+            if (auto symbol = bv->GetSymbolByAddress(callTarget))
                 isMessageSend = isMessageSend || symbol->GetRawName() == "_objc_msgSend";
             if (!isMessageSend)
                 return false;
@@ -294,7 +310,7 @@ void Workflow::registerActivities()
     const auto wf = BinaryNinja::Workflow::Instance("core.function.baseAnalysis")->Clone("core.function.objectiveC");
     wf->RegisterActivity(new BinaryNinja::Activity(
         ActivityID::ResolveMethodCalls, &Workflow::inlineMethodCalls));
-    wf->Insert("core.function.translateTailCalls", ActivityID::ResolveMethodCalls);
+    wf->InsertAfter("core.function.translateTailCalls", ActivityID::ResolveMethodCalls);
 
     BinaryNinja::Workflow::RegisterWorkflow(wf, WorkflowInfo);
 }

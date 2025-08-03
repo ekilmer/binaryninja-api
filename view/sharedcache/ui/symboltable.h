@@ -19,9 +19,12 @@ Q_OBJECT
 	SymbolTableView* m_parent;
 	QFont m_font;
 	std::string m_filter;
-	std::vector<SharedCacheAPI::CacheSymbol> m_preparedSymbols{};
-	// These are the symbols we actually use
-	std::vector<SharedCacheAPI::CacheSymbol> m_modelSymbols{};
+
+	std::vector<SharedCacheAPI::CacheSymbol> m_symbols;
+	std::vector<SharedCacheAPI::CacheSymbol> m_filteredSymbols;
+
+	// A pointer to either m_symbols or m_filteredSymbols, depending on whether a filter is applied.
+	std::vector<SharedCacheAPI::CacheSymbol> *m_displaySymbols = nullptr;
 
 public:
 	explicit SymbolTableModel(SymbolTableView* parent);
@@ -31,10 +34,11 @@ public:
 	QVariant data(const QModelIndex& index, int role) const override;
 	QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 	void sort(int column, Qt::SortOrder order) override;
-	void updateSymbols(std::vector<SharedCacheAPI::CacheSymbol>&& symbols);
-	void setFilter(std::string text);
-	const SharedCacheAPI::CacheSymbol& symbolAt(int row) const;
 
+	void updateSymbols(std::vector<SharedCacheAPI::CacheSymbol> symbols);
+	void setFilter(std::string text);
+
+	const SharedCacheAPI::CacheSymbol& symbolAt(int row) const;
 };
 
 
