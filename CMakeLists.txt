@@ -53,12 +53,6 @@ if(BinaryNinjaAPI_REF_COUNT_DEBUG)
     target_compile_definitions(binaryninjaapi PUBLIC BN_REF_COUNT_DEBUG)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-    target_compile_definitions(binaryninjaapi PRIVATE _DEBUG)
-else()
-    target_compile_definitions(binaryninjaapi PRIVATE NDEBUG)
-endif()
-
 target_compile_features(binaryninjaapi PUBLIC cxx_std_20)
 
 if(NOT TARGET binaryninjacore)
