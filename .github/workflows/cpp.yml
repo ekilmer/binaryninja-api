@@ -126,15 +126,10 @@ jobs:
               --config RelWithDebInfo
               ${{ matrix.config.cmake_j }}
 
-      - name: Install Everything Else (CMake 3.15.0+)
-        if: ${{ matrix.cmakeVersion != '~3.14.0' }}
+      - name: Install Everything Else
         run: cmake --install build
               --config RelWithDebInfo
               --component BinaryNinjaUserPlugin
-      - name: Install Everything Else (CMake 3.14)
-        if: ${{ matrix.cmakeVersion == '~3.14.0' }}
-        run: cmake -DCOMPONENT=BinaryNinjaUserPlugin
-              -P build/cmake_install.cmake
 
       - name: Upload binaryninjaapi artifact
         uses: actions/upload-artifact@v4
