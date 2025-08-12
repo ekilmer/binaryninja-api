@@ -615,10 +615,8 @@ It can be exceedingly helpful to put your entire modification script inside a `t
 
             // Rethrowing the exception here might abort the program (if it is uncaught)
             // So you probably want to just eat the exception and print an angry message 
+            LogErrorWithStackTraceF("Got an exception"); // 5.2 and later
             // throw;
-            char* trace = BNGetCurrentStackTraceString();
-            LogErrorF("Got an exception {}", trace);
-            free(trace);
         }
     }
     ```
