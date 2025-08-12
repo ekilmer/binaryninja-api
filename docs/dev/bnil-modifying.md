@@ -805,8 +805,8 @@ Then, when registering your Workflow Activity, make two copies of the Activity, 
     wf->RegisterActivity(new Activity(R"~(
         {
             "name": "extension.my_extension.do_the_thing.dry_run",
-            "title": "My IL Modifications",
-            "description": "Does some IL modifications.",
+            "title": "My IL Modifications Dry Run",
+            "description": "My IL Modifications (dry run)",
             "eligibility": {
                 "auto": {
                     "default": true
@@ -822,7 +822,7 @@ Then, when registering your Workflow Activity, make two copies of the Activity, 
         {
             "name": "extension.my_extension.do_the_thing",
             "title": "My IL Modifications",
-            "description": "Does some IL modifications.",
+            "description": "My IL Modifications",
             "eligibility": {
                 "auto": {
                     "default": false
