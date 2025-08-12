@@ -239,6 +239,13 @@ Let's call the new function `new_func` and the existing function `old_func`.
     }
     ```
 
+???+ Note "Note"
+    You may notice that the sample code above mentions always using `AnalysisContext.llil` (C++: `AnalysisContext::GetLowLevelIL()`) to access the relevant Low Level IL function,
+    and you may be wondering why the sample doesn't instead use `AnalysisContext.function.llil` (C++: `AnalysisContext::GetFunction()->GetLowLevelILFunction()`).
+    This is because you must **always access IL Functions directly through `AnalysisContext`** when writing Workflow Activities, as that is where the current, up-to-date analysis information is stored.  
+    During analysis, the `LowLevelILFunction` object stored in the `AnalysisContext` object contains the in-progress analysis information from the current run of the Workflow,
+    whereas the `LowLevelILFunction` object stored on the Function object is from the previous run of the Workflow and contains stale analysis data. 
+
 Then, going block-by-block, copy the instructions from `old_func` to `new_func`.
 When you reach a part where you want to insert new instructions (or replace instructions), do that instead of simply copying the old instructions.
 
