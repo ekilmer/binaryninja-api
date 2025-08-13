@@ -274,20 +274,6 @@ void PseudoCFunction::AppendTwoOperand(const string& operand, const HighLevelILI
 		break;
 	}
 
-	if (leftExpr.operation == HLIL_SPLIT)
-	{
-		const auto low = leftExpr.GetLowExpr();
-		const auto high = leftExpr.GetHighExpr();
-
-		emitter.Append(OperationToken, "COMBINE");
-		emitter.AppendOpenParen();
-		GetExprTextInternal(high, emitter, settings);
-		emitter.Append(TextToken, ", ");
-		GetExprTextInternal(low, emitter, settings);
-		emitter.AppendCloseParen();
-	}
-
-
 	if (!settings || settings->IsOptionSet(ShowTypeCasts))
 	{
 		if (leftExpr.operation == HLIL_VAR && (operand == " + " || operand == " - "))
@@ -1511,7 +1497,8 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 				}
 			}
 
-			GetExprTextInternal(destExpr, tokens, settings, precedence);
+			if (!destIsSplit)
+				GetExprTextInternal(destExpr, tokens, settings, precedence);
 			if (assignUpdateOperator.has_value() && assignUpdateSource.has_value())
 				tokens.Append(OperationToken, assignUpdateOperator.value());
 			else
@@ -2326,7 +2313,20 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 	case HLIL_ROUND_TO_INT:
 		[&]() {
-			AppendTwoOperandFunction("round", instr, tokens, settings, false);
+			auto src = instr.GetSourceExpr<HLIL_ROUND_TO_INT>();
+			string round;
+			if (src.size == 4)
+				round = "roundf";
+			else if (src.size == 8)
+				round = "round";
+			else if (src.size == 10)
+				round = "roundl";
+			else
+				round = "round" + std::to_string(src.size) + "f";
+			tokens.Append(OperationToken, round);
+			tokens.AppendOpenParen();
+			GetExprTextInternal(src, tokens, settings);
+			tokens.AppendCloseParen();
 			if (statement)
 				tokens.AppendSemicolon();
 		}();
@@ -2616,7 +2616,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			bool hasOffset = offset != 0;
 			bool needsOuterParens = precedence > UnaryOperatorPrecedence;
 			bool showTypeCasts = !settings || settings->IsOptionSet(ShowTypeCasts);
-			
+
 			if (needsOuterParens)
 				tokens.AppendOpenParen();
 
@@ -2652,7 +2652,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			}
 			else
 			{
-				GetExprTextInternal(srcExpr, tokens, settings, 
+				GetExprTextInternal(srcExpr, tokens, settings,
 					hasOffset ? AddOperatorPrecedence : UnaryOperatorPrecedence);
 			}
 
@@ -2854,7 +2854,21 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 		}();
 		break;
 
-	case HLIL_SPLIT: break;
+	case HLIL_SPLIT:
+		[&]() {
+			const auto low = instr.GetLowExpr();
+			const auto high = instr.GetHighExpr();
+
+			tokens.Append(OperationToken, "COMBINE");
+			tokens.AppendOpenParen();
+			GetExprTextInternal(high, tokens, settings);
+			tokens.Append(TextToken, ", ");
+			GetExprTextInternal(low, tokens, settings);
+			tokens.AppendCloseParen();
+			if (statement)
+				tokens.AppendSemicolon();
+		}();
+		break;
 	default:
 		[&]() {
 			char buf[64]{};
