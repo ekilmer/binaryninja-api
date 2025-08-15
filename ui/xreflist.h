@@ -15,6 +15,7 @@
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QGridLayout>
+#include <QtWidgets/QDialog>
 
 #include <vector>
 #include <deque>
@@ -534,6 +535,7 @@ class BINARYNINJAUIAPI CrossReferenceContainer
 	virtual QModelIndex nextIndex() = 0;
 	virtual QModelIndex prevIndex() = 0;
 	virtual QModelIndexList selectedRows() const = 0;
+	virtual void setSavedSelection(std::optional<int> idx) = 0;
 	virtual bool hasSelection() const = 0;
 	virtual void setNewSelection(std::vector<XrefItem>& refs, bool newRefTarget, const SelectionInfoForXref& ref,
 		bool dependentRefsExceeded) = 0;
@@ -574,6 +576,7 @@ public:
 	virtual void keyPressEvent(QKeyEvent* e) override;
 	virtual bool event(QEvent* event) override;
 	virtual QModelIndexList selectedRows() const override { return selectionModel()->selectedRows(); }
+	virtual void setSavedSelection(std::optional<int> idx) override;
 	virtual QModelIndex translateIndex(const QModelIndex& idx) const override { return m_model->mapToSource(idx); }
 	virtual void updateFonts() override;
 	virtual int leafCount() const override;
@@ -617,6 +620,7 @@ class BINARYNINJAUIAPI CrossReferenceTable : public QTableView, public CrossRefe
 	virtual QModelIndex prevIndex() override;
 	virtual bool hasSelection() const override { return selectionModel()->selectedRows().size() != 0; }
 	virtual QModelIndexList selectedRows() const override { return selectionModel()->selectedRows(); }
+	virtual void setSavedSelection(std::optional<int> idx) override;
 	virtual bool getReference(const QModelIndex& idx, XrefItem** refPtr) const override;
 	virtual void mouseMoveEvent(QMouseEvent* e) override;
 	virtual void mousePressEvent(QMouseEvent* e) override;
@@ -704,6 +708,8 @@ class BINARYNINJAUIAPI CrossReferenceWidget : public SidebarWidget, public UICon
 	virtual bool selectFirstRow();
 	virtual bool hasSelection() const;
 	virtual void goToReference(const QModelIndex& idx);
+	QModelIndexList selectedRows() const;
+	void setSavedSelection(std::optional<int> idx);
 
 	virtual void restartHoverTimer(QMouseEvent* e);
 	virtual void startHoverTimer(QMouseEvent* e);
@@ -741,6 +747,9 @@ public Q_SLOTS:
 	void selectionChanged();
 	void typeChanged(int index, bool checked);
 	void directionChanged(int change, bool checked);
+
+Q_SIGNALS:
+	void navigatedToCrossReference();
 };
 
 /*!
@@ -768,6 +777,23 @@ public:
 	QString noWidgetMessage() const override { return "No pinned cross references"; }
 	DockableTabStyle* tabStyle() const override { return new DefaultDockableTabStyle(); }
 	bool deactivateOnLastTabClose() const override { return true; }
+};
+
+
+class BINARYNINJAUIAPI CrossReferenceDialog : public QDialog
+{
+	Q_OBJECT
+
+	CrossReferenceWidget* m_widget;
+
+	static constexpr int MINIMUM_WIDTH = 720;
+	static constexpr int MINIMUM_HEIGHT = 480;
+
+public:
+	CrossReferenceDialog(UIContext* context, View* view, BinaryViewRef data, const SelectionInfoForXref& selection);
+
+	void setSavedSelection(std::optional<int> idx);
+	std::optional<int> selection() const;
 };
 
 
