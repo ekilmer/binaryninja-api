@@ -449,17 +449,26 @@ public:
 	    Get the currently visible View for the currently visible ViewFrame (if it exists)
 	    \return Current View or nullptr if the current ViewFrame is null or does not have a View
 	 */
+
 	virtual View* getCurrentView() = 0;
 	/*!
 	    Get the currently visible ViewFrame (if it exists)
 	    \return Current ViewFrame or nullptr if the current widget does not have a ViewFrame
 	 */
+
 	virtual ViewFrame* getCurrentViewFrame() = 0;
 	/*!
 	    Get the current Action Handler for the focused widget
 	    \return Current Action Handler if the focused widget (or one of its parents) has one, else nullptr
 	 */
 	virtual UIActionHandler* getCurrentActionHandler() = 0;
+
+	/*!
+	    Rebase the current BinaryView to a new address, updating the UI appropriately.
+	    \param address New address for rebasing the current BinaryView
+	    \return True if the rebase was successful, false otherwise
+	*/
+	virtual bool rebaseCurrentView(uint64_t address) = 0;
 
 	/*!
 	    Open a tab containing the given widget with the given name

@@ -9506,7 +9506,8 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 		``rebase`` rebase the existing :py:class:`BinaryView` into a new :py:class:`BinaryView` at the specified virtual address
 
 		.. note:: This method does not update corresponding UI components. If the `BinaryView` is associated with \
-		UI components then initiate the rebase operation within the UI, e.g. using the command palette. If working with views that \
+		UI components then initiate the rebase operation within the UI, e.g. using the command palette or \
+		``binaryninjaui.UIContext.activeContext().rebaseCurrentView()``. If working with views that \
 		are not associated with UI components while the UI is active, then set ``force`` to ``True`` to enable rebasing.
 
 		:param int address: virtual address of the start of the :py:class:`BinaryView`
@@ -9521,6 +9522,10 @@ to a the type "tagRECT" found in the typelibrary "winX64common"
 			>>> newbv = bv.rebase(0x400000)
 			>>> print(newbv)
 			<BinaryView: '/bin/ls', start 0x400000, len 0x182f8>
+			>>>
+			>>> # For rebasing the current view in the UI:
+			>>> import binaryninjaui
+			>>> execute_on_main_thread_and_wait(lambda: binaryninjaui.UIContext.activeContext().rebaseCurrentView(0x800000))
 		"""
 		result = False
 		if core.BNIsUIEnabled() and not force:
