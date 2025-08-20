@@ -6410,7 +6410,8 @@ class BinaryView:
 		``define_auto_symbol`` adds a symbol to the internal list of automatically discovered Symbol objects in a given
 		namespace.
 
-		.. warning:: If multiple symbols for the same address are defined, only the most recent symbol will ever be used.
+		.. warning:: If multiple symbols for the same address are defined, the symbol with the highest confidence and
+		  lowest SymbolType value will be used. Ties are broken by symbol name.
 
 		:param sym: the symbol to define
 		:rtype: None
@@ -6423,7 +6424,8 @@ class BinaryView:
 		"""
 		``define_auto_symbol_and_var_or_function`` Defines an "Auto" symbol, and a Variable/Function alongside it.
 
-		.. warning:: If multiple symbols for the same address are defined, only the most recent symbol will ever be used.
+		.. warning:: If multiple symbols for the same address are defined, the symbol with the highest confidence and
+		  lowest SymbolType value will be used. Ties are broken by symbol name.
 
 		:param sym: Symbol to define
 		:param type: Type for the function/variable being defined (can be None)
@@ -6465,7 +6467,8 @@ class BinaryView:
 		"""
 		``define_user_symbol`` adds a symbol to the internal list of user added Symbol objects.
 
-		.. warning:: If multiple symbols for the same address are defined, only the most recent symbol will ever be used.
+		.. warning:: If multiple symbols for the same address are defined, the symbol with the highest confidence and
+		  lowest SymbolType value will be used. Ties are broken by symbol name.
 
 		:param Symbol sym: the symbol to define
 		:rtype: None
