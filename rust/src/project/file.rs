@@ -47,10 +47,10 @@ impl ProjectFile {
     }
 
     /// Get the path in the project to this file's contents
-    pub fn path_in_project(&self) -> Option<PathBuf> {
+    pub fn path_in_project(&self) -> PathBuf {
         let path_str =
             unsafe { BnString::into_string(BNProjectFileGetPathInProject(self.handle.as_ptr())) };
-        Some(PathBuf::from(path_str))
+        PathBuf::from(path_str)
     }
 
     /// Check if this file's contents exist on disk

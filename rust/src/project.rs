@@ -578,7 +578,7 @@ impl Project {
     /// Retrieve a list of files in the project by the `path` inside the project.
     ///
     /// Because a [`ProjectFile`] name is not unique, this returns a list instead of a single [`ProjectFile`].
-    pub fn files_by_path_in_project(&self, path: &Path) -> Array<ProjectFile> {
+    pub fn files_by_project_path(&self, path: &Path) -> Array<ProjectFile> {
         let path_raw = path.to_cstr();
         let mut count = 0;
         let result = unsafe {
