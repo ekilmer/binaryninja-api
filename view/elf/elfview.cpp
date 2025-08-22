@@ -2561,6 +2561,12 @@ void ElfView::DefineElfSymbol(BNSymbolType type, const string& incomingName, uin
 			}
 		}
 
+		if (!typeRef && m_arch->GetName() == "hexagon")
+		{
+			// Apply platform types for statically linked Hexagon binaries
+			typeRef = GetDefaultPlatform()->GetFunctionByName(rawName);
+		}
+
 		// If unable to extract type information, create a default type with the given size and heuristic confidence
 		if (!typeRef && (size > 0 && size <= 8))
 		{
