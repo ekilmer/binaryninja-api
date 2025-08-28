@@ -37,9 +37,10 @@ class BINARYNINJAUIAPI Pane : public QWidget
 	PaneHeader* m_header = nullptr;
 	CloseButton* m_closeButton = nullptr;
 	bool m_active = false;
+	bool m_containerFocused = false;
 	QVBoxLayout* m_layout = nullptr;
 
-  public:
+public:
 	Pane(QWidget* widget);
 
 	QWidget* widget() const { return m_widget; }
@@ -55,22 +56,24 @@ class BINARYNINJAUIAPI Pane : public QWidget
 
 	virtual void setIsSinglePane(bool isSinglePane);
 	virtual void setIsActivePane(bool active);
+	virtual void setIsContainerFocused(bool focused);
 	virtual Qt::Orientation defaultSplitDirection() const { return Qt::Horizontal; }
 	virtual void setDefaultSplitDirection(Qt::Orientation orientation);
 
 	void setWidget(QWidget* widget);
 
-  protected:
+protected:
 	void init(PaneHeader* header);
+	void updateHeaderColor();
 
-  Q_SIGNALS:
+Q_SIGNALS:
 	void paneCloseRequested();
 	void paneSplitRequested(Pane* newPane, Qt::Edge edge);
 	void movePane(Pane* target, Qt::Edge edge);
 	void newWindowForPane(QScreen* screen, QPoint pos);
 	void notifyViewChanged(ViewFrame* frame);
 
-  public Q_SLOTS:
+public Q_SLOTS:
 	void splitButtonClicked(Qt::Orientation orientation);
 	void closeButtonClicked();
 	void headerClicked();
