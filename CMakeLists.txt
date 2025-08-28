@@ -63,9 +63,7 @@ if(BN_REF_COUNT_DEBUG)
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-    target_compile_definitions(binaryninjaapi PRIVATE _DEBUG)
-else()
-    target_compile_definitions(binaryninjaapi PRIVATE NDEBUG)
+    target_compile_definitions(binaryninjaapi PRIVATE BN_ENABLE_LOG_TRACE)
 endif()
 
 add_subdirectory(vendor/fmt EXCLUDE_FROM_ALL)

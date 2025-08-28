@@ -215,7 +215,7 @@ void BinaryNinja::Log(BNLogLevel level, const char* fmt, ...)
 
 void BinaryNinja::LogTrace(const char* fmt, ...)
 {
-#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLog(0, DebugLog, "", 0, fmt, args);
@@ -280,7 +280,7 @@ void BinaryNinja::LogForException(BNLogLevel level, const std::exception& e, con
 
 void BinaryNinja::LogTraceForException(const std::exception& e, const char* fmt, ...)
 {
-#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLogForException(0, DebugLog, "", 0, e, fmt, args);
@@ -345,12 +345,12 @@ void BinaryNinja::LogWithStackTrace(BNLogLevel level, const char* fmt, ...)
 
 void BinaryNinja::LogTraceWithStackTrace(const char* fmt, ...)
 {
-	#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLogWithStackTrace(0, DebugLog, "", 0, fmt, args);
 	va_end(args);
-	#endif
+#endif
 }
 
 
@@ -493,7 +493,7 @@ void Logger::Log(BNLogLevel level, const char* fmt, ...)
 
 void Logger::LogTrace(const char* fmt, ...)
 {
-#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLog(GetSessionId(), DebugLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
@@ -559,7 +559,7 @@ void Logger::LogForException(BNLogLevel level, const std::exception& e, const ch
 
 void Logger::LogTraceForException(const std::exception& e, const char* fmt, ...)
 {
-#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLogForException(
@@ -631,13 +631,13 @@ void Logger::LogWithStackTrace(BNLogLevel level, const char* fmt, ...)
 
 void Logger::LogTraceWithStackTrace(const char* fmt, ...)
 {
-	#ifdef _DEBUG
+#ifdef BN_ENABLE_LOG_TRACE
 	va_list args;
 	va_start(args, fmt);
 	PerformLogWithStackTrace(
 		GetSessionId(), DebugLog, GetName(), GetThreadId(), fmt::format("{}{}", GetIndent(), fmt).c_str(), args);
 	va_end(args);
-	#endif
+#endif
 }
 
 
