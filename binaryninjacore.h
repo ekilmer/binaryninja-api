@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 131
+#define BN_CURRENT_CORE_ABI_VERSION 132
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -773,6 +773,13 @@ extern "C"
 		AlwaysShowParameterHints,
 		NeverShowParameterHints,
 	} BNDisassemblyCallParameterHints;
+
+	typedef enum BNDisassemblyBlockLabels
+	{
+		NeverShowDefaultBlockLabels,
+		AlwaysShowBlockLabels,
+		NeverShowBlockLabels,
+	} BNDisassemblyBlockLabels;
 
 	typedef enum BNTypeClass
 	{
@@ -5833,6 +5840,8 @@ extern "C"
 	BINARYNINJACOREAPI void BNSetDisassemblyAddressBaseOffset(BNDisassemblySettings* settings, uint64_t addressBaseOffset);
 	BINARYNINJACOREAPI BNDisassemblyCallParameterHints BNGetDisassemblyCallParameterHints(BNDisassemblySettings* settings);
 	BINARYNINJACOREAPI void BNSetDisassemblyCallParameterHints(BNDisassemblySettings* settings, BNDisassemblyCallParameterHints hints);
+	BINARYNINJACOREAPI BNDisassemblyBlockLabels BNGetDisassemblyBlockLabels(BNDisassemblySettings* settings);
+	BINARYNINJACOREAPI void BNSetDisassemblyBlockLabels(BNDisassemblySettings* settings, BNDisassemblyBlockLabels labels);
 
 	// Flow graphs
 	BINARYNINJACOREAPI BNFlowGraph* BNCreateFlowGraph(void);
