@@ -39,33 +39,22 @@ if(BinaryNinjaCore_FOUND)
     target_link_directories(binaryninjaapi PUBLIC ${BinaryNinjaCore_LIBRARY_DIRS})
     target_compile_definitions(binaryninjaapi PUBLIC ${BinaryNinjaCore_DEFINITIONS})
 else()
+    add_subdirectory(stubs EXCLUDE_FROM_ALL)
+
+    # Be sure to only link against the stubs archive file
+    add_dependencies(binaryninjaapi binaryninjacore_stubs)
+
     if(APPLE)
-        target_link_options(binaryninjaapi PUBLIC -undefined dynamic_lookup)
+        target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore_stubs,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:binaryninjacore_stubs,OUTPUT_NAME>.dylib")
     elseif(MSVC)
-        # Generate stubs.cpp with implementations of all the BNAPI functions
-        execute_process(COMMAND python ${PROJECT_SOURCE_DIR}/cmake/generate_stubs.py ${PROJECT_SOURCE_DIR}/binaryninjacore.h ${PROJECT_BINARY_DIR}/stubs)
-        
-        # Compile those stubs into a stub library we can use to fool the linker
-        add_library(binaryninjacore SHARED ${PROJECT_BINARY_DIR}/stubs/stubs.cpp)
-        set_target_properties(binaryninjacore
-            PROPERTIES OUTPUT_NAME binaryninjacore
-            SOVERSION 1
-            ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/stubs
-        )
-        target_include_directories(binaryninjacore PUBLIC ${PROJECT_SOURCE_DIR})
-        
-        # Be sure to only link against the stubs archive file
-        add_dependencies(binaryninjaapi binaryninjacore)
         if(${CMAKE_GENERATOR} MATCHES "^Visual Studio")
             # Visual Studio's generator adds the config to the file path
-            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore,ARCHIVE_OUTPUT_DIRECTORY>/$<CONFIG>/$<TARGET_PROPERTY:binaryninjacore,OUTPUT_NAME>.lib")
+            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore_stubs,ARCHIVE_OUTPUT_DIRECTORY>/$<CONFIG>/$<TARGET_PROPERTY:binaryninjacore_stubs,OUTPUT_NAME>.lib")
         else()
-            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:binaryninjacore,OUTPUT_NAME>.lib")
+            target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore_stubs,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:binaryninjacore_stubs,OUTPUT_NAME>.lib")
         endif()
     else()
-        target_link_options(binaryninjaapi PUBLIC "LINKER:--allow-shlib-undefined")
+        target_link_libraries(binaryninjaapi PUBLIC "$<TARGET_PROPERTY:binaryninjacore_stubs,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:binaryninjacore_stubs,OUTPUT_NAME>.so.1")
     endif()
 endif()
 
