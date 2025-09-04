@@ -10066,7 +10066,16 @@ namespace BinaryNinja {
 	};
 
 	/*!
-		\ingroup types
+	    \ingroup types
+	*/
+	struct TypeAttribute
+	{
+		std::string name;
+		std::string value;
+	};
+
+	/*!
+	    \ingroup types
 	*/
 	class Type : public CoreRefCountObject<BNType, BNNewTypeReference, BNFreeType>
 	{
@@ -10207,6 +10216,9 @@ namespace BinaryNinja {
 		std::set<BNPointerSuffix> GetPointerSuffix() const;
 		std::string GetPointerSuffixString() const;
 		std::vector<InstructionTextToken> GetPointerSuffixTokens(uint8_t baseConfidence = BN_FULL_CONFIDENCE) const;
+
+		std::vector<TypeAttribute> GetAttributes() const;
+		std::optional<std::string> GetAttribute(const std::string& name) const;
 
 		std::string GetString(Platform* platform = nullptr, BNTokenEscapingType escaping = NoTokenEscapingType) const;
 		std::string GetTypeAndName(const QualifiedName& name, BNTokenEscapingType escaping = NoTokenEscapingType) const;
@@ -10622,6 +10634,12 @@ namespace BinaryNinja {
 
 		TypeBuilder& AddPointerSuffix(BNPointerSuffix ps);
 		TypeBuilder& SetPointerSuffix(const std::set<BNPointerSuffix>& suffix);
+
+		void SetAttribute(const std::string& name, const std::string& value);
+		void SetAttributes(const std::map<std::string, std::string>& attrs);
+		void RemoveAttribute(const std::string& name);
+		std::vector<TypeAttribute> GetAttributes() const;
+		std::optional<std::string> GetAttribute(const std::string& name) const;
 
 		std::string GetString(Platform* platform = nullptr) const;
 		std::string GetTypeAndName(const QualifiedName& name) const;

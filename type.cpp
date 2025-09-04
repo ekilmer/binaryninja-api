@@ -753,6 +753,29 @@ std::vector<InstructionTextToken> Type::GetPointerSuffixTokens(uint8_t baseConfi
 }
 
 
+std::vector<TypeAttribute> Type::GetAttributes() const
+{
+	size_t count = 0;
+	BNTypeAttribute* attributes = BNGetTypeAttributes(m_object, &count);
+	std::vector<TypeAttribute> result;
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(attributes[i].name, attributes[i].value);
+	BNFreeTypeAttributeList(attributes, count);
+	return result;
+}
+
+
+std::optional<std::string> Type::GetAttribute(const std::string& name) const
+{
+	char* result = BNGetTypeAttributeByName(m_object, name.c_str());
+	if (!result)
+		return std::nullopt;
+	std::string resultStr(result);
+	BNFreeString(result);
+	return resultStr;
+}
+
+
 string Type::GetString(Platform* platform, BNTokenEscapingType escaping) const
 {
 	char* str = BNGetTypeString(m_object, platform ? platform->GetObject() : nullptr, escaping);
@@ -2186,6 +2209,55 @@ TypeBuilder& TypeBuilder::SetPointerSuffix(const std::set<BNPointerSuffix>& suff
 	}
 	BNSetTypeBuilderPointerSuffix(m_object, apiSuffix.data(), apiSuffix.size());
 	return *this;
+}
+
+
+void TypeBuilder::SetAttribute(const std::string& name, const std::string& value)
+{
+	BNSetTypeBuilderAttribute(m_object, name.c_str(), value.c_str());
+}
+
+
+void TypeBuilder::SetAttributes(const std::map<std::string, std::string>& values)
+{
+	BNTypeAttribute* attrs = new BNTypeAttribute[values.size()];
+	size_t i = 0;
+	for (auto& [name, value] : values)
+	{
+		attrs[i].name = (char*)name.c_str();
+		attrs[i].value = (char*)value.c_str();
+		i++;
+	}
+	BNSetTypeBuilderAttributeList(m_object, attrs, values.size());
+}
+
+
+void TypeBuilder::RemoveAttribute(const std::string& name)
+{
+	BNRemoveTypeBuilderAttribute(m_object, name.c_str());
+}
+
+
+std::vector<TypeAttribute> TypeBuilder::GetAttributes() const
+{
+	size_t count;
+	BNTypeAttribute* attributes = BNGetTypeBuilderAttributes(m_object, &count);
+	std::vector<TypeAttribute> result;
+	for (size_t i = 0; i < count; i++)
+		result.emplace_back(attributes[i].name, attributes[i].value);
+	BNFreeTypeAttributeList(attributes, count);
+	return result;
+}
+
+
+std::optional<std::string> TypeBuilder::GetAttribute(const std::string& name) const
+{
+	char* result = BNGetTypeBuilderAttributeByName(m_object, name.c_str());
+	if (!result)
+		return std::nullopt;
+	std::string resultStr(result);
+	BNFreeString(result);
+	return resultStr;
 }
 
 

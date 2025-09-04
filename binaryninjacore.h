@@ -3792,6 +3792,12 @@ extern "C"
 		size_t typeRefCount;
 	} BNAllTypeFieldReferences;
 
+	typedef struct BNTypeAttribute
+	{
+		char* name;
+		char* value;
+	} BNTypeAttribute;
+
 	BINARYNINJACOREAPI char* BNAllocString(const char* contents);
 	BINARYNINJACOREAPI char* BNAllocStringWithLength(const char* contents, size_t len);
 	BINARYNINJACOREAPI void BNFreeString(char* str);
@@ -6768,6 +6774,9 @@ extern "C"
 	BINARYNINJACOREAPI BNInstructionTextToken* BNGetTypePointerSuffixTokens(BNType* type, uint8_t baseConfidence, size_t* count);
 	BINARYNINJACOREAPI void BNFreePointerSuffixList(BNPointerSuffix* suffix, size_t count);
 	BINARYNINJACOREAPI bool BNTypeShouldDisplayReturnType(BNType* type);
+	BINARYNINJACOREAPI BNTypeAttribute* BNGetTypeAttributes(BNType* type, size_t* count);
+	BINARYNINJACOREAPI char* BNGetTypeAttributeByName(BNType* type, const char* name);
+	BINARYNINJACOREAPI void BNFreeTypeAttributeList(BNTypeAttribute* attr, size_t count);
 
 	BINARYNINJACOREAPI char* BNGetTypeString(BNType* type, BNPlatform* platform, BNTokenEscapingType escaping);
 	BINARYNINJACOREAPI char* BNGetTypeStringBeforeName(BNType* type, BNPlatform* platform, BNTokenEscapingType escaping);
@@ -6848,6 +6857,11 @@ extern "C"
 	BINARYNINJACOREAPI bool BNTypeBuilderHasTemplateArguments(BNTypeBuilder* type);
 	BINARYNINJACOREAPI void BNSetTypeBuilderNameType(BNTypeBuilder* type, BNNameType nameType);
 	BINARYNINJACOREAPI void BNSetTypeBuilderHasTemplateArguments(BNTypeBuilder* type, bool hasTemplateArguments);
+	BINARYNINJACOREAPI void BNSetTypeBuilderAttribute(BNTypeBuilder* type, const char* name, const char* value);
+	BINARYNINJACOREAPI void BNSetTypeBuilderAttributeList(BNTypeBuilder* type, BNTypeAttribute* attrs, size_t count);
+	BINARYNINJACOREAPI void BNRemoveTypeBuilderAttribute(BNTypeBuilder* type, const char* name);
+	BINARYNINJACOREAPI BNTypeAttribute* BNGetTypeBuilderAttributes(BNTypeBuilder* type, size_t* count);
+	BINARYNINJACOREAPI char* BNGetTypeBuilderAttributeByName(BNTypeBuilder* type, const char* name);
 
 	BINARYNINJACOREAPI char* BNGetTypeBuilderString(BNTypeBuilder* type, BNPlatform* platform);
 	BINARYNINJACOREAPI char* BNGetTypeBuilderStringBeforeName(BNTypeBuilder* type, BNPlatform* platform);

@@ -551,6 +551,26 @@ class MutableTypeBuilder(Generic[TB]):
 			self.container.add_named_type(self.name, self.type.immutable_copy())
 
 
+class TypeBuilderAttributes(dict):
+	def __init__(self, builder, *args):
+		super(TypeBuilderAttributes, self).__init__(*args)
+		self._builder = builder
+
+	def __setitem__(self, key: str, value: str):
+		if not isinstance(key, str):
+			raise TypeError("Type attribute key must be a string")
+		if not isinstance(value, str):
+			raise TypeError("Type attribute value must be a string")
+		core.BNSetTypeBuilderAttribute(self._builder._handle, key, value)
+		super(TypeBuilderAttributes, self).__setitem__(key, value)
+
+	def __delitem__(self, key: str):
+		if not isinstance(key, str):
+			raise TypeError("Type attribute key must be a string")
+		core.BNRemoveTypeBuilderAttribute(self._builder._handle, key)
+		super(TypeBuilderAttributes, self).__delitem__(key)
+
+
 class TypeBuilder:
 	"""
 	All TypeBuilder objects should not be instantiated directly but created via ``.create`` APIs.
@@ -854,6 +874,34 @@ class TypeBuilder:
 	@property
 	def children(self) -> List['TypeBuilder']:
 		return []
+
+	@property
+	def attributes(self) -> Dict[str, str]:
+		"""Attribute names and their values"""
+		count = ctypes.c_ulonglong()
+		attributes = core.BNGetTypeBuilderAttributes(self._handle, count)
+		result = dict()
+		for i in range(count.value):
+			result[attributes[i].name] = attributes[i].value
+		core.BNFreeTypeAttributeList(attributes, count.value)
+		return TypeBuilderAttributes(self, result)
+
+	@attributes.setter
+	def attributes(self, values: Dict[str, str]) -> None:
+		if not isinstance(values, dict):
+			raise TypeError("Attributes must be a dictionary")
+		attributes = (core.BNTypeAttribute * len(values))()
+		i = 0
+		for name, value in values.items():
+			if not isinstance(name, str):
+				raise TypeError("Attribute names must be strings")
+			if not isinstance(value, str):
+				raise TypeError("Attribute values must be strings")
+			attributes[i].name = name
+			attributes[i].value = value
+			i += 1
+		core.BNSetTypeBuilderAttributeList(self._handle, attributes, len(values))
+
 
 class VoidBuilder(TypeBuilder):
 	@classmethod
@@ -1939,6 +1987,17 @@ class Type:
 	def altname(self) -> str:
 		"""Alternative name for the type object"""
 		return core.BNGetTypeAlternateName(self._handle)
+
+	@property
+	def attributes(self) -> Dict[str, str]:
+		"""Attribute names and their values"""
+		count = ctypes.c_ulonglong()
+		attributes = core.BNGetTypeAttributes(self._handle, count)
+		result = dict()
+		for i in range(count.value):
+			result[attributes[i].name] = attributes[i].value
+		core.BNFreeTypeAttributeList(attributes, count.value)
+		return result
 
 	def _to_core_struct(self) -> core.BNTypeWithConfidence:
 		type_conf = core.BNTypeWithConfidence()
