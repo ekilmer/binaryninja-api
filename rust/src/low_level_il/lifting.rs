@@ -1040,7 +1040,7 @@ impl LowLevelILMutableFunction {
     }
 
     no_arg_lifter!(unimplemented, LLIL_UNIMPL, ValueExpr);
-    no_arg_lifter!(undefined, LLIL_UNDEF, VoidExpr);
+    no_arg_lifter!(undefined, LLIL_UNDEF, ValueExpr);
     no_arg_lifter!(nop, LLIL_NOP, VoidExpr);
 
     no_arg_lifter!(no_ret, LLIL_NORET, VoidExpr);
