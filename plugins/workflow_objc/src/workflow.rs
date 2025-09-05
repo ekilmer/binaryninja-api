@@ -2,6 +2,14 @@ use binaryninja::workflow::{activity, Activity, AnalysisContext, Workflow};
 
 use crate::{activities, error::WorkflowRegistrationError};
 
+/// Base confidence levels for types applied by each of the activities in this workflow.
+/// These are ordered such that later activities can override types applied by earlier activities.
+#[repr(u8)]
+pub enum Confidence {
+    ObjCMsgSend = 96,
+    SuperInit = 100,
+}
+
 const WORKFLOW_INFO: &str = r#"{
   "title": "Objective-C",
   "description": "Enhanced analysis for Objective-C code.",
@@ -48,9 +56,23 @@ pub fn register_activities() -> Result<(), WorkflowRegistrationError> {
         run(activities::inline_stubs::process),
     );
 
+    let super_init_activity = Activity::new_with_action(
+        activity::Config::action(
+            "core.function.objectiveC.types.superInit",
+            "Obj-C: Adjust return types of [super init…] calls",
+            "Adjust the return type of calls to objc_msgSendSuper2 where the selector is in the init family.",
+        )
+        .eligibility(
+            activity::Eligibility::auto().predicate(
+                activity::ViewType::in_(["Mach-O", "DSCView"]),
+        )),
+        run(activities::super_init::process),
+    );
+
     workflow
         .activity_after(&inline_stubs_activity, "core.function.translateTailCalls")?
         .activity_after(&objc_msg_send_calls_activity, &inline_stubs_activity.name())?
+        .activity_after(&super_init_activity, "core.function.generateMediumLevelIL")?
         .register_with_config(WORKFLOW_INFO)?;
 
     Ok(())

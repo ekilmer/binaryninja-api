@@ -11,9 +11,7 @@ use binaryninja::{
 };
 
 use super::MessageSendType;
-use crate::{metadata::Selector, Error};
-
-const HEURISTIC_CONFIDENCE: u8 = 192;
+use crate::{metadata::Selector, workflow::Confidence, Error};
 
 fn named_type(bv: &BinaryView, name: &str) -> Option<Ref<Type>> {
     bv.type_by_name(name)
@@ -68,7 +66,7 @@ pub fn process_call(
     let func_type = Type::function(&return_type, params, false);
     func.set_auto_call_type_adjustment(
         insn.address(),
-        Conf::new(func_type, HEURISTIC_CONFIDENCE).as_ref(),
+        Conf::new(func_type, Confidence::ObjCMsgSend as u8).as_ref(),
         Some(arch),
     );
 

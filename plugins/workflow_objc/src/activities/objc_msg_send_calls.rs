@@ -12,6 +12,7 @@ use binaryninja::{
 };
 
 use crate::{
+    error::ILLevel,
     metadata::{GlobalState, Selector},
     Error,
 };
@@ -31,11 +32,17 @@ pub fn process(ac: &AnalysisContext) -> Result<(), Error> {
 
     let func_start = ac.function().start();
     let Some(llil) = (unsafe { ac.llil_function() }) else {
-        return Err(Error::MissingLowLevelIL { func_start });
+        return Err(Error::MissingIL {
+            level: ILLevel::Low,
+            func_start,
+        });
     };
 
     let Some(ssa) = llil.ssa_form() else {
-        return Err(Error::MissingSsaForm { func_start });
+        return Err(Error::MissingSsaForm {
+            level: ILLevel::Low,
+            func_start,
+        });
     };
 
     let func = ac.function();
