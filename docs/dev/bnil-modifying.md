@@ -63,7 +63,7 @@ Based on your IL of choice, there are a bunch of places you can insert your modi
 - An **IL Instruction** is an **IL Expression** that has been added as a top-level instruction to the function with a call to `*LevelILFunction.append()` (C++: `*LevelILFunction::AddInstruction`)
 - An **Instruction Index** is assigned to an **IL Expression** that is added as an **IL Instruction**. Child expressions of an **IL Instruction** do not inherently have an **Instruction Index**, though the API tries to provide this for you.
 
-## Writing The Plugin
+## Writing a Transformation
 
 Once you figure out which level of IL you want to modify, and where in the Workflow pipeline you want to do modifications, it is time to write some code!
 
@@ -206,7 +206,7 @@ Let's call the new function `new_func` and the existing function `old_func`.
         new_func = MediumLevelILFunction(old_func.arch, low_level_il=context.llil)
     
         # Tell the new function that we are copying from an existing function 
-        # (this transfers various metadata like block labels)
+        # (this transfers various metadata like some block labels)
         new_func.prepare_to_copy_function(old_func)
     
         # continues ...
@@ -232,7 +232,7 @@ Let's call the new function `new_func` and the existing function `old_func`.
         );
         
         // Tell the new function that we are copying from an existing function 
-        // (this transfers various metadata like block labels)
+        // (this transfers various metadata like some block labels)
         newFunc->PrepareToCopyFunction(oldFunc);
 
         // Continues...
@@ -256,7 +256,7 @@ When you reach a part where you want to insert new instructions (or replace inst
         
         # Copy each block in the old function to the new function
         for old_block in old_func.basic_blocks: 
-            # Copy block labels and tell new IL instructions they came from this block
+            # Copy some block labels and tell new IL instructions they came from this block
             new_func.prepare_to_copy_block(old_block)
             
             # Copy each instruction from the old block to the new function
@@ -280,7 +280,7 @@ When you reach a part where you want to insert new instructions (or replace inst
         // Copy each block in the old function to the new function
         for (auto& oldBlock: oldFunc->GetBasicBlocks())
         {
-            // Copy block labels and tell new IL instructions they came from this block
+            // Copy some block labels and tell new IL instructions they came from this block
             newFunc->PrepareToCopyBlock(oldBlock);
             
             // Copy each instruction from the old block to the new function
@@ -441,7 +441,180 @@ You may realize this is rather at odds with the section below on having a [dry r
 Sadly, there is currently no good solution for that, since the IL mappings are generated during assignment to the Analysis Context.
 This may change in future versions, but is required for now.
 
-### Notes on HLIL
+### Using IL Labels and GOTO/IF Instructions
+
+When you are trying to insert `*LIL_GOTO`, `*LIL_IF`, and similar instructions, you will need to specify the IL destination as a `*LevelILLabel`.
+To properly use a label, you must call `mark_label` on the **IL Function** _right before emitting the instruction that the label targets_, which is always at the start of an **IL Basic Block**.
+Your `*LIL_GOTO` instruction can come either before or after its target, but you must make sure to use the same `*LevelILLabel` object in the call to `*LevelILFunction.goto()` (C++: `*LevelILFunction::Goto()`) and `*LevelILFunction.mark_label()` (C++: `*LevelILFunction::MarkLabel`).
+Labels are not preserved when constructing a new function during transformation, so in practice you should not assume calls to `get_label_for_source_instruction` will always return a usable label.
+This means, if you are emitting any of these control-flow instructions, you will need to transform the entire function in the process, as described in [Adding Instructions and Replacing Multiple Instructions](#adding-instructions-and-replacing-multiple-instructions), so you are able to call `mark_label` at the appropriate time.
+
+An example of label creation and usage is as follows:
+
+=== "Python"
+
+    ```py
+    def rewrite_action(context: AnalysisContext):
+        # Setup as described in the sections above
+        old_func = context.mlil
+        new_func = MediumLevelILFunction(old_func.arch, low_level_il=context.llil)
+        new_func.prepare_to_copy_function(old_func)
+    
+        # Keep a running list of labels for MLIL_GOTO targets
+        # Stored in a map of {<old block start> : <label>}
+        block_labels = {}
+
+        for old_block in old_func.basic_blocks:
+            new_func.prepare_to_copy_block(old_block)
+            new_func.set_current_address(old_func[InstructionIndex(old_block.start)].address, old_block.arch)
+
+            # We need to `mark_label` a label at the start of this block
+            # so MLIL_GOTO instructions can find it.
+            # If an MLIL_GOTO has already been emitted targeting this block,
+            # we need to use the exact same MediumLevelILLabel python object
+            # in our call so the target lines up.
+            if old_block.start not in block_labels:
+                # No MLIL_GOTOs targeting this block have been emitted yet.
+                # Create and mark a new label for the block, in case any
+                # MLIL_GOTOs are emitted in the future that target this block.
+                block_labels[old_block.start] = MediumLevelILLabel()
+            
+            # Call `mark_label` to allow MLIL_GOTOs to target this block
+            new_func.mark_label(block_labels[old_block.start])
+
+            for old_instr_index in range(old_block.start, old_block.end):
+                old_instr: MediumLevelILInstruction = old_func[InstructionIndex(old_instr_index)]
+                new_func.set_current_address(old_instr.address, old_block.arch)
+
+                if emit_goto_condition:
+                    # Emit an MLIL_GOTO instruction to modify control flow.
+                    # We need to target a MediumLevelILLabel object, so either
+                    # look up one we have already marked, or create a new label
+                    # that will be marked later by the block above.
+                    # Note that the label must point to the start of an IL Basic Block
+                    # (i.e. you can't jump into the middle of a block)
+                    old_target_index = some_instruction_index_at_block_start_in_old_func
+                    if old_target_index not in block_labels:
+                        # The target block has not been emitted yet, so create a new
+                        # label here and store it into the map so it gets `mark_label`
+                        # called on it later.
+                        block_labels[old_target_index] = MediumLevelILLabel()
+                    
+                    # Emit MLIL_GOTO with the label for our target instruction
+                    new_func.append(new_func.goto(block_labels[old_target_index], ILSourceLocation.from_instruction(old_instr)), ILSourceLocation.from_instruction(old_instr))
+                    continue
+        
+                # Otherwise, copy the instruction as-is
+                new_func.append(old_instr.copy_to(new_func), ILSourceLocation.from_instruction(old_instr))
+        
+        # Rest of function...
+        new_func.finalize()
+        new_func.generate_ssa_form()
+        # ...
+    ```
+
+=== "C++"
+
+    ```C++
+    void RewriteAction(Ref<AnalysisContext> context)
+    {
+        // Setup as described in the sections above
+        auto oldFunc = context->GetMediumLevelILFunction();
+        Ref<MediumLevelILFunction> newFunc = new MediumLevelILFunction(
+            oldFunc->GetArchitecture(),
+            oldFunc->GetFunction(),
+            context->GetLowLevelILFunction()
+        );
+        newFunc->PrepareToCopyFunction(oldFunc);
+    
+        // Keep a running list of labels for MLIL_GOTO targets
+        // Stored in a map of {<old block start> : <label>}
+        std::map<size_t, MediumLevelILLabel> blockLabels;
+
+        for (auto& oldBlock: oldFunc->GetBasicBlocks())
+        {
+            newFunc->PrepareToCopyBlock(oldBlock);
+            newFunc->SetCurrentAddress(block->GetArchitecture(), oldFunc->GetInstruction(block->GetStart()).address);
+
+            // We need to `MarkLabel` a label at the start of this block
+            // so MLIL_GOTO instructions can find it.
+            // If an MLIL_GOTO has already been emitted targeting this block,
+            // we need to use the exact same MediumLevelILLabel python object
+            // in our call so the target lines up.
+            if (blockLabels.find(oldBlock->GetStart()) == blockLabels.end())
+            {
+                // No MLIL_GOTOs targeting this block have been emitted yet.
+                // Create and mark a new label for the block, in case any
+                // MLIL_GOTOs are emitted in the future that target this block.
+                blockLabels[oldBlock->GetStart()] = MediumLevelILLabel{};
+            }
+
+            // C++ specifically: Make sure to use a pointer here, as the call
+            // to `MarkLabel` takes its parameter by reference and we need to 
+            // make sure to update the object directly in the map.
+            // (this might work directly inline, but I don't trust C++)
+            MediumLevelILLabel* label = &blockLabels[oldBlock->GetStart()];
+            
+            // Call `MarkLabel` to allow MLIL_GOTOs to target this block
+            newFunc->MarkLabel(*label);
+
+            for (size_t oldInstrIndex = oldBlock->GetStart(); oldInstrIndex < oldBlock->GetEnd(); oldInstrIndex++)
+            {
+                auto oldInstr = oldFunc->GetInstruction(oldInstrIndex);
+                newFunc->SetCurrentAddress(oldBlock->GetArchitecture(), oldInstr.address);
+
+                if (emitGotoCondition)
+                {
+                    // Emit an MLIL_GOTO instruction to modify control flow.
+                    // We need to target a MediumLevelILLabel object, so either
+                    // look up one we have already marked, or create a new label
+                    // that will be marked later by the block above.
+                    // Note that the label must point to the start of an IL Basic Block
+                    // (i.e. you can't jump into the middle of a block)
+                    auto oldTargetIndex = someInstructionIndexAtBlockStartInOldFunc;
+                    if (blockLabels.find(oldTargetIndex) == blockLabels.end())
+                    {
+                        // The target block has not been emitted yet, so create a new
+                        // label here and store it into the map so it gets `MarkLabel`
+                        // called on it later.
+                        blockLabels[oldTargetIndex] = MediumLevelILLabel{};
+                    }
+                    
+                    // C++: Again as above, taking by pointer
+                    MediumLevelILLabel* targetLabel = &blockLabels[oldTargetIndex];
+                    
+                    // Emit MLIL_GOTO with the label for our target instruction
+                    newFunc->AddInstruction(newFunc->Goto(*targetLabel, oldInstr), oldInstr);
+                    continue;
+                }
+        
+                // Otherwise, copy the instruction as-is
+                newFunc->AddInstruction(oldInstr.CopyTo(newFunc), oldInstr);
+            }
+        }
+        
+        // Rest of function...
+        newFunc->Finalize();
+        newFunc->GenerateSSAForm();
+        // ...
+    ```
+
+If your transformation adds new blocks to the function, you will want to mark labels for each new block you create in a similar manner so you can target them as well.
+Be careful when keeping track of transformed Instruction Indices, as they may change if you insert or remove IL Instructions.
+Since they are simply typed as integers, it can be easy to mistakenly use the index of an instruction in the old function when emitting to the new function.
+
+#### Splitting Blocks
+
+If you want to have a `*LIL_GOTO` instruction target the middle of an **IL Basic Block**, you must split the block first:
+
+1. Emit the instructions in the block until your target
+2. Emit an `*LIL_GOTO` using the label for your target
+3. Mark the label for your target
+4. Now emit your target instruction and the rest of the block
+
+As mentioned previously, make sure to re-use the same `*LevelILLabel` object for your target in the call to `*LevelILFunction.goto`, `*LevelILFunction.mark_label`, and any other `*LIL_GOTO` instructions pointing at your target. 
+
+## Notes on HLIL
 
 Cross-IL mappings are currently not implemented when modifying HLIL (see [Support](#support)), and modified functions will lose the ability to follow an expression to its MLIL equivalent (and likewise MLIL -> HLIL will be unavailable).
 Support for this is planned soon, but not implemented as of Binary Ninja 5.1.
