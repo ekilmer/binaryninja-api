@@ -140,6 +140,7 @@ class BINARYNINJAUIAPI DisassemblyView : public FlowGraphWidget
 	static void addOptionsMenuActions(Menu& menu);
 
 	BinaryNinja::FunctionViewType m_ilViewType;
+	BinaryNinja::FunctionViewType m_prevILViewType;
 	std::set<BNDisassemblyOption> m_options;
 	BNDisassemblyAddressMode m_addressMode;
 	BNDisassemblyCallParameterHints m_callParamHints;
