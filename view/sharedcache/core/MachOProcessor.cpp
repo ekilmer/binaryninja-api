@@ -84,50 +84,58 @@ void SharedCacheMachOProcessor::ApplyHeader(const SharedCache& cache, SharedCach
 	}
 
 	// Apply symbols from the .symbols cache files.
-	for (const auto &entry: cache.GetEntries())
+	ApplyUnmappedLocalSymbols(cache, header, std::move(typeLib));
+}
+
+void SharedCacheMachOProcessor::ApplyUnmappedLocalSymbols(const SharedCache& cache, const SharedCacheMachOHeader& header, Ref<TypeLibrary> typeLib)
+{
+	const auto& localSymbolsCacheEntry = cache.GetLocalSymbolsEntry();
+	auto localSymbolsVM = cache.GetLocalSymbolsVM();
+	if (!localSymbolsCacheEntry || !localSymbolsVM)
+		return;
+
+	// NOTE: We check addr size as we only support 64bit .symbols files currently.
+	// TODO: Support 32-bit nlist
+	if (localSymbolsVM->GetAddressSize() != 8)
+		return;
+
+	const auto& entryHeader = localSymbolsCacheEntry->GetHeader();
+
+	// This is where we get the symbol and string table information from in the .symbols file.
+	dyld_cache_local_symbols_info localSymbolsInfo = {};
+	auto localSymbolsInfoAddr = entryHeader.localSymbolsOffset;
+
+	localSymbolsVM->Read(&localSymbolsInfo, localSymbolsInfoAddr, sizeof(dyld_cache_local_symbols_info));
+
+	// Read each symbols entry, looking for the current image entry.
+	uint64_t localEntriesAddr = localSymbolsInfoAddr + localSymbolsInfo.entriesOffset;
+	uint64_t localSymbolsAddr = localSymbolsInfoAddr + localSymbolsInfo.nlistOffset;
+	uint64_t localStringsAddr = localSymbolsInfoAddr + localSymbolsInfo.stringsOffset;
+
+	for (uint32_t i = 0; i < localSymbolsInfo.entriesCount; i++)
 	{
-		// NOTE: We check addr size as we only support 64bit .symbols files currently.
-		if (entry.GetType() != CacheEntryType::Symbols && m_vm->GetAddressSize() == 8)
-			continue;
-		const auto& entryHeader = entry.GetHeader();
-
-		// This is where we get the symbol and string table information from in the .symbols file.
-		dyld_cache_local_symbols_info localSymbolsInfo = {};
-		auto localSymbolsInfoAddr = entry.GetMappedAddress(entryHeader.localSymbolsOffset);
-		if (!localSymbolsInfoAddr.has_value())
-			continue;
-		m_vm->Read(&localSymbolsInfo, *localSymbolsInfoAddr, sizeof(dyld_cache_local_symbols_info));
-
-		// Read each symbols entry, looking for the current image entry.
-		uint64_t localEntriesAddr = *localSymbolsInfoAddr + localSymbolsInfo.entriesOffset;
-		uint64_t localSymbolsAddr = *localSymbolsInfoAddr + localSymbolsInfo.nlistOffset;
-		uint64_t localStringsAddr = *localSymbolsInfoAddr + localSymbolsInfo.stringsOffset;
-
 		dyld_cache_local_symbols_entry_64 localSymbolsEntry = {};
-		for (uint32_t i = 0; i < localSymbolsInfo.entriesCount; i++)
+		localSymbolsVM->Read(&localSymbolsEntry, localEntriesAddr + i * sizeof(dyld_cache_local_symbols_entry_64),
+		           sizeof(dyld_cache_local_symbols_entry_64));
+
+		// The dylibOffset is the offset from the cache base address to the image header.
+		const auto imageAddr = cache.GetBaseAddress() + localSymbolsEntry.dylibOffset;
+		if (imageAddr != header.textBase)
+			continue;
+
+		// We have found the entry to read!
+		uint64_t symbolTableStart = localSymbolsAddr + (localSymbolsEntry.nlistStartIndex * sizeof(nlist_64));
+		TableInfo symbolInfo = {symbolTableStart, localSymbolsEntry.nlistCount};
+		TableInfo stringInfo = {localStringsAddr, localSymbolsInfo.stringsSize};
+		m_view->BeginBulkModifySymbols();
+		const auto symbols = header.ReadSymbolTable(*localSymbolsVM, symbolInfo, stringInfo);
+		for (const auto &sym: symbols)
 		{
-			m_vm->Read(&localSymbolsEntry, localEntriesAddr + i * sizeof(dyld_cache_local_symbols_entry_64),
-			           sizeof(dyld_cache_local_symbols_entry_64));
-			// The dylibOffset is the offset from the cache base address to the image header.
-			const auto imageAddr = cache.GetBaseAddress() + localSymbolsEntry.dylibOffset;
-			if (imageAddr == header.textBase)
-			{
-				// We have found the entry to read!
-				// TODO: Support 32bit nlist
-				uint64_t symbolTableStart = localSymbolsAddr + (localSymbolsEntry.nlistStartIndex * sizeof(nlist_64));
-				TableInfo symbolInfo = {symbolTableStart, localSymbolsEntry.nlistCount};
-				TableInfo stringInfo = {localStringsAddr, localSymbolsInfo.stringsSize};
-				m_view->BeginBulkModifySymbols();
-				const auto symbols = header.ReadSymbolTable(*m_vm, symbolInfo, stringInfo);
-				for (const auto &sym: symbols)
-				{
-					auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
-					ApplySymbol(m_view, typeLib, symbol, symbolType);
-				}
-				m_view->EndBulkModifySymbols();
-				break;
-			}
+			auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
+			ApplySymbol(m_view, typeLib, std::move(symbol), std::move(symbolType));
 		}
+		m_view->EndBulkModifySymbols();
+		return;
 	}
 }
 

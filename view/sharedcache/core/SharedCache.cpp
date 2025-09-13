@@ -91,10 +91,8 @@ CacheEntry CacheEntry::FromFile(const std::string& filePath, const std::string& 
 	{
 		// We found a single symbols cache entry file. Mark it as such!
 		type = CacheEntryType::Symbols;
-		// Adjust the mapping for the symbol file, they seem to be only for the header.
-		// If we do not adjust the mapping than we will not be able to read the symbol table through the virtual memory.
-		mappings[0].fileOffset = 0;
-		mappings[0].size = file->Length();
+		// Symbol files are not mapped into the address space.
+		mappings.clear();
 	}
 	else if (mappings.size() == 1 && header.imagesCountOld == 0 && header.imagesCount == 0
 		&& header.imagesTextOffset == 0)
@@ -230,6 +228,17 @@ void SharedCache::AddEntry(CacheEntry entry)
 {
 	// Get the file accessor to associate with the virtual memory region.
 	auto fileAccessor = FileAccessorCache::Global().Open(entry.GetFilePath());
+
+	if (entry.GetType() == CacheEntryType::Symbols)
+	{
+		m_localSymbolsEntry = std::move(entry);
+		// Map the entire file into its own virtual memory space.
+		// This is necessary due to code that processes symbols being written in terms of a `VirtualMemory`
+		// rather than something more generic.
+		m_localSymbolsVM = std::make_shared<VirtualMemory>(m_vm->GetAddressSize());
+		m_localSymbolsVM->MapRegion(fileAccessor, {0, fileAccessor.lock()->Length()}, 0);
+		return;
+	}
 
 	// Populate virtual memory using the entry mappings, by doing so we can now
 	// read the memory of the mapped regions of the cache entry file.

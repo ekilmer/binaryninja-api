@@ -188,6 +188,11 @@ class SharedCache
 	// NOTE: Wrapped in unique_ptr to keep SharedCache movable.
 	std::unique_ptr<std::shared_mutex> m_namedSymMutex;
 
+	// Local symbols entry and its mapping, used to read symbol tables from the .symbols file.
+	// These are handled separately as they are not mapped into the main virtual memory of the cache.
+	std::optional<CacheEntry> m_localSymbolsEntry;
+	std::shared_ptr<VirtualMemory> m_localSymbolsVM;
+
 	bool ProcessEntryImage(const std::string& path, const dyld_cache_image_info& info);
 
 	// Add a region known not to overlap with another, otherwise use AddRegion.
@@ -210,6 +215,9 @@ public:
 	const AddressRangeMap<CacheRegion>& GetRegions() const { return m_regions; }
 	const std::unordered_map<uint64_t, CacheImage>& GetImages() const { return m_images; }
 	const std::unordered_map<uint64_t, CacheSymbol>& GetSymbols() const { return m_symbols; }
+
+	const std::optional<CacheEntry>& GetLocalSymbolsEntry() const { return m_localSymbolsEntry; }
+	std::shared_ptr<VirtualMemory> GetLocalSymbolsVM() const { return m_localSymbolsVM; }
 
 	void AddImage(CacheImage&& image);
 
