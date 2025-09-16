@@ -200,7 +200,7 @@ pub fn insert_workflow() -> Result<(), ()> {
                                 decl_instr.variable_for_stack_location_after(offset)
                             }
                         };
-                        if mlil.is_var_user_defined(&decl_var) {
+                        if function.is_var_user_defined(&decl_var) {
                             // Internally, analysis will just assign user vars to auto vars and consult only that.
                             // So we must skip if there is a user-defined var at the decl.
                             continue;
@@ -217,7 +217,7 @@ pub fn insert_workflow() -> Result<(), ()> {
                         let decl_name = variable
                             .name
                             .unwrap_or_else(|| function.variable_name(&decl_var));
-                        mlil.create_auto_var(&decl_var, &decl_ty, &decl_name, false)
+                        function.create_auto_var(&decl_var, &decl_ty, &decl_name, false)
                     }
                 }
             }

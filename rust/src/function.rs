@@ -1688,6 +1688,102 @@ impl Function {
         unsafe { BNSetUserInstructionHighlight(self.handle, arch.handle, addr, color.into()) }
     }
 
+    pub fn create_user_stack_var<'a, C: Into<Conf<&'a Type>>>(
+        &self,
+        offset: i64,
+        var_type: C,
+        name: &str,
+    ) {
+        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
+        let name = name.to_cstr();
+        unsafe {
+            BNCreateUserStackVariable(
+                self.handle,
+                offset,
+                &mut owned_raw_var_ty,
+                name.as_ptr(),
+            )
+        }
+    }
+
+    pub fn delete_user_stack_var(&self, offset: i64) {
+        unsafe { BNDeleteUserStackVariable(self.handle, offset) }
+    }
+
+    pub fn create_user_var<'a, C: Into<Conf<&'a Type>>>(
+        &self,
+        var: &Variable,
+        var_type: C,
+        name: &str,
+        ignore_disjoint_uses: bool,
+    ) {
+        let raw_var = BNVariable::from(var);
+        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
+        let name = name.to_cstr();
+        unsafe {
+            BNCreateUserVariable(
+                self.handle,
+                &raw_var,
+                &mut owned_raw_var_ty,
+                name.as_ref().as_ptr() as *const _,
+                ignore_disjoint_uses,
+            )
+        }
+    }
+
+    pub fn delete_user_var(&self, var: &Variable) {
+        let raw_var = BNVariable::from(var);
+        unsafe { BNDeleteUserVariable(self.handle, &raw_var) }
+    }
+
+    pub fn is_var_user_defined(&self, var: &Variable) -> bool {
+        let raw_var = BNVariable::from(var);
+        unsafe { BNIsVariableUserDefined(self.handle, &raw_var) }
+    }
+
+    pub fn create_auto_stack_var<'a, T: Into<Conf<&'a Type>>>(
+        &self,
+        offset: i64,
+        var_type: T,
+        name: &str,
+    ) {
+        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
+        let name = name.to_cstr();
+        unsafe {
+            BNCreateAutoStackVariable(
+                self.handle,
+                offset,
+                &mut owned_raw_var_ty,
+                name.as_ptr(),
+            )
+        }
+    }
+
+    pub fn delete_auto_stack_var(&self, offset: i64) {
+        unsafe { BNDeleteAutoStackVariable(self.handle, offset) }
+    }
+
+    pub fn create_auto_var<'a, C: Into<Conf<&'a Type>>>(
+        &self,
+        var: &Variable,
+        var_type: C,
+        name: &str,
+        ignore_disjoint_uses: bool,
+    ) {
+        let raw_var = BNVariable::from(var);
+        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
+        let name = name.to_cstr();
+        unsafe {
+            BNCreateAutoVariable(
+                self.handle,
+                &raw_var,
+                &mut owned_raw_var_ty,
+                name.as_ptr(),
+                ignore_disjoint_uses,
+            )
+        }
+    }
+
     /// return the address, if any, of the instruction that contains the
     /// provided address
     pub fn instruction_containing_address(

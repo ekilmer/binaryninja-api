@@ -13,7 +13,6 @@ use crate::disassembly::DisassemblySettings;
 use crate::flowgraph::FlowGraph;
 use crate::function::{Function, Location};
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Ref, RefCountable};
-use crate::string::IntoCStr;
 use crate::types::Type;
 use crate::variable::{PossibleValueSet, RegisterValue, SSAVariable, UserVariableValue, Variable};
 
@@ -117,28 +116,23 @@ impl MediumLevelILFunction {
         unsafe { Array::new(blocks, count, context) }
     }
 
+    #[deprecated = "Use `Function::create_user_stack_var` instead"]
     pub fn create_user_stack_var<'a, C: Into<Conf<&'a Type>>>(
         &self,
         offset: i64,
         var_type: C,
         name: &str,
     ) {
-        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
-        let name = name.to_cstr();
-        unsafe {
-            BNCreateUserStackVariable(
-                self.function().handle,
-                offset,
-                &mut owned_raw_var_ty,
-                name.as_ptr(),
-            )
-        }
+        self.function()
+            .create_user_stack_var(offset, var_type, name)
     }
 
+    #[deprecated = "Use `Function::delete_user_stack_var` instead"]
     pub fn delete_user_stack_var(&self, offset: i64) {
-        unsafe { BNDeleteUserStackVariable(self.function().handle, offset) }
+        self.function().delete_user_stack_var(offset)
     }
 
+    #[deprecated = "Use `Function::create_user_var` instead"]
     pub fn create_user_var<'a, C: Into<Conf<&'a Type>>>(
         &self,
         var: &Variable,
@@ -146,28 +140,18 @@ impl MediumLevelILFunction {
         name: &str,
         ignore_disjoint_uses: bool,
     ) {
-        let raw_var = BNVariable::from(var);
-        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
-        let name = name.to_cstr();
-        unsafe {
-            BNCreateUserVariable(
-                self.function().handle,
-                &raw_var,
-                &mut owned_raw_var_ty,
-                name.as_ref().as_ptr() as *const _,
-                ignore_disjoint_uses,
-            )
-        }
+        self.function()
+            .create_user_var(var, var_type, name, ignore_disjoint_uses)
     }
 
+    #[deprecated = "Use `Function::delete_user_var` instead"]
     pub fn delete_user_var(&self, var: &Variable) {
-        let raw_var = BNVariable::from(var);
-        unsafe { BNDeleteUserVariable(self.function().handle, &raw_var) }
+        self.function().delete_user_var(var)
     }
 
+    #[deprecated = "Use `Function::is_var_user_defined` instead"]
     pub fn is_var_user_defined(&self, var: &Variable) -> bool {
-        let raw_var = BNVariable::from(var);
-        unsafe { BNIsVariableUserDefined(self.function().handle, &raw_var) }
+        self.function().is_var_user_defined(var)
     }
 
     /// Allows the user to specify a PossibleValueSet value for an MLIL
@@ -261,28 +245,23 @@ impl MediumLevelILFunction {
         Ok(())
     }
 
+    #[deprecated = "Use `Function::create_auto_stack_var` instead"]
     pub fn create_auto_stack_var<'a, T: Into<Conf<&'a Type>>>(
         &self,
         offset: i64,
         var_type: T,
         name: &str,
     ) {
-        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
-        let name = name.to_cstr();
-        unsafe {
-            BNCreateAutoStackVariable(
-                self.function().handle,
-                offset,
-                &mut owned_raw_var_ty,
-                name.as_ptr(),
-            )
-        }
+        self.function()
+            .create_auto_stack_var(offset, var_type, name)
     }
 
+    #[deprecated = "Use `Function::delete_auto_stack_var` instead"]
     pub fn delete_auto_stack_var(&self, offset: i64) {
-        unsafe { BNDeleteAutoStackVariable(self.function().handle, offset) }
+        self.function().delete_auto_stack_var(offset)
     }
 
+    #[deprecated = "Use `Function::create_auto_var` instead"]
     pub fn create_auto_var<'a, C: Into<Conf<&'a Type>>>(
         &self,
         var: &Variable,
@@ -290,18 +269,8 @@ impl MediumLevelILFunction {
         name: &str,
         ignore_disjoint_uses: bool,
     ) {
-        let raw_var = BNVariable::from(var);
-        let mut owned_raw_var_ty = Conf::<&Type>::into_raw(var_type.into());
-        let name = name.to_cstr();
-        unsafe {
-            BNCreateAutoVariable(
-                self.function().handle,
-                &raw_var,
-                &mut owned_raw_var_ty,
-                name.as_ptr(),
-                ignore_disjoint_uses,
-            )
-        }
+        self.function()
+            .create_auto_var(var, var_type, name, ignore_disjoint_uses)
     }
 
     /// Returns a list of ILReferenceSource objects (IL xrefs or cross-references)
