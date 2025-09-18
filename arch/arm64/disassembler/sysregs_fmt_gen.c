@@ -740,7 +740,7 @@ const char *get_system_register_name(enum SystemReg sr)
 	case REG_CTR_EL0: return "ctr_el0";
 	case REG_DCZID_EL0: return "dczid_el0";
 	case REG_NZCV: return "nzcv";
-	case REG_DAIF: return "daif";
+	case REG_DAIF: return "daifset";
 	case REG_SVCR: return "svcr";
 	case REG_DIT: return "dit";
 	case REG_SSBS: return "ssbs";
@@ -1412,7 +1412,7 @@ const char *get_system_register_name(enum SystemReg sr)
 	case REG_CNTPS_TVAL_EL1: return "cntps_tval_el1";
 	case REG_CNTPS_CTL_EL1: return "cntps_ctl_el1";
 	case REG_CNTPS_CVAL_EL1: return "cntps_cval_el1";
-	case REG_PSTATE_SPSEL: return "pstate_spsel";
+	case REG_PSTATE_SPSEL: return "spsel";
 	case REG_PWRDNSAVE0: return "pwrdnsave0";
 	case REG_NRG_ACC_CTL: return "nrg_acc_ctl";
 	case REG_AON_CNT0: return "aon_cnt0";

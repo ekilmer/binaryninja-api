@@ -8,6 +8,7 @@
 #include "encodings_fmt.h"
 #include "operations.h"
 #include "regs.h"
+#include "sysregs_gen.h"
 #include "sysregs_fmt_gen.h"
 
 //-----------------------------------------------------------------------------

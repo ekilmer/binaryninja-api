@@ -134,6 +134,14 @@ int HighestSetBit(uint64_t x)
 	return -1;
 }
 
+int HighestSetBitNZ(uint64_t x)
+{
+	// assert !IsZero(x);
+	if (x == 0)
+		return -1;
+	return HighestSetBit(x);
+}
+
 int LowestSetBit(uint64_t x)
 {
 	for (int i = 0; i < 64; ++i)
@@ -144,6 +152,13 @@ int LowestSetBit(uint64_t x)
 	}
 
 	return -1;
+}
+int LowestSetBitNZ(uint64_t x)
+{
+	// assert !IsZero(x);
+	if (x == 0)
+		return -1;
+	return LowestSetBit(x);
 }
 
 bool SVEMoveMaskPreferred(uint32_t imm13)
@@ -218,51 +233,46 @@ enum SystemOp SysOp(uint32_t op1, uint32_t CRn, uint32_t CRm, uint32_t op2)
 	case AT_OP_S1E3R:
 	case AT_OP_S1E3W:
 	case AT_OP_S1E3A:
-		return Sys_AT;  // S1E1R
-//	case 0b00001111000000:
-//		return Sys_AT;  // S1E1R
-//	case 0b10001111000000:
-//		return Sys_AT;  // S1E2R
-//	case 0b11001111000000:
-//		return Sys_AT;  // S1E3R
-//	case 0b00001111000001:
-//		return Sys_AT;  // S1E1W
-//	case 0b00001111001001:
-//		return Sys_AT;  // S1E1WP
-//	case 0b10001111000001:
-//		return Sys_AT;  // S1E2W
-//	case 0b11001111000001:
-//		return Sys_AT;  // S1E3W
-//	case 0b00001111000010:
-//		return Sys_AT;  // S1E0R
-//	case 0b00001111000011:
-//		return Sys_AT;  // S1E0W
-//	case 0b10001111000100:
-//		return Sys_AT;  // S12E1R
-//	case 0b10001111000101:
-//		return Sys_AT;  // S12E1W
-//	case 0b10001111000110:
-//		return Sys_AT;  // S12E0R
-//	case 0b10001111000111:
-//		return Sys_AT;  // S12E0W
-	case 0b01101110100001:
-		return Sys_DC;  // ZVA
-	case 0b00001110110001:
-		return Sys_DC;  // IVAC
-	case 0b00001110110010:
-		return Sys_DC;  // ISW
-	case 0b01101111010001:
-		return Sys_DC;  // CVAC
-	case 0b00001111010010:
-		return Sys_DC;  // CSW
-	case 0b01101111011001:
-		return Sys_DC;  // CVAU
-	case 0b01101111110001:
-		return Sys_DC;  // CIVAC
-	case 0b00001111110010:
-		return Sys_DC;  // CISW
-	case 0b01101111101001:
-		return Sys_DC;  // CVADP
+		return Sys_AT;
+	case DC_OP_IVAC:
+	case DC_OP_ISW:
+	case DC_OP_IGVAC:
+	case DC_OP_IGSW:
+	case DC_OP_IGDVAC:
+	case DC_OP_IGDSW:
+	case DC_OP_CSW:
+	case DC_OP_CGSW:
+	case DC_OP_CGDSW:
+	case DC_OP_CISW:
+	case DC_OP_CIGSW:
+	case DC_OP_CIGDSW:
+	case DC_OP_CIVAPS:
+	case DC_OP_CIGDVAPS:
+	case DC_OP_ZVA:
+	case DC_OP_GVA:
+	case DC_OP_GZVA:
+	case DC_OP_CVAC:
+	case DC_OP_CGVAC:
+	case DC_OP_CGDVAC:
+	case DC_OP_CVAOC:
+	case DC_OP_CVAU:
+	case DC_OP_CGDVAOC:
+	case DC_OP_CVAP:
+	case DC_OP_CGVAP:
+	case DC_OP_CGDVAP:
+	case DC_OP_CVADP:
+	case DC_OP_CGVADP:
+	case DC_OP_CGDVADP:
+	case DC_OP_CIVAC:
+	case DC_OP_CIGVAC:
+	case DC_OP_CIGDVAC:
+	case DC_OP_CIVAOC:
+	case DC_OP_CIGDVAOC:
+	case DC_OP_CIPAE:
+	case DC_OP_CIGDPAE:
+	case DC_OP_CIPAPA:
+	case DC_OP_CIGDPAPA:
+		return Sys_DC;
 	case 0b00001110001000:
 		return Sys_IC;  // IALLUIS
 	case 0b00001110101000:
@@ -655,7 +665,7 @@ bool BTypeCompatible_BTI(uint8_t hintcode, uint8_t pstate_btype)
 	return false; /* impossible, but appease compiler */
 }
 
-bool BTypeCompatible_PACIXSP()
+bool BTypeCompatible_PACIXSP(void)
 {
 	// TODO: determine if filling this in is necessary
 	return true;
@@ -745,45 +755,70 @@ bool ELUsingAArch32(uint8_t x)
 	return true;
 }
 
+bool HaveEL(uint8_t el)
+{
+	return true;
+}
+
 uint64_t FPOne(bool sign, int N)
 {
-	// width should be 16, 32, 64
-	int E, F, exp;
+	int E;
 
 	switch (N)
 	{
 	case 16:
 		E = 5;
+		break;
 	case 32:
 		E = 8;
+		break;
+	case 64:
+		E = 11;
+		break;
 	default:
+		// assert N IN {16,32,64};
 		E = 11;
 	}
 
-	F = N - (E + 1);
-	exp = BITMASK(E - 1) << 1;
-	return (sign << (E - 1 + F)) | (exp << F);
+	int F = N - (E + 1);
+	// exp = '0':Ones(E-1);
+	uint64_t exp = (1ULL << (E - 1)) - 1;
+	// frac = Zeros(F);
+	uint64_t frac = 0;
+	// sign : exp : frac;
+	return ((uint64_t)sign << (N - 1)) | (exp << F) | frac;
 }
 
 uint64_t FPTwo(bool sign, int N)
 {
-	// width should be 16, 32, 64
-	//int F;
-	int E, exp;
+	int E;
 
 	switch (N)
 	{
 	case 16:
 		E = 5;
+		break;
 	case 32:
 		E = 8;
+		break;
+	case 64:
+		E = 11;
+		break;
 	default:
+		// assert N IN {16,32,64};
 		E = 11;
 	}
-
-	//F = N - (E + 1);
-	exp = 1 << (E - 1);
-	return (sign << E) | exp;
+	
+	int F = N - (E + 1);
+	
+	// exp = '1':Zeros(E-1);
+	uint64_t exp = 1ULL << (E - 1);
+	
+	// frac = Zeros(F);
+	uint64_t frac = 0;
+	
+	// sign : exp: frac
+	return ((uint64_t)sign << (N - 1)) | (exp << F) | frac;
 }
 
 uint64_t FPPointFive(bool sign, int N)
