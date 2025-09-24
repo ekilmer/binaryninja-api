@@ -959,6 +959,8 @@ bool MachoView::IsValidFunctionStart(uint64_t addr)
 		const auto& instr = ilFunc->GetInstruction(i);
 		if (instr.operation == LLIL_UNDEF)
 			return false;
+		if (i == 0 && instr.operation == LLIL_TRAP)
+			return false;
 	}
 
 	return true;
@@ -993,12 +995,12 @@ void MachoView::ParseFunctionStarts(Platform* platform, uint64_t textBase, funct
 			uint64_t target = curfunc;
 			if (!IsValidFunctionStart(target))
 			{
-				m_logger->LogWarn("Possible error processing LC_FUNCTION_STARTS! Not adding function at: 0x%" PRIx64 "\n", target);
+				m_logger->LogInfoF("Address {:#x} referenced from LC_FUNCTION_STARTS does not appear to be a function", target);
 				continue;
 			}
 			Ref<Platform> targetPlatform = platform->GetAssociatedPlatformByAddress(target);
 			AddFunctionForAnalysis(targetPlatform, target);
-			m_logger->LogDebug("Adding function start: %#" PRIx64 "\n", curfunc);
+			m_logger->LogDebugF("Adding function start: {:#x}", curfunc);
 		}
 	}
 	catch (ReadException&)
