@@ -187,24 +187,25 @@ class BINARYNINJAUIAPI LinearView : public QAbstractScrollArea, public View, pub
 
 	BinaryViewRef m_data;
 	ViewFrame* m_view;
-	uint64_t m_allocatedLength;
+	uint64_t m_allocatedLength = 0;
 
-	StickyHeader* m_header;
+	StickyHeader* m_header = nullptr;
 	RenderContext m_render;
-	int m_cols, m_rows;
-	uint64_t m_scrollBarMultiplier;
-	int m_wheelDelta;
-	bool m_updatingScrollBar;
+	int m_cols = 0;
+	int m_rows = 0;
+	uint64_t m_scrollBarMultiplier = 0;
+	int m_wheelDelta = 0;
+	bool m_updatingScrollBar = false;
 
-	std::atomic<bool> m_updatesRequired;
-	bool m_updateBounds;
+	std::atomic<bool> m_updatesRequired = false;
+	bool m_updateBounds = false;
 
 	LinearViewCursorPosition m_cursorPos, m_selectionStartPos;
-	bool m_cursorAscii;
+	bool m_cursorAscii = false;
 	bool m_tokenSelection = false;
 	HighlightTokenState m_highlight;
 	bool m_displayCollapseIndicators = false;
-	uint64_t m_navByRefTarget;
+	uint64_t m_navByRefTarget = 0;
 	bool m_navByRef = false;
 	bool m_doubleClickLatch = false;
 	FunctionRef m_relatedHighlightFunction;
@@ -217,19 +218,19 @@ class BINARYNINJAUIAPI LinearView : public QAbstractScrollArea, public View, pub
 	HexEditorHighlightState m_highlightState;
 	bool m_singleFunctionView = false;
 
-	InstructionEdit* m_instrEdit;
+	InstructionEdit* m_instrEdit = nullptr;
 
-	BNAddressRange m_cacheBounds;
+	BNAddressRange m_cacheBounds = { 0, 0 };
 	std::vector<BNAddressRange> m_cachedRegions;
 	std::shared_mutex m_cacheMutex;
 	BinaryNinja::Ref<BinaryNinja::LinearViewCursor> m_topPosition, m_bottomPosition;
 	std::vector<LinearViewLine> m_lines;
-	size_t m_emptyPrevCursors;
-	size_t m_emptyNextCursors;
-	size_t m_topLine;
+	size_t m_emptyPrevCursors = 0;
+	size_t m_emptyNextCursors = 0;
+	size_t m_topLine = 0;
 	std::optional<double> m_topOrderingIndexOffset;
 
-	QTimer* m_hoverTimer;
+	QTimer* m_hoverTimer = nullptr;
 	QPointF m_previewPos;
 
 	ContextMenuManager* m_contextMenuManager;
@@ -237,7 +238,7 @@ class BINARYNINJAUIAPI LinearView : public QAbstractScrollArea, public View, pub
 
 	std::map<FunctionRef, BinaryNinja::AdvancedFunctionAnalysisDataRequestor> m_analysisRequestors;
 
-	std::string m_navigationMode = "";
+	std::string m_navigationMode;
 
 	ClickableIcon* m_dataButton = nullptr;
 	QWidget* m_dataButtonContainer = nullptr;
