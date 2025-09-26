@@ -151,6 +151,10 @@ fn selector_from_call(
     };
 
     let param_exprs = params.param_exprs();
+    if param_exprs.is_empty() {
+        return None;
+    }
+
     let param_exprs =
         if let LowLevelILExpressionKind::SeparateParamListSsa(params) = &param_exprs[0].kind() {
             params.param_exprs()
