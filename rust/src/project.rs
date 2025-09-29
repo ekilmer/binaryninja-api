@@ -612,7 +612,7 @@ impl Project {
     /// }
     /// ```
     // NOTE mut is used here, so only one lock can be acquired at once
-    pub fn bulk_operation(&mut self) -> Result<ProjectBulkOperationLock, ()> {
+    pub fn bulk_operation(&mut self) -> Result<ProjectBulkOperationLock<'_>, ()> {
         Ok(ProjectBulkOperationLock::lock(self))
     }
 }

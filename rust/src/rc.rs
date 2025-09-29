@@ -258,7 +258,7 @@ impl<P: CoreArrayProviderInner> Array<P> {
         }
     }
 
-    pub fn iter(&self) -> ArrayIter<P> {
+    pub fn iter(&self) -> ArrayIter<'_, P> {
         ArrayIter {
             it: unsafe { slice::from_raw_parts(self.contents, self.count).iter() },
             context: &self.context,
@@ -347,7 +347,7 @@ impl<P: CoreArrayProviderInner> ArrayGuard<P> {
         }
     }
 
-    pub fn iter(&self) -> ArrayIter<P> {
+    pub fn iter(&self) -> ArrayIter<'_, P> {
         ArrayIter {
             it: unsafe { slice::from_raw_parts(self.contents, self.count).iter() },
             context: &self.context,

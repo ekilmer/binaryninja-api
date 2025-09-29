@@ -313,7 +313,7 @@ pub trait RegisterInfo: Sized {
 pub trait Register: Debug + Sized + Clone + Copy + Hash + Eq {
     type InfoType: RegisterInfo<RegType = Self>;
 
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
     fn info(&self) -> Self::InfoType;
 
     /// Unique identifier for this `Register`.
@@ -341,7 +341,7 @@ pub trait RegisterStack: Debug + Sized + Clone + Copy {
     type RegType: Register<InfoType = Self::RegInfoType>;
     type RegInfoType: RegisterInfo<RegType = Self::RegType>;
 
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
     fn info(&self) -> Self::InfoType;
 
     /// Unique identifier for this `RegisterStack`.
@@ -353,7 +353,7 @@ pub trait RegisterStack: Debug + Sized + Clone + Copy {
 pub trait Flag: Debug + Sized + Clone + Copy + Hash + Eq {
     type FlagClass: FlagClass;
 
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
     fn role(&self, class: Option<Self::FlagClass>) -> FlagRole;
 
     /// Unique identifier for this `Flag`.
@@ -366,7 +366,7 @@ pub trait FlagWrite: Sized + Clone + Copy {
     type FlagType: Flag;
     type FlagClass: FlagClass;
 
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
     fn class(&self) -> Option<Self::FlagClass>;
 
     /// Unique identifier for this `FlagWrite`.
@@ -379,7 +379,7 @@ pub trait FlagWrite: Sized + Clone + Copy {
 }
 
 pub trait FlagClass: Sized + Clone + Copy + Hash + Eq {
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
 
     /// Unique identifier for this `FlagClass`.
     ///
@@ -392,7 +392,7 @@ pub trait FlagGroup: Debug + Sized + Clone + Copy {
     type FlagType: Flag;
     type FlagClass: FlagClass;
 
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
 
     /// Unique identifier for this `FlagGroup`.
     ///
@@ -427,7 +427,7 @@ pub trait FlagGroup: Debug + Sized + Clone + Copy {
 }
 
 pub trait Intrinsic: Debug + Sized + Clone + Copy {
-    fn name(&self) -> Cow<str>;
+    fn name(&self) -> Cow<'_, str>;
 
     /// Unique identifier for this `Intrinsic`.
     fn id(&self) -> IntrinsicId;
@@ -704,7 +704,7 @@ impl<R: Register> RegisterStack for UnusedRegisterStack<R> {
     type RegType = R;
     type RegInfoType = R::InfoType;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn id(&self) -> RegisterStackId {
@@ -721,7 +721,7 @@ pub struct UnusedFlag;
 
 impl Flag for UnusedFlag {
     type FlagClass = Self;
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn role(&self, _class: Option<Self::FlagClass>) -> FlagRole {
@@ -735,7 +735,7 @@ impl Flag for UnusedFlag {
 impl FlagWrite for UnusedFlag {
     type FlagType = Self;
     type FlagClass = Self;
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn class(&self) -> Option<Self> {
@@ -750,7 +750,7 @@ impl FlagWrite for UnusedFlag {
 }
 
 impl FlagClass for UnusedFlag {
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn id(&self) -> FlagClassId {
@@ -761,7 +761,7 @@ impl FlagClass for UnusedFlag {
 impl FlagGroup for UnusedFlag {
     type FlagType = Self;
     type FlagClass = Self;
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn id(&self) -> FlagGroupId {
@@ -780,7 +780,7 @@ impl FlagGroup for UnusedFlag {
 pub struct UnusedIntrinsic;
 
 impl Intrinsic for UnusedIntrinsic {
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unreachable!()
     }
     fn id(&self) -> IntrinsicId {
@@ -862,7 +862,7 @@ impl CoreRegister {
 impl Register for CoreRegister {
     type InfoType = CoreRegisterInfo;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureRegisterName(self.arch.handle, self.id.into());
 
@@ -988,7 +988,7 @@ impl RegisterStack for CoreRegisterStack {
     type RegType = CoreRegister;
     type RegInfoType = CoreRegisterInfo;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureRegisterStackName(self.arch.handle, self.id.into());
 
@@ -1043,7 +1043,7 @@ impl CoreFlag {
 impl Flag for CoreFlag {
     type FlagClass = CoreFlagClass;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureFlagName(self.arch.handle, self.id.into());
 
@@ -1103,7 +1103,7 @@ impl FlagWrite for CoreFlagWrite {
     type FlagType = CoreFlag;
     type FlagClass = CoreFlagClass;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureFlagWriteTypeName(self.arch.handle, self.id.into());
 
@@ -1187,7 +1187,7 @@ impl CoreFlagClass {
 }
 
 impl FlagClass for CoreFlagClass {
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureSemanticFlagClassName(self.arch.handle, self.id.into());
 
@@ -1238,7 +1238,7 @@ impl FlagGroup for CoreFlagGroup {
     type FlagType = CoreFlag;
     type FlagClass = CoreFlagClass;
 
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureSemanticFlagGroupName(self.arch.handle, self.id.into());
 
@@ -1336,7 +1336,7 @@ impl CoreIntrinsic {
 }
 
 impl Intrinsic for CoreIntrinsic {
-    fn name(&self) -> Cow<str> {
+    fn name(&self) -> Cow<'_, str> {
         unsafe {
             let name = BNGetArchitectureIntrinsicName(self.arch.handle, self.id.into());
 

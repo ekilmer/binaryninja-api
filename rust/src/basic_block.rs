@@ -213,7 +213,7 @@ impl<C: BlockContext> BasicBlock<C> {
         unsafe { BNGetBasicBlockLength(self.handle) }
     }
 
-    pub fn incoming_edges(&self) -> Array<Edge<C>> {
+    pub fn incoming_edges(&self) -> Array<Edge<'_, C>> {
         unsafe {
             let mut count = 0;
             let edges = BNGetBasicBlockIncomingEdges(self.handle, &mut count);
@@ -228,7 +228,7 @@ impl<C: BlockContext> BasicBlock<C> {
         }
     }
 
-    pub fn outgoing_edges(&self) -> Array<Edge<C>> {
+    pub fn outgoing_edges(&self) -> Array<Edge<'_, C>> {
         unsafe {
             let mut count = 0;
             let edges = BNGetBasicBlockOutgoingEdges(self.handle, &mut count);

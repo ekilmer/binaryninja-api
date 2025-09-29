@@ -803,7 +803,7 @@ impl<'a> LiftableLowLevelILWithSize<'a> for ExpressionBuilder<'a, ValueExpr> {
 
 macro_rules! no_arg_lifter {
     ($name:ident, $op:ident, $result:ty) => {
-        pub fn $name(&self) -> LowLevelILExpression<Mutable, NonSSA, $result> {
+        pub fn $name(&self) -> LowLevelILExpression<'_, Mutable, NonSSA, $result> {
             use binaryninjacore_sys::BNLowLevelILAddExpr;
             use binaryninjacore_sys::BNLowLevelILOperation::$op;
 
@@ -816,7 +816,7 @@ macro_rules! no_arg_lifter {
 
 macro_rules! sized_no_arg_lifter {
     ($name:ident, $op:ident, $result:ty) => {
-        pub fn $name(&self, size: usize) -> ExpressionBuilder<$result> {
+        pub fn $name(&self, size: usize) -> ExpressionBuilder<'_, $result> {
             use binaryninjacore_sys::BNLowLevelILOperation::$op;
 
             ExpressionBuilder {
@@ -1006,7 +1006,7 @@ impl LowLevelILMutableFunction {
         true
     }
 
-    pub fn const_int(&self, size: usize, val: u64) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn const_int(&self, size: usize, val: u64) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_CONST;
 
@@ -1016,7 +1016,7 @@ impl LowLevelILMutableFunction {
         LowLevelILExpression::new(self, LowLevelExpressionIndex(expr_idx))
     }
 
-    pub fn const_ptr_sized(&self, size: usize, val: u64) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn const_ptr_sized(&self, size: usize, val: u64) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_CONST_PTR;
 
@@ -1026,11 +1026,11 @@ impl LowLevelILMutableFunction {
         LowLevelILExpression::new(self, LowLevelExpressionIndex(expr_idx))
     }
 
-    pub fn const_ptr(&self, val: u64) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn const_ptr(&self, val: u64) -> LowLevelILMutableExpression<'_, ValueExpr> {
         self.const_ptr_sized(self.arch().address_size(), val)
     }
 
-    pub fn trap(&self, val: u64) -> LowLevelILExpression<Mutable, NonSSA, VoidExpr> {
+    pub fn trap(&self, val: u64) -> LowLevelILExpression<'_, Mutable, NonSSA, VoidExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_TRAP;
 
@@ -1119,7 +1119,7 @@ impl LowLevelILMutableFunction {
         &self,
         size: usize,
         reg: LR,
-    ) -> LowLevelILMutableExpression<ValueExpr> {
+    ) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_REG;
 
@@ -1137,7 +1137,7 @@ impl LowLevelILMutableFunction {
         size: usize,
         hi_reg: LR,
         lo_reg: LR,
-    ) -> LowLevelILMutableExpression<ValueExpr> {
+    ) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_REG_SPLIT;
 
@@ -1226,7 +1226,7 @@ impl LowLevelILMutableFunction {
         }
     }
 
-    pub fn flag(&self, flag: impl Flag) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn flag(&self, flag: impl Flag) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_FLAG;
 
@@ -1238,7 +1238,7 @@ impl LowLevelILMutableFunction {
         LowLevelILExpression::new(self, LowLevelExpressionIndex(expr_idx))
     }
 
-    pub fn flag_cond(&self, cond: FlagCondition) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn flag_cond(&self, cond: FlagCondition) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_FLAG_COND;
 
@@ -1249,7 +1249,7 @@ impl LowLevelILMutableFunction {
         LowLevelILExpression::new(self, LowLevelExpressionIndex(expr_idx))
     }
 
-    pub fn flag_group(&self, group: impl FlagGroup) -> LowLevelILMutableExpression<ValueExpr> {
+    pub fn flag_group(&self, group: impl FlagGroup) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_FLAG_GROUP;
 

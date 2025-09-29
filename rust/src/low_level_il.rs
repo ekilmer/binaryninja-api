@@ -134,7 +134,7 @@ impl<R: ArchReg> LowLevelILRegisterKind<R> {
         }
     }
 
-    pub fn name(&self) -> Cow<str> {
+    pub fn name(&self) -> Cow<'_, str> {
         match *self {
             LowLevelILRegisterKind::Arch(ref r) => r.name(),
             LowLevelILRegisterKind::Temp(temp) => Cow::Owned(format!("temp{}", temp.temp_id)),
