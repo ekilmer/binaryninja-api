@@ -31,7 +31,14 @@ Transform::Transform(BNTransform* xform)
 
 
 Transform::Transform(BNTransformType type, const string& name, const string& longName, const string& group) :
-    m_typeForRegister(type), m_nameForRegister(name), m_longNameForRegister(longName), m_groupForRegister(group)
+    m_typeForRegister(type), m_capabilitiesForRegister(TransformNoCapabilities), m_nameForRegister(name), m_longNameForRegister(longName), m_groupForRegister(group)
+{
+	m_object = nullptr;
+}
+
+
+Transform::Transform(BNTransformType type, BNTransformCapabilities capabilities, const string& name, const string& longName, const string& group) :
+	 m_typeForRegister(type), m_capabilitiesForRegister(capabilities), m_nameForRegister(name), m_longNameForRegister(longName), m_groupForRegister(group)
 {
 	m_object = nullptr;
 }
@@ -100,6 +107,13 @@ bool Transform::EncodeCallback(
 }
 
 
+bool Transform::CanDecodeCallback(void* ctxt, BNBinaryView* input)
+{
+	CallbackRef<Transform> xform(ctxt);
+	return xform->CanDecode(new BinaryView(input));
+}
+
+
 vector<TransformParameter> Transform::EncryptionKeyParameters(size_t fixedKeyLength)
 {
 	vector<TransformParameter> params;
@@ -136,9 +150,10 @@ void Transform::Register(Transform* xform)
 	callbacks.freeParameters = FreeParametersCallback;
 	callbacks.decode = DecodeCallback;
 	callbacks.encode = EncodeCallback;
+	callbacks.canDecode = CanDecodeCallback;
 	xform->AddRefForRegistration();
-	xform->m_object = BNRegisterTransformType(xform->m_typeForRegister, xform->m_nameForRegister.c_str(),
-	    xform->m_longNameForRegister.c_str(), xform->m_groupForRegister.c_str(), &callbacks);
+	xform->m_object = BNRegisterTransformTypeWithCapabilities(xform->m_typeForRegister, xform->m_capabilitiesForRegister,
+	    xform->m_nameForRegister.c_str(), xform->m_longNameForRegister.c_str(), xform->m_groupForRegister.c_str(), &callbacks);
 }
 
 
@@ -169,6 +184,18 @@ vector<Ref<Transform>> Transform::GetTransformTypes()
 BNTransformType Transform::GetType() const
 {
 	return BNGetTransformType(m_object);
+}
+
+
+BNTransformCapabilities Transform::GetCapabilities() const
+{
+	return static_cast<BNTransformCapabilities>(BNGetTransformCapabilities(m_object));
+}
+
+
+bool Transform::SupportsDetection() const
+{
+	return BNTransformSupportsDetection(m_object);
 }
 
 
@@ -214,6 +241,12 @@ bool Transform::Decode(const DataBuffer& input, DataBuffer& output, const map<st
 
 
 bool Transform::Encode(const DataBuffer&, DataBuffer&, const map<string, DataBuffer>&)
+{
+	return false;
+}
+
+
+bool Transform::CanDecode(Ref<BinaryView> input) const
 {
 	return false;
 }
@@ -275,3 +308,10 @@ bool CoreTransform::Encode(const DataBuffer& input, DataBuffer& output, const ma
 	delete[] list;
 	return result;
 }
+
+
+bool CoreTransform::CanDecode(Ref<BinaryView> input) const
+{
+	return BNCanDecode(m_object, input->GetObject());
+}
+

@@ -129,6 +129,21 @@ void FileMetadata::SetFilename(const string& name)
 }
 
 
+string FileMetadata::GetVirtualPath() const
+{
+	char* str = BNGetVirtualPath(m_object);
+	string result = str;
+	BNFreeString(str);
+	return result;
+}
+
+
+void FileMetadata::SetVirtualPath(const string& path)
+{
+	BNSetVirtualPath(m_object, path.c_str());
+}
+
+
 bool FileMetadata::IsModified() const
 {
 	return BNIsFileModified(m_object);

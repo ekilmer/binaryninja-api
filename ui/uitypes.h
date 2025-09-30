@@ -108,6 +108,8 @@ typedef BinaryNinja::Ref<BinaryNinja::Tag> TagRef;
 typedef BinaryNinja::Ref<BinaryNinja::TagType> TagTypeRef;
 typedef BinaryNinja::Ref<BinaryNinja::TemporaryFile> TemporaryFileRef;
 typedef BinaryNinja::Ref<BinaryNinja::Transform> TransformRef;
+typedef BinaryNinja::Ref<BinaryNinja::TransformContext> TransformContextRef;
+typedef BinaryNinja::Ref<BinaryNinja::TransformSession> TransformSessionRef;
 typedef BinaryNinja::Ref<BinaryNinja::Type> TypeRef;
 typedef BinaryNinja::Ref<BinaryNinja::TypeArchive> TypeArchiveRef;
 typedef BinaryNinja::Ref<BinaryNinja::TypeLibrary> TypeLibraryRef;

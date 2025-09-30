@@ -26,87 +26,15 @@ void KernelCacheViewType::Register()
 
 Ref<BinaryView> KernelCacheViewType::Create(BinaryView* data)
 {
-	uint32_t magic;
-	data->Read(&magic, data->GetStart(), 4);
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	try
 	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
-		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
-
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-
-			DataBuffer machOPayload;
-			uint32_t magic = ((uint32_t*)img4Payload.GetData())[0];
-			if (magic == FAT_MAGIC_64 || magic == MH_MAGIC_64 || magic == MH_MAGIC
-				|| magic == MH_CIGAM_64 || magic == MH_CIGAM )
-			{
-				machOPayload = img4Payload;
-			}
-			else if (strncmp((char*)img4Payload.GetData(), "bvx2", 4) == 0)
-			{
-				auto lzfse = Transform::GetByName("LZFSE");
-				if (lzfse)
-					lzfse->Decode(img4Payload, machOPayload);
-			}
-			else
-			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Unknown compression type in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, img4Payload);
-				return new KernelCacheView(KC_VIEW_NAME, data, false);
-#else
-				LogError("Unknown compression type in IMG4 Payload, unable to proceed.");
-				LogError("You can manually extract the kernelcache using `kerneldec`,`ipsw`, or other tools.");
-				return nullptr;
-#endif
-			}
-
-			if (machOPayload.GetLength() == 0)
-			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Failed to perform extraction on IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, img4Payload);
-				return new KernelCacheView(KC_VIEW_NAME, data, false);
-#else
-				return nullptr;
-#endif
-			}
-
-			uint32_t machoMagic = ((uint32_t*)machOPayload.GetData())[0];
-			if (machoMagic == FAT_MAGIC_64)
-			{
-				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
-				data->WriteBuffer(0, output);
-			}
-			else if (machoMagic == MH_MAGIC_64 || machoMagic == MH_MAGIC || machoMagic == MH_CIGAM_64 || machoMagic == MH_CIGAM)
-			{
-				data->WriteBuffer(0, machOPayload);
-			}
-			else
-			{
-#ifdef COMPRESSION_DEBUG
-				LogError("Unknown Mach-O magic in IMG4 Payload, writing img4 payload to RAW view for debug purposes.");
-				LogError("KernelCache parsing will now fail to proceed.");
-				data->WriteBuffer(0, machOPayload);
-				return new KernelCacheView(KC_VIEW_NAME, data, false);
-#else
-				return nullptr;
-#endif
-			}
-
-			return new KernelCacheView(KC_VIEW_NAME, data, false);
-		}
-
+		return new KernelCacheView(KC_VIEW_NAME, data, false);
+	}
+	catch (std::exception& e)
+	{
+		LogErrorForException(e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
-
-	return new KernelCacheView(KC_VIEW_NAME, data, false);
 }
 
 Ref<Settings> KernelCacheViewType::GetLoadSettingsForData(BinaryView* data)
@@ -159,41 +87,15 @@ Ref<Settings> KernelCacheViewType::GetLoadSettingsForData(BinaryView* data)
 
 Ref<BinaryView> KernelCacheViewType::Parse(BinaryView* data)
 {
-	uint32_t magic;
-	data->Read(&magic, data->GetStart(), 4);
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
+	try
 	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
-		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
-			auto lzfse = Transform::GetByName("LZFSE");
-
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-			DataBuffer machOPayload;
-			lzfse->Decode(img4Payload, machOPayload);
-
-			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
-			auto id = data->BeginUndoActions();
-			if (magic == FAT_MAGIC_64)
-			{
-				DataBuffer output = machOPayload.GetSlice(0x1c, machOPayload.GetLength()-0x1c);
-				data->WriteBuffer(0, output);
-			}
-			else
-			{
-				data->WriteBuffer(0, machOPayload);
-			}
-			data->ForgetUndoActions(id);
-			return new KernelCacheView(KC_VIEW_NAME, data, true);
-		}
-
+		return new KernelCacheView(KC_VIEW_NAME, data, true);
+	}
+	catch (std::exception& e)
+	{
+		LogErrorForException(e, "%s<BinaryViewType> failed to create view! '%s'", GetName().c_str(), e.what());
 		return nullptr;
 	}
-
-	return new KernelCacheView(KC_VIEW_NAME, data, true);
 }
 
 bool KernelCacheViewType::IsTypeValidForData(BinaryView* data)
@@ -204,36 +106,15 @@ bool KernelCacheViewType::IsTypeValidForData(BinaryView* data)
 	uint32_t magic;
 	data->Read(&magic, data->GetStart(), 4);
 
-	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64) // FIXME 32 bit
-	{
-		uint32_t im4pMagic;
-		data->Read(&im4pMagic, data->GetStart() + 0x8, 4);
-		if (im4pMagic == 0x50344d49) // P4MI
-		{
-			auto img4 = Transform::GetByName("IMG4-Unencrypted");
-			auto lzfse = Transform::GetByName("LZFSE");
-
-			DataBuffer img4Payload;
-			img4->Decode(data->ReadBuffer(data->GetStart(), data->GetLength()), img4Payload);
-			DataBuffer machOPayload;
-			lzfse->Decode(img4Payload, machOPayload);
-
-			uint32_t magic = ((uint32_t*)machOPayload.GetData())[0];
-			if (magic == FAT_MAGIC_64 || magic == MH_CIGAM_64 || magic == MH_MAGIC_64)
-				return true;
-
-			return false;
-		}
-
+	// TODO determine if the "krnl" string of the IMG4 container is required for non-database files
+	// If so, inspect the metadata from the TransformSession that produced this BinaryView
+	if (magic != MH_CIGAM_64 && magic != MH_MAGIC_64)
 		return false;
-	}
 
 	uint32_t fileType;
 	data->Read(&fileType, data->GetStart() + 0xc, 4);
 	if (fileType != MH_FILESET)
-	{
 		return false;
-	}
 
 	return true;
 }

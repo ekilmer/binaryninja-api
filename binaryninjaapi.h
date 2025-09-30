@@ -3816,6 +3816,18 @@ namespace BinaryNinja {
 		*/
 		void SetFilename(const std::string& name);
 
+		/*! Get the path to the container file if the current file is inside a container (e.g. ZIP, TAR, etc.)
+
+			\return The path to the container file if the current file is inside a container, otherwise an empty string
+		*/
+		std::string GetVirtualPath() const;
+
+		/*! Set the path to the container file if the current file is inside a container (e.g. ZIP, TAR, etc.)
+
+			\param path The path to the container file if the current file is inside a container
+		*/
+		void SetVirtualPath(const std::string& path);
+
 		/*! Whether the file has unsaved modifications
 
 			\return Whether the file has unsaved modifications
@@ -8947,6 +8959,7 @@ namespace BinaryNinja {
 	{
 	  protected:
 		BNTransformType m_typeForRegister;
+		BNTransformCapabilities m_capabilitiesForRegister;
 		std::string m_nameForRegister, m_longNameForRegister, m_groupForRegister;
 
 		Transform(BNTransform* xform);
@@ -8957,6 +8970,7 @@ namespace BinaryNinja {
 		    void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
 		static bool EncodeCallback(
 		    void* ctxt, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+		static bool CanDecodeCallback(void* ctxt, BNBinaryView* input);
 
 		static std::vector<TransformParameter> EncryptionKeyParameters(size_t fixedKeyLength = 0);
 		static std::vector<TransformParameter> EncryptionKeyAndIVParameters(
@@ -8964,22 +8978,24 @@ namespace BinaryNinja {
 
 	  public:
 		Transform(BNTransformType type, const std::string& name, const std::string& longName, const std::string& group);
+		Transform(BNTransformType type, BNTransformCapabilities capabilities, const std::string& name, const std::string& longName, const std::string& group);
 
 		static void Register(Transform* xform);
 		static Ref<Transform> GetByName(const std::string& name);
 		static std::vector<Ref<Transform>> GetTransformTypes();
 
 		BNTransformType GetType() const;
+		BNTransformCapabilities GetCapabilities() const;
+		bool SupportsDetection() const;
 		std::string GetName() const;
 		std::string GetLongName() const;
 		std::string GetGroup() const;
 
 		virtual std::vector<TransformParameter> GetParameters() const;
 
-		virtual bool Decode(const DataBuffer& input, DataBuffer& output,
-		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
-		virtual bool Encode(const DataBuffer& input, DataBuffer& output,
-		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
+		virtual bool Decode(const DataBuffer& input, DataBuffer& output, const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
+		virtual bool Encode(const DataBuffer& input, DataBuffer& output, const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>());
+		virtual bool CanDecode(Ref<BinaryView> input) const;
 	};
 
 	/*!
@@ -8995,7 +9011,63 @@ namespace BinaryNinja {
 		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>()) override;
 		virtual bool Encode(const DataBuffer& input, DataBuffer& output,
 		    const std::map<std::string, DataBuffer>& params = std::map<std::string, DataBuffer>()) override;
+		virtual bool CanDecode(Ref<BinaryView> input) const override;
 	};
+
+	class TransformContext : public CoreRefCountObject<BNTransformContext, BNNewTransformContextReference, BNFreeTransformContext>
+	{
+	  public:
+		TransformContext(BNTransformContext* context);
+		virtual ~TransformContext();
+
+		std::string GetTransformName() const;
+		std::string GetFileName() const;
+		Ref<BinaryView> GetInput() const;
+		Ref<Metadata> GetMetadata() const;
+		Ref<TransformContext> GetParent() const;
+		size_t GetChildCount() const;
+		std::vector<Ref<TransformContext>> GetChildren() const;
+		Ref<TransformContext> GetChild(const std::string& filename) const;
+		Ref<TransformContext> CreateChild(const DataBuffer& data, const std::string& filename);
+		bool IsLeaf() const;
+		bool IsRoot() const;
+		std::vector<std::string> GetAvailableFiles() const;
+		void SetAvailableFiles(const std::vector<std::string>& files);
+		bool HasAvailableFiles() const;
+		std::vector<std::string> GetRequestedFiles() const;
+		void SetRequestedFiles(const std::vector<std::string>& files);
+		bool HasRequestedFiles() const;
+		bool IsDatabase() const;
+	};
+
+	class TransformSession : public CoreRefCountObject<BNTransformSession, BNNewTransformSessionReference, BNFreeTransformSession>
+	{
+	  public:
+		TransformSession(const std::string& filename);
+		TransformSession(const std::string& filename, BNTransformSessionMode mode);
+		TransformSession(Ref<BinaryView> initialView);
+		TransformSession(Ref<BinaryView> initialView, BNTransformSessionMode mode);
+		TransformSession(BNTransformSession* session);
+		virtual ~TransformSession();
+
+		Ref<BinaryView> GetCurrentView() const;
+		Ref<TransformContext> GetRootContext() const;
+		Ref<TransformContext> GetCurrentContext() const;
+		bool Process();
+		bool HasAnyStages() const;
+		bool HasSinglePath() const;
+
+		std::vector<Ref<TransformContext>> GetSelectedContexts() const;
+		void SetSelectedContexts(const std::vector<Ref<TransformContext>>& contexts);
+
+		// UI interaction support
+		bool RequiresUserInput() const;
+		bool HasMultipleFileChoices() const;
+		std::vector<std::string> GetAvailableFileChoices() const;
+		bool SelectFiles(const std::vector<std::string>& selectedFiles);
+		bool ProcessWithUserInput();
+	};
+
 
 	struct InstructionInfo : public BNInstructionInfo
 	{

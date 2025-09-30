@@ -209,6 +209,15 @@ class FileMetadata:
 		core.BNSetFilename(self.handle, str(value))
 
 	@property
+	def virtual_path(self) -> str:
+		"""The virtual path of the file including container and internal path (e.g., 'archive.zip:folder/file.bin') (read/write)"""
+		return core.BNGetVirtualPath(self.handle)
+
+	@virtual_path.setter
+	def virtual_path(self, value: str) -> None:
+		core.BNSetVirtualPath(self.handle, str(value))
+
+	@property
 	def modified(self) -> bool:
 		"""Boolean result of whether the file is modified (Inverse of 'saved' property) (read/write)"""
 		return core.BNIsFileModified(self.handle)
