@@ -1016,7 +1016,11 @@ impl LowLevelILMutableFunction {
         LowLevelILExpression::new(self, LowLevelExpressionIndex(expr_idx))
     }
 
-    pub fn const_ptr_sized(&self, size: usize, val: u64) -> LowLevelILMutableExpression<'_, ValueExpr> {
+    pub fn const_ptr_sized(
+        &self,
+        size: usize,
+        val: u64,
+    ) -> LowLevelILMutableExpression<'_, ValueExpr> {
         use binaryninjacore_sys::BNLowLevelILAddExpr;
         use binaryninjacore_sys::BNLowLevelILOperation::LLIL_CONST_PTR;
 

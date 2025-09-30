@@ -95,7 +95,10 @@ where
         }
     }
 
-    pub fn instruction_at<L: Into<Location>>(&self, loc: L) -> Option<LowLevelILInstruction<'_, M, F>> {
+    pub fn instruction_at<L: Into<Location>>(
+        &self,
+        loc: L,
+    ) -> Option<LowLevelILInstruction<'_, M, F>> {
         Some(LowLevelILInstruction::new(
             self,
             self.instruction_index_at(loc)?,
@@ -103,7 +106,10 @@ where
     }
 
     /// Get all the instructions for a given location.
-    pub fn instructions_at<L: Into<Location>>(&self, loc: L) -> Vec<LowLevelILInstruction<'_, M, F>> {
+    pub fn instructions_at<L: Into<Location>>(
+        &self,
+        loc: L,
+    ) -> Vec<LowLevelILInstruction<'_, M, F>> {
         let loc = loc.into();
         self.instruction_indexes_at(loc)
             .iter()
