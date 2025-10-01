@@ -4,8 +4,8 @@ use binaryninja::{
     function::Function,
     medium_level_il::{
         operation::{
-            Constant, LiftedCallSsa, LiftedLoadSsa, LiftedSetVarSsa, LiftedSetVarSsaField,
-            LiftedVarPhi, Var, VarSsa,
+            Constant, LiftedCallSsa, LiftedLoadSsa, LiftedSetVarSsa, LiftedSetVarSsaField, Var,
+            VarSsa,
         },
         MediumLevelILFunction, MediumLevelILLiftedInstruction, MediumLevelILLiftedInstructionKind,
     },
@@ -169,18 +169,9 @@ fn return_type_for_super_init(call: &Call, view: &BinaryView) -> Option<Ref<Type
 
     let src = match super_param_def.lift().kind {
         MediumLevelILLiftedInstructionKind::SetVarSsa(LiftedSetVarSsa { src, .. }) => src,
-        MediumLevelILLiftedInstructionKind::VarPhi(LiftedVarPhi { .. }) => {
-            // The Swift compiler generates code that conditionally assigns to the receiver field of `objc_super`.
-            // TODO: Recognize that pattern and handle it.
-            log::debug!(
-                "  found phi node for definition of `objc_super` variable at {:#0x} {:?}",
-                super_param_def.address,
-                super_param_def
-            );
-            return None;
-        }
         _ => {
-            log::error!(
+            // The Swift compiler generates code that conditionally assigns to the receiver field of `objc_super`.
+            log::debug!(
                 "Unexpected variable definition kind at {:#0x} {:#x?}",
                 super_param_def.address,
                 super_param_def
