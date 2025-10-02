@@ -98,7 +98,7 @@ where
     /// `idx` must be less than 4. This is to protect against an out of bounds access.
     ///
     /// # Safety
-    /// Even if `idx` is valid, it may index to an unitialized or unused value. Make sure you index into an operand that
+    /// Even if `idx` is valid, it may index to an uninitialized or unused value. Make sure you index into an operand that
     /// you know should be initialized properly.
     pub unsafe fn get_operand(&self, idx: usize) -> u64 {
         assert!(idx < 4);
