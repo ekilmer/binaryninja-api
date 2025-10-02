@@ -511,9 +511,11 @@ public:
 	virtual void followPointer();
 
 	virtual bool canCopyWithTransform() override;
+	virtual bool canCut() override;
 	virtual void cut() override;
 	virtual void copy(TransformRef xform = nullptr) override;
 	virtual void paste(TransformRef xform = nullptr) override;
+	virtual bool canPaste() override;
 	virtual void copyAddress() override;
 
 	virtual HighlightTokenState getHighlightTokenState() override { return m_highlight; }
@@ -594,6 +596,9 @@ protected:
 	bool canExtendSelectionToEndOfSegment();
 	bool canExtendSelectionToStartOfDataVariable();
 	bool canExtendSelectionToEndOfDataVariable();
+
+	virtual bool shouldShowCopyAsActions();
+	virtual bool shouldShowTransformActions();
 };
 
 /*!

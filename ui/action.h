@@ -252,8 +252,10 @@ class BINARYNINJAUIAPI UIActionHandler
 	ActionPriority getPriority(const QString& name);
 
 	void bindCopyAsActions(const UITransformAction& action);
+	void bindCopyAsActions(const UITransformAction& action, const std::function<bool()>& shouldShow);
 	void bindPasteFromActions(const UITransformAction& action);
 	void bindTransformActions(const UITransformAction& encode, const UITransformAction& decode);
+	void bindTransformActions(const UITransformAction& encode, const UITransformAction& decode, const std::function<bool()>& shouldShow);
 	void unbindCopyAsActions();
 	void unbindPasteFromActions();
 	void unbindTransformActions();
