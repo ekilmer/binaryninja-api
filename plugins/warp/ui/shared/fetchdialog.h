@@ -45,13 +45,15 @@ private slots:
 
     void onAccept();
 
+    void onReject();
+
 private:
     void populateContainers();
 
     std::vector<Warp::SourceTag> collectTags() const;
 
     void runBatchedFetch(const std::optional<size_t> &containerIndex,
-                         const std::vector<Warp::SourceTag> &tags,
+                         const std::vector<Warp::SourceTag> &allowedTags,
                          size_t batchSize,
                          bool rerunMatcher);
 };

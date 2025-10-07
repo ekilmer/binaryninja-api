@@ -7,6 +7,7 @@
 
 #include "action.h"
 #include "fetcher.h"
+#include "misc.h"
 
 using namespace BinaryNinja;
 
@@ -34,8 +35,6 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
     m_containerCombo->addItem("All Containers"); // index 0 for "all"
     for (const auto &c: m_containers)
         m_containerCombo->addItem(QString::fromStdString(c->GetName()));
-
-    // TODO: Need to add tooltip to explain that a source must have atleast one of these tags to be considered.
 
     // Tags editor
     m_tagsList = new QListWidget(this);
@@ -67,13 +66,13 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
     m_tagsList->setToolTip("A source must have atleast ONE of these tags to be considered");
 
     // Defaults from processor tags
-    for (const auto &t: m_fetchProcessor->GetTags())
+    for (const auto &t: GetAllowedTagsFromView(m_bv))
         AddListItem(m_tagsList, QString::fromStdString(t));
 
     // Batch size and matcher checkbox
     m_batchSize = new QSpinBox(this);
     m_batchSize->setRange(10, 1000);
-    m_batchSize->setValue(100);
+    m_batchSize->setValue(GetBatchSizeFromView(m_bv));
     m_batchSize->setToolTip("Number of functions to fetch in each batch");
 
     m_rerunMatcher = new QCheckBox("Re-run matcher after fetch", this);
@@ -84,9 +83,6 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
     m_clearProcessed->setChecked(false);
 
     form->addRow(new QLabel("Container: "), m_containerCombo);
-    // TODO: Need to plumb this through to the fetcher, and also likely have a blacklisted or whitelist mode for this dialog.
-    // TODO: Alos wan to prefill the list of sources from the view/global settings.
-    // form->addRow(new QLabel("Allowed Sources: "), srcWrapper);
     form->addRow(new QLabel("Allowed Tags: "), tagWrapper);
     form->addRow(new QLabel("Batch Size: "), m_batchSize);
     form->addRow(m_rerunMatcher);
@@ -94,7 +90,7 @@ WarpFetchDialog::WarpFetchDialog(BinaryViewRef bv,
 
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &WarpFetchDialog::onAccept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::rejected, this, &WarpFetchDialog::onReject);
 
     auto root = new QVBoxLayout(this);
     root->addLayout(form);
@@ -149,12 +145,12 @@ void WarpFetchDialog::onAccept()
     if (idx > 0) // 0 == All Containers
         containerIndex = static_cast<size_t>(idx - 1);
 
-    auto tags = collectTags();
     const auto batch = static_cast<size_t>(m_batchSize->value());
     const bool rerun = m_rerunMatcher->isChecked();
 
-    // Persist tags to the shared processor for consistency across navigation
-    m_fetchProcessor->SetTags(tags);
+    const auto tags = collectTags();
+    // Persist tags to the view settings.
+    SetTagsToView(m_bv, tags);
 
     if (m_clearProcessed->isChecked())
         m_fetchProcessor->ClearProcessed();
@@ -165,8 +161,16 @@ void WarpFetchDialog::onAccept()
     accept();
 }
 
+void WarpFetchDialog::onReject()
+{
+    const auto tags = collectTags();
+    // Persist tags to the view settings.
+    SetTagsToView(m_bv, tags);
+    reject();
+}
+
 void WarpFetchDialog::runBatchedFetch(const std::optional<size_t> &containerIndex,
-                                      const std::vector<Warp::SourceTag> &tags,
+                                      const std::vector<Warp::SourceTag> &allowedTags,
                                       size_t batchSize,
                                       bool rerunMatcher)
 {
@@ -186,7 +190,7 @@ void WarpFetchDialog::runBatchedFetch(const std::optional<size_t> &containerInde
     auto bv = m_bv;
 
     // TODO: Too many captures in this thing lol.
-    WorkerInteractiveEnqueue([fetcher, bv, funcs = std::move(funcs), batchSize, rerunMatcher, task]() mutable {
+    WorkerInteractiveEnqueue([fetcher, bv, funcs = std::move(funcs), batchSize, rerunMatcher, task, allowedTags]() mutable {
         size_t processed = 0;
         size_t batchIndex = 0;
 
@@ -198,7 +202,7 @@ void WarpFetchDialog::runBatchedFetch(const std::optional<size_t> &containerInde
             for (size_t i = 0; i < thisBatchCount; ++i)
                 fetcher->AddPendingFunction(funcs[processed + i]);
 
-            fetcher->FetchPendingFunctions();
+            fetcher->FetchPendingFunctions(allowedTags);
 
             ++batchIndex;
             processed += thisBatchCount;
@@ -219,8 +223,6 @@ void RegisterWarpFetchFunctionsCommand()
 {
     // Register a UI action and bind it globally. Add it to the Tools menu.
     const QString actionName = "WARP\\Fetch";
-
-    // TODO: Because we register this in every widget this will happen, this is bad behavior!
     if (!UIAction::isActionRegistered(actionName))
         UIAction::registerAction(actionName);
 

@@ -110,13 +110,6 @@ WarpCurrentFunctionWidget::WarpCurrentFunctionWidget()
 void WarpCurrentFunctionWidget::SetFetcher(std::shared_ptr<WarpFetcher> fetcher)
 {
     m_fetcher = fetcher;
-    // TODO: We need to remove the completion callback from the previously set fetcher.
-    m_fetcher->AddCompletionCallback([this]() {
-        // TODO: This is a little bit underspecified, we may end up updating more than strictly necessary.
-        // Once this function has been fetched, we need to update the matches for this widget.
-        UpdateMatches();
-        return KeepCallback;
-    });
 }
 
 void WarpCurrentFunctionWidget::SetCurrentFunction(FunctionRef current)
@@ -136,7 +129,8 @@ void WarpCurrentFunctionWidget::SetCurrentFunction(FunctionRef current)
         {
             BinaryNinja::WorkerPriorityEnqueue([this]() {
                 BinaryNinja::Ref bgTask = new BinaryNinja::BackgroundTask("Fetching WARP Functions...", true);
-                m_fetcher->FetchPendingFunctions();
+                const auto allowedTags = GetAllowedTagsFromView(m_current->GetView());
+                m_fetcher->FetchPendingFunctions(allowedTags);
                 bgTask->Finish();
             });
         }

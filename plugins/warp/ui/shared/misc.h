@@ -112,3 +112,30 @@ struct ParsedQuery
         return it.value();
     }
 };
+
+constexpr const char* ALLOWED_TAGS_SETTING = "warp.fetcher.allowedSourceTags";
+constexpr const char* BATCH_SIZE_SETTING = "warp.fetcher.fetchBatchSize";
+
+inline std::vector<Warp::SourceTag> GetAllowedTagsFromView(const BinaryViewRef& view)
+{
+    auto settings = BinaryNinja::Settings::Instance();
+    if (!settings->Contains(ALLOWED_TAGS_SETTING))
+        return {};
+    return settings->Get<std::vector<std::string>>(ALLOWED_TAGS_SETTING, view);
+}
+
+inline void SetTagsToView(const BinaryViewRef& view, const std::vector<Warp::SourceTag>& tags)
+{
+    auto settings = BinaryNinja::Settings::Instance();
+    if (!settings->Contains(ALLOWED_TAGS_SETTING))
+        return;
+    settings->Set(ALLOWED_TAGS_SETTING, tags, view);
+}
+
+inline int GetBatchSizeFromView(const BinaryViewRef& view)
+{
+    auto settings = BinaryNinja::Settings::Instance();
+    if (!settings->Contains(BATCH_SIZE_SETTING))
+        return 100;
+    return settings->Get<uint64_t>(BATCH_SIZE_SETTING, view);
+}

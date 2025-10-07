@@ -1,26 +1,8 @@
 #include "fetcher.h"
 
-#include <QSettings>
-
 WarpFetcher::WarpFetcher()
 {
     m_logger = new BinaryNinja::Logger("WARP Fetcher");
-    QSettings qtSettings;
-    const QString key = "warp/allowedTags";
-
-    QStringList tags = qtSettings.value(key).toStringList();
-    if (tags.isEmpty()) {
-        tags = QStringList{ "official", "trusted" };
-        qtSettings.setValue(key, tags);
-        qtSettings.sync();
-    }
-
-    std::vector<Warp::SourceTag> initialTags;
-    initialTags.reserve(tags.size());
-    for (const auto& t : tags)
-        initialTags.emplace_back(t.trimmed().toStdString());
-
-    SetTags(initialTags);
 }
 
 void WarpFetcher::AddPendingFunction(const FunctionRef &func)
@@ -47,7 +29,7 @@ void WarpFetcher::ExecuteCompletionCallback()
         std::lock_guard<std::mutex> lock(m_requestMutex);
         m_completionCallbacks.erase(
             std::ranges::remove_if(m_completionCallbacks,
-                                   [](const auto &cb) { return cb() != RemoveCallback; }).begin(),
+                                   [](const auto &cb) { return cb() == RemoveCallback; }).begin(),
             m_completionCallbacks.end());
     });
 }
@@ -58,7 +40,7 @@ std::shared_ptr<WarpFetcher> WarpFetcher::Global()
     return global;
 }
 
-void WarpFetcher::FetchPendingFunctions()
+void WarpFetcher::FetchPendingFunctions(const std::vector<Warp::SourceTag>& allowedTags)
 {
     m_requestInProgress = true;
     const auto requests = FlushPendingFunctions();
@@ -82,13 +64,12 @@ void WarpFetcher::FetchPendingFunctions()
         platformMappedGuids[platform].push_back(guid.value());
     }
 
-    const auto tags = GetTags();
     for (const auto &[platform, guids] : platformMappedGuids)
     {
         m_logger->LogDebugF("Fetching {} functions for platform {}", guids.size(), platform->GetName());
         auto target = Warp::Target::FromPlatform(*platform);
         for (const auto &container: Warp::Container::All())
-            container->FetchFunctions(*target, guids, tags);
+            container->FetchFunctions(*target, guids, allowedTags);
 
         std::lock_guard<std::mutex> lock(m_requestMutex);
         for (const auto &guid: guids)

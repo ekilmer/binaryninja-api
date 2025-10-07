@@ -163,6 +163,9 @@ WarpSidebarWidget::WarpSidebarWidget(BinaryViewRef data) : SidebarWidget("WARP")
 	tabWidget->addTab(matchedFrame, "Matched Functions");
 	tabWidget->addTab(containerFrame, "Containers");
 
+	layout->addWidget(tabWidget);
+	this->setLayout(layout);
+
 	// Do a full update if analysis has been done, otherwise we may persist old data and not have new data.
 	m_analysisEvent = new AnalysisCompletionEvent(m_data, [this]() {
 		ExecuteOnMainThread([this]() {
@@ -170,14 +173,11 @@ WarpSidebarWidget::WarpSidebarWidget(BinaryViewRef data) : SidebarWidget("WARP")
 		});
 	});
 
-	std::shared_ptr<WarpFetcher> fetcher = WarpFetcher::Global();
+	const std::shared_ptr<WarpFetcher> fetcher = WarpFetcher::Global();
 	fetcher->AddCompletionCallback([this]() {
 		Update();
 		return KeepCallback;
 	});
-
-	layout->addWidget(tabWidget);
-	this->setLayout(layout);
 
 	// NOTE: This fetcher is shared with the fetch dialog that is constructed on initialization of this plugin.
 	m_currentFunctionWidget->SetFetcher(fetcher);
