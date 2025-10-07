@@ -139,6 +139,7 @@ pub extern "C" fn CorePluginInit() -> bool {
 
     // Register our matcher and plugin settings globally.
     let mut global_bn_settings = Settings::new();
+    global_bn_settings.register_group("warp", "WARP");
     MatcherSettings::register(&mut global_bn_settings);
     PluginSettings::register(&mut global_bn_settings);
 
