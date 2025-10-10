@@ -9040,15 +9040,22 @@ namespace BinaryNinja {
 		TransformContext(BNTransformContext* context);
 		virtual ~TransformContext();
 
-		std::string GetTransformName() const;
-		std::string GetFileName() const;
 		Ref<BinaryView> GetInput() const;
+		std::string GetFileName() const;
+		std::string GetTransformName() const;
+		void SetTransformParameters(const std::map<std::string, DataBuffer>& params);
+		void SetTransformParameter(const std::string& name, const DataBuffer& data);
+		bool HasTransformParameter(const std::string& name) const;
+		void ClearTransformParameter(const std::string& name);
+		std::string GetExtractionMessage() const;
+		BNTransformResult GetExtractionResult() const;
+		BNTransformResult GetTransformResult() const;
 		Ref<Metadata> GetMetadata() const;
 		Ref<TransformContext> GetParent() const;
 		size_t GetChildCount() const;
 		std::vector<Ref<TransformContext>> GetChildren() const;
-		Ref<TransformContext> GetChild(const std::string& filename) const;
-		Ref<TransformContext> CreateChild(const DataBuffer& data, const std::string& filename);
+		Ref<TransformContext> GetChild(const std::string& filename = "") const;
+		Ref<TransformContext> SetChild(const DataBuffer& data, const std::string& filename = "", BNTransformResult result = TransformSuccess, const std::string& message = "");
 		bool IsLeaf() const;
 		bool IsRoot() const;
 		std::vector<std::string> GetAvailableFiles() const;
@@ -9073,6 +9080,7 @@ namespace BinaryNinja {
 		Ref<BinaryView> GetCurrentView() const;
 		Ref<TransformContext> GetRootContext() const;
 		Ref<TransformContext> GetCurrentContext() const;
+		bool ProcessFrom(Ref<TransformContext> context);
 		bool Process();
 		bool HasAnyStages() const;
 		bool HasSinglePath() const;

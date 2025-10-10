@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 135
+#define BN_CURRENT_CORE_ABI_VERSION 136
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 134
+#define BN_MINIMUM_CORE_ABI_VERSION 136
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -363,6 +363,14 @@ extern "C"
 		TransformSessionModeFull = 1,     // Discover all paths (build the full context tree)
 		TransformSessionModeOnDemand = 2, // Proceed step-by-step, requesting input at each stage
 	} BNTransformSessionMode;
+
+	typedef enum BNTransformResult
+	{
+		TransformSuccess = 0,
+		TransformNotAttempted = 1,
+		TransformFailure = 2,
+		TransformRequiresPassword = 3
+	} BNTransformResult;
 
 	typedef enum BNBranchType
 	{
@@ -4650,26 +4658,31 @@ extern "C"
 	BINARYNINJACOREAPI char* BNGetTransformGroup(BNTransform* xform);
 	BINARYNINJACOREAPI BNTransformParameterInfo* BNGetTransformParameterList(BNTransform* xform, size_t* count);
 	BINARYNINJACOREAPI void BNFreeTransformParameterList(BNTransformParameterInfo* params, size_t count);
-	BINARYNINJACOREAPI bool BNDecode(
-	    BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
-	BINARYNINJACOREAPI bool BNEncode(
-	    BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+	BINARYNINJACOREAPI bool BNDecode(BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
+	BINARYNINJACOREAPI bool BNEncode(BNTransform* xform, BNDataBuffer* input, BNDataBuffer* output, BNTransformParameter* params, size_t paramCount);
 	BINARYNINJACOREAPI bool BNDecodeWithContext(BNTransform* xform, BNTransformContext* context, BNTransformParameter* params, size_t paramCount);
 	BINARYNINJACOREAPI bool BNCanDecode(BNTransform* xform, BNBinaryView* input);
 
 	// Transform Context
 	BINARYNINJACOREAPI BNTransformContext* BNNewTransformContextReference(BNTransformContext* context);
 	BINARYNINJACOREAPI void BNFreeTransformContext(BNTransformContext* context);
-	BINARYNINJACOREAPI char* BNTransformContextGetTransformName(BNTransformContext* context);
-	BINARYNINJACOREAPI char* BNTransformContextGetFileName(BNTransformContext* context);
 	BINARYNINJACOREAPI BNBinaryView* BNTransformContextGetInput(BNTransformContext* context);
+	BINARYNINJACOREAPI char* BNTransformContextGetFileName(BNTransformContext* context);
+	BINARYNINJACOREAPI char* BNTransformContextGetTransformName(BNTransformContext* context);
+	BINARYNINJACOREAPI void BNTransformContextSetTransformParameters(BNTransformContext* context, BNTransformParameter* params, size_t paramCount);
+	BINARYNINJACOREAPI void BNTransformContextSetTransformParameter(BNTransformContext* context, const char* name, BNDataBuffer* data);
+	BINARYNINJACOREAPI bool BNTransformContextHasTransformParameter(BNTransformContext* context, const char* name);
+	BINARYNINJACOREAPI void BNTransformContextClearTransformParameter(BNTransformContext* context, const char* name);
+	BINARYNINJACOREAPI char* BNTransformContextGetExtractionMessage(BNTransformContext* context);
+	BINARYNINJACOREAPI BNTransformResult BNTransformContextGetExtractionResult(BNTransformContext* context);
+	BINARYNINJACOREAPI BNTransformResult BNTransformContextGetTransformResult(BNTransformContext* context);
 	BINARYNINJACOREAPI BNMetadata* BNTransformContextGetMetadata(BNTransformContext* context);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformContextGetParent(BNTransformContext* context);
 	BINARYNINJACOREAPI size_t BNTransformContextGetChildCount(BNTransformContext* context);
 	BINARYNINJACOREAPI BNTransformContext** BNTransformContextGetChildren(BNTransformContext* context, size_t* count);
 	BINARYNINJACOREAPI void BNFreeTransformContextList(BNTransformContext** contexts, size_t count);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformContextGetChild(BNTransformContext* context, const char* filename);
-	BINARYNINJACOREAPI BNTransformContext* BNTransformContextCreateChild(BNTransformContext* context, BNDataBuffer* data, const char* filename);
+	BINARYNINJACOREAPI BNTransformContext* BNTransformContextSetChild(BNTransformContext* context, BNDataBuffer* data, const char* filename, BNTransformResult result, const char* message);
 	BINARYNINJACOREAPI bool BNTransformContextIsLeaf(BNTransformContext* context);
 	BINARYNINJACOREAPI bool BNTransformContextIsRoot(BNTransformContext* context);
 	BINARYNINJACOREAPI char** BNTransformContextGetAvailableFiles(BNTransformContext* context, size_t* count);
@@ -4690,6 +4703,7 @@ extern "C"
 	BINARYNINJACOREAPI BNBinaryView* BNTransformSessionGetCurrentView(BNTransformSession* session);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformSessionGetRootContext(BNTransformSession* session);
 	BINARYNINJACOREAPI BNTransformContext* BNTransformSessionGetCurrentContext(BNTransformSession* session);
+	BINARYNINJACOREAPI bool BNTransformSessionProcessFrom(BNTransformSession* session, BNTransformContext* context);
 	BINARYNINJACOREAPI bool BNTransformSessionProcess(BNTransformSession* session);
 	BINARYNINJACOREAPI bool BNTransformSessionHasAnyStages(BNTransformSession* session);
 	BINARYNINJACOREAPI bool BNTransformSessionHasSinglePath(BNTransformSession* session);

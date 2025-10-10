@@ -57,6 +57,12 @@ Ref<TransformContext> TransformSession::GetCurrentContext() const
 }
 
 
+bool TransformSession::ProcessFrom(Ref<TransformContext> context)
+{
+	return BNTransformSessionProcessFrom(m_object, context->GetObject());
+}
+
+
 bool TransformSession::Process()
 {
 	return BNTransformSessionProcess(m_object);

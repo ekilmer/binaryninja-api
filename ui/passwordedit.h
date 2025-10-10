@@ -5,9 +5,11 @@
 
 class BINARYNINJAUIAPI PasswordEdit: public QLineEdit
 {
+	Q_OBJECT
+
 public:
 	PasswordEdit(QWidget* parent = nullptr);
 
-	virtual void focusInEvent(QFocusEvent* e) override;
-	virtual void focusOutEvent(QFocusEvent* e) override;
+private slots:
+	void showContextMenu(const QPoint& pos);
 };

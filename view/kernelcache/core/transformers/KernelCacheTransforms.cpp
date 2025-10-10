@@ -66,7 +66,12 @@ public:
             filename += std::string((const char*)payload.version.data, payload.version.length);
         }
 
-        context->CreateChild(DataBuffer(payload.payload.data, payload.payload.length), filename);
+        if (payload.keybag.data && payload.keybag.length)
+        {
+           LogWarn("IMG4 payload contains keybag, which is not currently supported.");
+        }
+
+        context->SetChild(DataBuffer(payload.payload.data, payload.payload.length), filename);
 
         return true;
     }
