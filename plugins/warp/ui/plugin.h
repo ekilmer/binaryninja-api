@@ -18,6 +18,9 @@ class WarpSidebarWidget : public SidebarWidget
 	QAction* m_matcherAction;
 	bool isMatcherRunning = false;
 
+	std::shared_ptr<WarpFetcher> m_fetcher;
+	WarpFetcher::CallbackId m_callbackId;
+
 	WarpCurrentFunctionWidget* m_currentFunctionWidget;
 	WarpMatchedWidget* m_matchedWidget;
 	WarpContainersPane* m_containerWidget;
@@ -28,8 +31,6 @@ public:
 	~WarpSidebarWidget() override;
 
 	QWidget* headerWidget() override { return m_headerWidget; }
-
-	void focus() override;
 
 	void Update();
 

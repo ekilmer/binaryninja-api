@@ -24,11 +24,10 @@ class WarpFetcher
 	std::mutex m_requestMutex;
 	std::vector<FunctionRef> m_pendingRequests;
 	std::unordered_set<Warp::FunctionGUID> m_processedGuids;
-
-	// List of callbacks to call when done fetching data, assume that others are using this as well.
-	std::vector<std::function<WarpFetchCompletionStatus()>> m_completionCallbacks;
-
 public:
+	using CallbackId = uint64_t;
+	using CompletionCallback = std::function<WarpFetchCompletionStatus()>;
+
 	explicit WarpFetcher();
 
 	// The global fetcher instance, this is used for the fetch dialog and the sidebar.
@@ -36,10 +35,18 @@ public:
 
 	std::atomic<bool> m_requestInProgress = false;
 
-	void AddCompletionCallback(std::function<WarpFetchCompletionStatus()> cb)
+	[[nodiscard]] CallbackId AddCompletionCallback(CompletionCallback cb)
 	{
 		std::lock_guard<std::mutex> lock(m_requestMutex);
-		m_completionCallbacks.push_back(std::move(cb));
+		const CallbackId id = m_nextCallbackId++;
+		m_completionCallbacks.emplace(id, std::move(cb));
+		return id;
+	}
+
+	void RemoveCompletionCallback(CallbackId id)
+	{
+		std::lock_guard<std::mutex> lock(m_requestMutex);
+		m_completionCallbacks.erase(id);
 	}
 
 	void AddPendingFunction(const FunctionRef& func);
@@ -49,7 +56,10 @@ public:
 	void ClearProcessed();
 
 private:
-	std::vector<FunctionRef> FlushPendingFunctions();
-
+	// List of callbacks to call when done fetching data, assume that others are using this as well.
+	std::atomic<CallbackId> m_nextCallbackId = 1;
+	std::unordered_map<CallbackId, CompletionCallback> m_completionCallbacks;
 	void ExecuteCompletionCallback();
+
+	std::vector<FunctionRef> FlushPendingFunctions();
 };

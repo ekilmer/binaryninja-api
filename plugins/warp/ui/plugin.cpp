@@ -174,22 +174,21 @@ WarpSidebarWidget::WarpSidebarWidget(BinaryViewRef data) : SidebarWidget("WARP")
 	// Do a full update if analysis has been done, otherwise we may persist old data and not have new data.
 	m_analysisEvent = new AnalysisCompletionEvent(m_data, [this]() { ExecuteOnMainThread([this]() { Update(); }); });
 
-	const std::shared_ptr<WarpFetcher> fetcher = WarpFetcher::Global();
-	fetcher->AddCompletionCallback([this]() {
-		Update();
+	m_fetcher = WarpFetcher::Global();
+	m_callbackId = m_fetcher->AddCompletionCallback([this]() {
+		ExecuteOnMainThread([this]() { Update(); });
 		return KeepCallback;
 	});
 
 	// NOTE: This fetcher is shared with the fetch dialog that is constructed on initialization of this plugin.
-	m_currentFunctionWidget->SetFetcher(fetcher);
+	m_currentFunctionWidget->SetFetcher(m_fetcher);
 }
 
 WarpSidebarWidget::~WarpSidebarWidget()
 {
 	m_analysisEvent->Cancel();
+	m_fetcher->RemoveCompletionCallback(m_callbackId);
 }
-
-void WarpSidebarWidget::focus() {}
 
 void WarpSidebarWidget::Update()
 {

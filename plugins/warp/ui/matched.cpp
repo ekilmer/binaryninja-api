@@ -47,7 +47,7 @@ WarpMatchedWidget::WarpMatchedWidget(BinaryViewRef current)
 
 	Update();
 
-	connect(m_tableWidget->GetTableView(), &QTableView::clicked, this, [this](const QModelIndex& index) {
+	connect(m_tableWidget->GetTableView(), &QTableView::doubleClicked, this, [this](const QModelIndex& index) {
 		if (m_current == nullptr)
 			return;
 		if (!index.isValid())
@@ -60,6 +60,7 @@ WarpMatchedWidget::WarpMatchedWidget(BinaryViewRef current)
 			return;
 		// Navigate to the address in the view, so the user feels like they are doing something.
 		auto currentView = m_current->GetCurrentView();
+		// TODO: Navigate unconditionally steals focus, need to figure out how to prevent the loss of focus.
 		m_current->Navigate(currentView, selectedItem.value());
 	});
 }

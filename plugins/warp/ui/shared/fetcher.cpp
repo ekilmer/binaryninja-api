@@ -24,14 +24,20 @@ std::vector<FunctionRef> WarpFetcher::FlushPendingFunctions()
 
 void WarpFetcher::ExecuteCompletionCallback()
 {
-	BinaryNinja::ExecuteOnMainThread([this]() {
-		// TODO: Holding the mutex here is dangerous!
+	std::vector<std::pair<CallbackId, CompletionCallback>> callbacks;
+	{
 		std::lock_guard<std::mutex> lock(m_requestMutex);
-		m_completionCallbacks.erase(
-			std::ranges::remove_if(m_completionCallbacks, [](const auto& cb) { return cb() == RemoveCallback; })
-				.begin(),
-			m_completionCallbacks.end());
-	});
+		callbacks.insert(callbacks.end(), m_completionCallbacks.begin(), m_completionCallbacks.end());
+	}
+
+	std::vector<CallbackId> toRemove = {};
+	for (auto& [id, cb] : callbacks)
+		if (cb() == RemoveCallback)
+			toRemove.push_back(id);
+
+	std::lock_guard<std::mutex> lock(m_requestMutex);
+	for (auto id : toRemove)
+		m_completionCallbacks.erase(id);
 }
 
 std::shared_ptr<WarpFetcher> WarpFetcher::Global()
