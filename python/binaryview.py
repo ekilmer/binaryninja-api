@@ -7322,7 +7322,7 @@ class BinaryView:
 
 		raise TypeError("Removal is only supported with a Component or string representing its Guid")
 
-	def get_function_parent_components(self, function: 'function.Function') -> List['component.Component']:
+	def get_function_parent_components(self, function: '_function.Function') -> List['component.Component']:
 		_components = []
 		count = ctypes.c_ulonglong(0)
 		bn_components = core.BNGetFunctionParentComponents(self.handle, function.handle, count)

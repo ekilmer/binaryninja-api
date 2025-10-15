@@ -222,7 +222,7 @@ class DebugInfoParser(object, metaclass=_DebugInfoParserMetaClass):
 		"""Returns whether this debug-info parser is valid for the provided binary view"""
 		return core.BNIsDebugInfoParserValidForView(self.handle, view.handle)
 
-	def parse_debug_info(self, view: 'binaryview.BinaryView', debug_view: 'binaryview.BinaryView', debug_info: Optional["DebugInfo"] = None, progress: ProgressFuncType = None) -> Optional["DebugInfo"]:
+	def parse_debug_info(self, view: 'binaryview.BinaryView', debug_view: 'binaryview.BinaryView', debug_info: Optional["DebugInfo"] = None, progress: Optional[ProgressFuncType] = None) -> Optional["DebugInfo"]:
 		"""
 		Returns a ``DebugInfo`` object populated with debug info by this debug-info parser. Only provide a ``DebugInfo`` object if you wish to append to the existing debug info.
 
