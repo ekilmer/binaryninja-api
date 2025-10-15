@@ -3471,7 +3471,10 @@ class BinaryView:
 
 	@property
 	def type_names(self) -> List['_types.QualifiedName']:
-		"""List of defined type names (read-only)"""
+		"""List of defined type names (read-only)
+
+		.. note:: Sort order is not guaranteed in 5.2 and later.
+		"""
 		count = ctypes.c_ulonglong(0)
 		name_list = core.BNGetAnalysisTypeNames(self.handle, count, "")
 		assert name_list is not None, "core.BNGetAnalysisTypeNames returned None"

@@ -5642,6 +5642,7 @@ extern "C"
 	BINARYNINJACOREAPI bool BNTypeContainerGetTypeIds(BNTypeContainer* container, char*** typeIds, size_t* count);
 	BINARYNINJACOREAPI bool BNTypeContainerGetTypeNames(BNTypeContainer* container, BNQualifiedName** typeNames, size_t* count);
 	BINARYNINJACOREAPI bool BNTypeContainerGetTypeNamesAndIds(BNTypeContainer* container, char*** typeIds, BNQualifiedName** typeNames, size_t* count);
+	BINARYNINJACOREAPI size_t BNTypeContainerGetTypeCount(BNTypeContainer* container);
 	BINARYNINJACOREAPI bool BNTypeContainerParseTypeString(BNTypeContainer* container,
 		const char* source, bool importDepencencies, BNQualifiedNameAndType* result,
 		BNTypeParserError** errors, size_t* errorCount
