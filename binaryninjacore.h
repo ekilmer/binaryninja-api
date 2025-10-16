@@ -37,7 +37,7 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 136
+#define BN_CURRENT_CORE_ABI_VERSION 137
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
@@ -311,6 +311,14 @@ extern "C"
 	typedef struct BNStringRef BNStringRef;
 	typedef struct BNIndirectBranchInfo BNIndirectBranchInfo;
 	typedef struct BNArchitectureAndAddress BNArchitectureAndAddress;
+
+	typedef struct BNRemoteFileSearchMatch
+	{
+		char* projectId;
+		char* projectName;
+		char* fileId;
+		char* fileName;
+	} BNRemoteFileSearchMatch;
 
 	typedef bool(*BNProgressFunction)(void*, size_t, size_t);
 
@@ -8240,6 +8248,8 @@ extern "C"
 	BINARYNINJACOREAPI BNCollaborationUser* BNRemoteGetUserByUsername(BNRemote* remote, const char* username);
 	BINARYNINJACOREAPI BNCollaborationUser* BNRemoteGetCurrentUser(BNRemote* remote);
 	BINARYNINJACOREAPI bool BNRemoteSearchUsers(BNRemote* remote, const char* prefix, char*** userIds, char*** usernames, size_t* count);
+	BINARYNINJACOREAPI BNRemoteFileSearchMatch* BNRemoteFindFiles(BNRemote* remote, const char* name, size_t* count);
+	BINARYNINJACOREAPI void BNFreeRemoteFileSearchMatchList(BNRemoteFileSearchMatch* matches, size_t count);
 	BINARYNINJACOREAPI bool BNRemotePullUsers(BNRemote* remote, BNProgressFunction progress, void* progressContext);
 	BINARYNINJACOREAPI BNCollaborationUser* BNRemoteCreateUser(BNRemote* remote, const char* username, const char* email, bool isActive, const char* password, const uint64_t* groupIds, size_t groupIdCount, const uint64_t* userPermissionIds, size_t userPermissionIdCount);
 	BINARYNINJACOREAPI bool BNRemotePushUser(BNRemote* remote, BNCollaborationUser* user, const char** extraFieldKeys, const char** extraFieldValues, size_t extraFieldCount);

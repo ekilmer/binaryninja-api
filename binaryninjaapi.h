@@ -21603,6 +21603,16 @@ namespace BinaryNinja::Collaboration
 		*/
 		std::vector<std::pair<std::string, std::string>> SearchUsers(const std::string& prefix);
 
+		struct FileSearchMatch
+		{
+			std::string projectId;
+			std::string projectName;
+			std::string fileId;
+			std::string fileName;
+		};
+
+		std::vector<FileSearchMatch> FindFiles(const std::string& name);
+
 
 		/*!
 			Pull list of users from the remote. Necessary before calling GetUsers()
@@ -22487,4 +22497,3 @@ template<> struct fmt::formatter<BinaryNinja::Type>
 		return it;
 	}
 };
-
