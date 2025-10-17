@@ -360,30 +360,37 @@ pub(crate) fn handle_function<R: ReaderType>(
     let mut children = tree_root.children();
     while let Ok(Some(child)) = children.next() {
         if child.entry().tag() == constants::DW_TAG_formal_parameter {
-            if let (Some(child_uid), Some(name)) = {
-                (
-                    get_type(
-                        dwarf,
-                        unit,
-                        child.entry(),
-                        debug_info_builder_context,
-                        debug_info_builder,
-                    ),
-                    debug_info_builder_context.get_name(dwarf, unit, child.entry()),
-                )
-            } {
-                let child_type = debug_info_builder
-                    .get_type(child_uid)
-                    .or_else(|| {
-                        log::error!(
-                            "Failed to get function parameter type with uid {}",
-                            child_uid
-                        );
-                        None
-                    })?
-                    .get_type();
-                parameters.push(FunctionParameter::new(child_type, name, None));
-            }
+            let Some(child_uid) = get_type(
+                dwarf,
+                unit,
+                child.entry(),
+                debug_info_builder_context,
+                debug_info_builder,
+            ) else {
+                log::error!(
+                    "Failed to get function parameter child type in unit {:?} at offset {:x}",
+                    unit.header.offset(),
+                    child.entry().offset().0,
+                );
+                continue;
+            };
+            let name = debug_info_builder_context.get_name(dwarf, unit, child.entry());
+
+            let child_type = debug_info_builder
+                .get_type(child_uid)
+                .or_else(|| {
+                    log::error!(
+                        "Failed to get function parameter type with uid {}",
+                        child_uid
+                    );
+                    None
+                })?
+                .get_type();
+            parameters.push(FunctionParameter::new(
+                child_type,
+                name.unwrap_or_default(),
+                None,
+            ));
         } else if child.entry().tag() == constants::DW_TAG_unspecified_parameters {
             variable_arguments = true;
         }
