@@ -1043,6 +1043,38 @@ class Arm64Architecture : public Architecture
 			return "__tlbi";
 		case ARM64_INTRIN_AT:
 			return "__at";
+		case ARM64_INTRIN_ADDG:
+			return "__addg";
+		case ARM64_INTRIN_CMPP:
+			return "__cmpp";
+		case ARM64_INTRIN_GMI:
+			return "__gmi";
+		case ARM64_INTRIN_IRG:
+			return "__irg";
+		case ARM64_INTRIN_LDG:
+			return "__ldg";
+		case ARM64_INTRIN_LDGM:
+			return "__ldgm";
+		case ARM64_INTRIN_ST2G:
+			return "__st2g";
+		case ARM64_INTRIN_STG:
+			return "__stg";
+		case ARM64_INTRIN_STGM:
+			return "__stgm";
+		case ARM64_INTRIN_STGP:
+			return "__stgp";
+		case ARM64_INTRIN_STZ2G:
+			return "__stz2g";
+		case ARM64_INTRIN_STZG:
+			return "__stzg";
+		case ARM64_INTRIN_STZGM:
+			return "__stzgm";
+		case ARM64_INTRIN_SUBG:
+			return "__subg";
+		case ARM64_INTRIN_SUBP:
+			return "__subp";
+		case ARM64_INTRIN_SUBPS:
+			return "__subps";
 		default:
 			break;
 		}
