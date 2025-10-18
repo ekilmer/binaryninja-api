@@ -1307,6 +1307,13 @@ bool GetLowLevelILForInstruction(
 	LowLevelILLabel trueLabel, falseLabel;
 	switch (instr.operation)
 	{
+	case ARM64_ABS:
+	{
+		ExprId src = ILREG_O(operand2);
+		GenIfElse(il, il.CompareSignedLessThan(REGSZ_O(operand2), src, il.Const(REGSZ_O(operand2), 0)),
+			ILSETREG_O(operand1, il.Neg(REGSZ_O(operand2), src)), ILSETREG_O(operand1, src));
+		break;
+	}
 	case ARM64_ADD:
 		switch (instr.encoding)
 		{
@@ -1732,6 +1739,14 @@ bool GetLowLevelILForInstruction(
 	case ARM64_CLZ:
 		il.AddInstruction(il.Intrinsic(
 		    {RegisterOrFlag::Register(REG_O(operand1))}, ARM64_INTRIN_CLZ, {ILREG_O(operand2)}));
+		break;
+	case ARM64_CNT:
+		il.AddInstruction(
+			il.Intrinsic({RegisterOrFlag::Register(REG_O(operand1))}, ARM64_INTRIN_CNT, {ILREG_O(operand2)}));
+		break;
+	case ARM64_CTZ:
+		il.AddInstruction(
+			il.Intrinsic({RegisterOrFlag::Register(REG_O(operand1))}, ARM64_INTRIN_CTZ, {ILREG_O(operand2)}));
 		break;
 	case ARM64_DC:
 		// il.AddInstruction(
@@ -3730,6 +3745,54 @@ bool GetLowLevelILForInstruction(
 						il.MultDoublePrecSigned(REGSZ_O(operand1), ILREG_O(operand2), ILREG_O(operand3)),
 						il.Const(1, 64))))));
 		break;
+	case ARM64_SMAX:
+	{
+		ExprId op2 = ILREG_O(operand2);
+		ExprId op3;
+
+		switch (instr.encoding)
+		{
+		case ENC_SMAX_32_MINMAX_IMM:
+		case ENC_SMAX_64_MINMAX_IMM:
+			op3 = il.Const(REGSZ_O(operand2), operand3.immediate);
+			break;
+		case ENC_SMAX_32_DP_2SRC:
+		case ENC_SMAX_64_DP_2SRC:
+			op3 = ILREG_O(operand3);
+			break;
+		default:
+			il.AddInstruction(il.Unimplemented());
+			return true;
+		}
+
+		GenIfElse(il, il.CompareSignedGreaterThan(REGSZ_O(operand2), op2, op3), ILSETREG_O(operand1, op2),
+			ILSETREG_O(operand1, op3));
+		break;
+	}
+	case ARM64_SMIN:
+	{
+		ExprId op2 = ILREG_O(operand2);
+		ExprId op3;
+
+		switch (instr.encoding)
+		{
+		case ENC_SMIN_32_MINMAX_IMM:
+		case ENC_SMIN_64_MINMAX_IMM:
+			op3 = il.Const(REGSZ_O(operand2), operand3.immediate);
+			break;
+		case ENC_SMIN_32_DP_2SRC:
+		case ENC_SMIN_64_DP_2SRC:
+			op3 = ILREG_O(operand3);
+			break;
+		default:
+			il.AddInstruction(il.Unimplemented());
+			return true;
+		}
+
+		GenIfElse(il, il.CompareSignedLessThan(REGSZ_O(operand2), op2, op3), ILSETREG_O(operand1, op2),
+			ILSETREG_O(operand1, op3));
+		break;
+	}
 	case ARM64_UDIV:
 		switch (instr.encoding)
 		{
@@ -3742,6 +3805,54 @@ bool GetLowLevelILForInstruction(
 		il.AddInstruction(ILSETREG_O(
 		    operand1, il.DivUnsigned(REGSZ_O(operand2), ILREG_O(operand2), ILREG_O(operand3))));
 		break;
+	case ARM64_UMAX:
+	{
+		ExprId op2 = ILREG_O(operand2);
+		ExprId op3;
+
+		switch (instr.encoding)
+		{
+		case ENC_UMAX_32U_MINMAX_IMM:
+		case ENC_UMAX_64U_MINMAX_IMM:
+			op3 = il.Const(REGSZ_O(operand2), operand3.immediate);
+			break;
+		case ENC_UMAX_32_DP_2SRC:
+		case ENC_UMAX_64_DP_2SRC:
+			op3 = ILREG_O(operand3);
+			break;
+		default:
+			il.AddInstruction(il.Unimplemented());
+			return true;
+		}
+
+		GenIfElse(il, il.CompareUnsignedGreaterThan(REGSZ_O(operand2), op2, op3), ILSETREG_O(operand1, op2),
+			ILSETREG_O(operand1, op3));
+		break;
+	}
+	case ARM64_UMIN:
+	{
+		ExprId op2 = ILREG_O(operand2);
+		ExprId op3;
+
+		switch (instr.encoding)
+		{
+		case ENC_UMIN_32U_MINMAX_IMM:
+		case ENC_UMIN_64U_MINMAX_IMM:
+			op3 = il.Const(REGSZ_O(operand2), operand3.immediate);
+			break;
+		case ENC_UMIN_32_DP_2SRC:
+		case ENC_UMIN_64_DP_2SRC:
+			op3 = ILREG_O(operand3);
+			break;
+		default:
+			il.AddInstruction(il.Unimplemented());
+			return true;
+		}
+
+		GenIfElse(il, il.CompareUnsignedLessThan(REGSZ_O(operand2), op2, op3), ILSETREG_O(operand1, op2),
+			ILSETREG_O(operand1, op3));
+		break;
+	}
 	case ARM64_UBFIZ:
 		il.AddInstruction(
 		    ILSETREG_O(operand1, il.ZeroExtend(REGSZ_O(operand1),

@@ -996,6 +996,10 @@ class Arm64Architecture : public Architecture
 			return "_eret";
 		case ARM64_INTRIN_CLZ:
 			return "_CountLeadingZeros";
+		case ARM64_INTRIN_CNT:
+			return "_PopulationCount";
+		case ARM64_INTRIN_CTZ:
+			return "_CountTrailingZeros";
 		case ARM64_INTRIN_CLREX:
 			return "__clrex";
 		case ARM64_INTRIN_REV:
@@ -1086,6 +1090,8 @@ class Arm64Architecture : public Architecture
 			};
 			break;
 		case ARM64_INTRIN_CLZ:        // reads <Xn>
+		case ARM64_INTRIN_CNT:        // reads <Xn>
+		case ARM64_INTRIN_CTZ:        // reads <Xn>
 		case ARM64_INTRIN_PRFM:
 		case ARM64_INTRIN_REV:   // reads <Xn>
 		case ARM64_INTRIN_RBIT:  // reads <Xn>
@@ -1149,6 +1155,8 @@ class Arm64Architecture : public Architecture
 		case ARM64_INTRIN_XPACD:      // writes <Xd>
 		case ARM64_INTRIN_XPACI:      // writes <Xd>
 		case ARM64_INTRIN_CLZ:        // writes <Xd>
+		case ARM64_INTRIN_CNT:        // writes <Xd>
+		case ARM64_INTRIN_CTZ:        // writes <Xd>
 		case ARM64_INTRIN_REV:        // writes <Xd>
 		case ARM64_INTRIN_RBIT:       // writes <Xd>
 			return {Type::IntegerType(8, false)};
