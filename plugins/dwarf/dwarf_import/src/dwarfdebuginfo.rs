@@ -107,6 +107,7 @@ pub(crate) struct DebugType {
     pub name: String,
     pub ty: Ref<Type>,
     pub commit: bool,
+    pub target_type_uid: Option<TypeUID>,
 }
 
 impl DebugType {
@@ -363,17 +364,26 @@ impl DebugInfoBuilder {
         self.types.values()
     }
 
-    pub(crate) fn add_type(&mut self, type_uid: TypeUID, name: String, t: Ref<Type>, commit: bool) {
+    pub(crate) fn add_type(
+        &mut self,
+        type_uid: TypeUID,
+        name: String,
+        t: Ref<Type>,
+        commit: bool,
+        target_type_uid: Option<TypeUID>,
+    ) {
         if let Some(DebugType {
             name: existing_name,
             ty: existing_type,
             commit: _,
+            target_type_uid: _,
         }) = self.types.insert(
             type_uid,
             DebugType {
                 name: name.clone(),
                 ty: t.clone(),
                 commit,
+                target_type_uid,
             },
         ) {
             if existing_type != t && commit {
@@ -608,7 +618,28 @@ impl DebugInfoBuilder {
             };
 
             // TODO : Components
-            debug_info.add_type(&debug_type_name, &debug_type.ty, &[]);
+            // If it's a typedef resolve one layer down since we'd technically be defining it as a typedef to itself otherwise
+            if let Some(ntr) = debug_type.get_type().get_named_type_reference() {
+                if let Some(target_uid) = debug_type.target_type_uid {
+                    if let Some(target_type) = self.get_type(target_uid) {
+                        debug_info.add_type(&debug_type_name, &target_type.get_type(), &[]);
+                    } else {
+                        error!(
+                            "Failed to find typedef {} target for uid {}",
+                            debug_type_name,
+                            ntr.name()
+                        );
+                    }
+                } else {
+                    error!(
+                        "Failed to find typedef {} target uid for {}",
+                        debug_type_name,
+                        ntr.name()
+                    );
+                }
+            } else {
+                debug_info.add_type(&debug_type_name, &debug_type.ty, &[]);
+            }
             type_uids_by_name.insert(debug_type_name, *debug_type_uid);
         }
     }

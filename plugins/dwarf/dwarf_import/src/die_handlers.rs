@@ -173,7 +173,8 @@ pub(crate) fn handle_typedef(
     // This will fail in the case where we have a typedef to a type that doesn't exist (failed to parse, incomplete, etc)
     if let Some(entry_type_offset) = entry_type {
         if let Some(t) = debug_info_builder.get_type(entry_type_offset) {
-            return (Some(t.get_type()), typedef_name != t.name);
+            let typedef_type = Type::named_type_from_type(typedef_name, &t.get_type());
+            return (Some(typedef_type), typedef_name != t.name);
         }
     }
 
@@ -204,16 +205,22 @@ pub(crate) fn handle_pointer<R: ReaderType>(
     };
 
     let target_type = match entry_type {
-        Some(entry_type_offset) => debug_info_builder
-            .get_type(entry_type_offset)
-            .or_else(|| {
-                log::error!(
-                    "Failed to get pointer target type at entry offset {}",
-                    entry_type_offset
-                );
-                None
-            })?
-            .get_type(),
+        Some(entry_type_offset) => {
+            let debug_target_type =
+                debug_info_builder.get_type(entry_type_offset).or_else(|| {
+                    log::error!(
+                        "Failed to get pointer target type at entry offset {}",
+                        entry_type_offset
+                    );
+                    None
+                })?;
+
+            if let Some(ntr) = debug_target_type.get_type().get_named_type_reference() {
+                Type::named_type_from_type(ntr.name(), &debug_target_type.get_type())
+            } else {
+                debug_target_type.get_type()
+            }
+        }
         None => Type::void(),
     };
 
@@ -335,7 +342,7 @@ pub(crate) fn handle_function<R: ReaderType>(
         .unwrap_or("_unnamed_func".to_string());
     let ntr =
         Type::named_type_from_type(&name, &Type::function(return_type.as_ref(), vec![], false));
-    debug_info_builder.add_type(get_uid(dwarf, unit, entry), name, ntr, false);
+    debug_info_builder.add_type(get_uid(dwarf, unit, entry), name, ntr, false, None);
 
     let mut parameters: Vec<FunctionParameter> = vec![];
     let mut variable_arguments = false;
@@ -376,21 +383,31 @@ pub(crate) fn handle_function<R: ReaderType>(
             };
             let name = debug_info_builder_context.get_name(dwarf, unit, child.entry());
 
-            let child_type = debug_info_builder
-                .get_type(child_uid)
-                .or_else(|| {
-                    log::error!(
-                        "Failed to get function parameter type with uid {}",
-                        child_uid
-                    );
-                    None
-                })?
-                .get_type();
-            parameters.push(FunctionParameter::new(
-                child_type,
-                name.unwrap_or_default(),
-                None,
-            ));
+            let child_debug_type = debug_info_builder.get_type(child_uid).or_else(|| {
+                log::error!(
+                    "Failed to get function parameter type with uid {}",
+                    child_uid
+                );
+                None
+            })?;
+            let child_type = child_debug_type.get_type();
+
+            // If this is a typedef, make sure we reference it instead of resolving to the underlying type
+            if let Some(ntr) = child_type.get_named_type_reference() {
+                let typedef_type = Type::named_type_from_type(ntr.name(), &child_type);
+
+                parameters.push(FunctionParameter::new(
+                    typedef_type,
+                    name.unwrap_or_default(),
+                    None,
+                ));
+            } else {
+                parameters.push(FunctionParameter::new(
+                    child_type,
+                    name.unwrap_or_default(),
+                    None,
+                ));
+            }
         } else if child.entry().tag() == constants::DW_TAG_unspecified_parameters {
             variable_arguments = true;
         }

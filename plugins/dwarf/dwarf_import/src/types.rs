@@ -162,6 +162,7 @@ fn do_structure_parse<R: ReaderType>(
             full_name.to_owned(),
             ntr,
             false,
+            None,
         );
     } else {
         // We _need_ to have initial typedefs or else we can enter infinite parsing loops
@@ -170,7 +171,7 @@ fn do_structure_parse<R: ReaderType>(
         let full_name = format!("anonymous_structure_{:x}", get_uid(dwarf, unit, entry));
         let ntr =
             Type::named_type_from_type(&full_name, &Type::structure(&structure_builder.finalize()));
-        debug_info_builder.add_type(get_uid(dwarf, unit, entry), full_name, ntr, false);
+        debug_info_builder.add_type(get_uid(dwarf, unit, entry), full_name, ntr, false, None);
     }
 
     // Get all the children and base classes to populate
@@ -248,6 +249,7 @@ fn do_structure_parse<R: ReaderType>(
                 } else if let Ok(Some(raw_struct_offset_bits)) =
                     child_entry.attr(constants::DW_AT_data_bit_offset)
                 {
+                    //TODO: support misaligned offsets when bitwise data structures get in
                     let Some(struct_offset_bits) = get_attr_as_u64(&raw_struct_offset_bits)
                         .or_else(|| get_expr_value(unit, raw_struct_offset_bits))
                     else {
@@ -314,12 +316,14 @@ fn do_structure_parse<R: ReaderType>(
 
     structure_builder.base_structures(&base_structures);
     let finalized_structure = Type::structure(&structure_builder.finalize());
+
     if let Some(full_name) = full_name {
         debug_info_builder.add_type(
             get_uid(dwarf, unit, entry) + 1, // TODO : This is super broke (uid + 1 is not guaranteed to be unique)
             full_name,
             finalized_structure,
             true,
+            None,
         );
     } else {
         debug_info_builder.add_type(
@@ -327,6 +331,7 @@ fn do_structure_parse<R: ReaderType>(
             finalized_structure.to_string(),
             finalized_structure,
             false, // Don't commit anonymous unions (because I think it'll break things)
+            None,
         );
     }
     Some(get_uid(dwarf, unit, entry))
@@ -586,7 +591,7 @@ pub(crate) fn get_type<R: ReaderType>(
             type_def.to_string()
         });
 
-        debug_info_builder.add_type(entry_uid, name, type_def, commit);
+        debug_info_builder.add_type(entry_uid, name, type_def, commit, entry_type);
         Some(entry_uid)
     } else {
         None
