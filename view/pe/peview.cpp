@@ -842,9 +842,10 @@ bool PEView::Init()
 				"\tsection.pointerToLineNumbers: %lx\n"
 				"\tsection.relocCount:           %hx\n"
 				"\tsection.lineNumberCount:      %hx\n"
-				"\tsection.characteristics:      %lx\n"
-				"\tsection.virtualSize:          %lx\n",
-				i, section.name.c_str(),
+				"\tsection.characteristics:      %lx\n",
+				i,
+				section.name.c_str(),
+				section.virtualSize,
 				section.virtualAddress,
 				section.sizeOfRawData,
 				section.pointerToRawData,
