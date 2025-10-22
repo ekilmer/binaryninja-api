@@ -3,13 +3,13 @@
 #include <QtWidgets/QLineEdit>
 #include "uitypes.h"
 
-class ClickableLabel;
+class ClickableIcon;
 
 class BINARYNINJAUIAPI PasswordEdit: public QLineEdit
 {
 	Q_OBJECT
 
-	ClickableLabel* m_toggleLabel;
+	ClickableIcon* m_toggleIcon;
 	void updateToggleIcon();
 
 public:
