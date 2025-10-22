@@ -39,18 +39,18 @@ namespace {
 
 FixupInfo BindFixup(uint32_t ordinal, int32_t addend, uint16_t next)
 {
-	return { .bind = { ordinal, addend }, .type = FixupType::Bind, .next = next };
+	return FixupInfo{ .bind = { ordinal, addend }, .type = FixupType::Bind, .next = next };
 }
 
 FixupInfo RebaseFixup(uint64_t target, uint16_t next)
 {
-	return { .rebase = { target }, .type = FixupType::Rebase, .next = next };
+	return FixupInfo{ .rebase = { target }, .type = FixupType::Rebase, .next = next };
 }
 
 FixupInfo AuthBindFixup(uint32_t ordinal,
 	AuthKeyType keyType, bool usesAddressDiversity, uint16_t addressDiversity, uint16_t next)
 {
-	return {
+	return FixupInfo{
 		.bind = { ordinal, 0 }, .type = FixupType::Bind, .isAuthenticated = true,
 		.authKeyType = keyType, .usesAddressDiversity = usesAddressDiversity,
 		.addressDiversity = addressDiversity, .next = next
@@ -60,7 +60,7 @@ FixupInfo AuthBindFixup(uint32_t ordinal,
 FixupInfo AuthRebaseFixup(uint64_t target,
 	AuthKeyType keyType, bool usesAddressDiversity, uint16_t addressDiversity, uint16_t next)
 {
-	return {
+	return FixupInfo{
 		.rebase = { target }, .type = FixupType::Rebase, .isAuthenticated = true,
 		.authKeyType = keyType, .usesAddressDiversity = usesAddressDiversity,
 		.addressDiversity = addressDiversity, .next = next
