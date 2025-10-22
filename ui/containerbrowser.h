@@ -95,6 +95,8 @@ class BINARYNINJAUIAPI ContainerBrowser : public QDialog
 	void connectSignals();
 	void updatePreviewForIndex(const QModelIndex& proxyIndex);
 	bool requiresPassword(TransformContextRef context);
+	bool requiresExtraction(TransformContextRef context);
+	void extractItem(TransformContextRef context);
 	void promptForPassword(TransformContextRef context, bool tryCachedPassword = false);
 	void showContextMenu(const QPoint& position);
 	static QString toHexDump(const QByteArray& data, int bytesPerLine = 16);

@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 138
+#define BN_CURRENT_CORE_ABI_VERSION 139
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 138
+#define BN_MINIMUM_CORE_ABI_VERSION 139
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -370,9 +370,9 @@ extern "C"
 
 	typedef enum BNTransformSessionMode
 	{
-		TransformSessionModeDisabled = 0, // Open the root file as-is (no unwrapping)
-		TransformSessionModeFull = 1,     // Discover all paths (build the full context tree)
-		TransformSessionModeOnDemand = 2, // Proceed step-by-step, requesting input at each stage
+		TransformSessionModeDisabled = 0,   // Open the root file as-is (no unwrapping)
+		TransformSessionModeFull = 1,       // Discover all paths (build the full context tree)
+		TransformSessionModeInteractive = 2 // Interactively request selection at each level of the container hierarchy
 	} BNTransformSessionMode;
 
 	typedef enum BNTransformResult
@@ -4780,11 +4780,6 @@ extern "C"
 	BINARYNINJACOREAPI bool BNTransformSessionHasSinglePath(BNTransformSession* session);
 	BINARYNINJACOREAPI BNTransformContext** BNTransformSessionGetSelectedContexts(BNTransformSession* session, size_t* count);
 	BINARYNINJACOREAPI void BNTransformSessionSetSelectedContexts(BNTransformSession* session, BNTransformContext** contexts, size_t count);
-	BINARYNINJACOREAPI bool BNTransformSessionRequiresUserInput(BNTransformSession* session);
-	BINARYNINJACOREAPI bool BNTransformSessionHasMultipleFileChoices(BNTransformSession* session);
-	BINARYNINJACOREAPI char** BNTransformSessionGetAvailableFileChoices(BNTransformSession* session, size_t* count);
-	BINARYNINJACOREAPI bool BNTransformSessionSelectFiles(BNTransformSession* session, const char** files, size_t count);
-	BINARYNINJACOREAPI bool BNTransformSessionProcessWithUserInput(BNTransformSession* session);
 
 	// Architectures
 	BINARYNINJACOREAPI BNArchitecture* BNGetArchitectureByName(const char* name);

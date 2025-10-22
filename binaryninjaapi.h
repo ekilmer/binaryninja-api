@@ -9190,13 +9190,6 @@ namespace BinaryNinja {
 
 		std::vector<Ref<TransformContext>> GetSelectedContexts() const;
 		void SetSelectedContexts(const std::vector<Ref<TransformContext>>& contexts);
-
-		// UI interaction support
-		bool RequiresUserInput() const;
-		bool HasMultipleFileChoices() const;
-		std::vector<std::string> GetAvailableFileChoices() const;
-		bool SelectFiles(const std::vector<std::string>& selectedFiles);
-		bool ProcessWithUserInput();
 	};
 
 
@@ -10071,7 +10064,7 @@ namespace BinaryNinja {
 		{
 			return !(*this == var);
 		}
-		
+
 		bool operator<(const Variable& var) const
 		{
 			if (type != var.type)
