@@ -71,15 +71,13 @@ Because Linux installation locations can vary widely, we do not assume that Bina
 
 ## Loading Files
 
-![open with options ><](../img/open-with-options.png "Open with Options"){ width="600" }
-
 You can load files in many ways:
 
 1. Drag-and-drop a file onto the Binary Ninja window (hold `[CMD/CTRL-SHIFT]` while dropping to use the `Open with Options` workflow)
 2. Use the `File/Open` menu or `Open` button on the start screen (`[CMD/CTRL] o`)
 3. Use the `File/Open with Options` menu which allows you to customize the analysis options (`[CMD/CTRL-SHIFT] o`)
 4. Open a file from the Triage picker (`File/Open for Triage`) which enables several minimal analysis options and shows a summary view first
-5. Click an item in the recent files list (hold `[CMD/CTRL-SHIFT]` while clicking to use the `Open with Options` workflow)
+5. Click an item in the recent files list (hold `[CMD/CTRL-SHIFT]` while clicking to use the `Open with Options` workflow, or use the right-click menu)
 6. Press the number key associated with an item from the recent files list (0-9, where 0 represents file 10 on the recent list, optionally holding `[CMD/CTRL-SHIFT]` to use the `Open with Options` workflow)
 7. Run Binary Ninja with an optional command-line parameter
 8. Open a file from a URL via the `[CMD/CTRL] l` hotkey
@@ -90,6 +88,14 @@ You can load files in many ways:
         * `binaryninja:///bin/ls?expr=.text+6b` - open the given file and navigate to the hexadecimal offset `6b` from the `.text` section.
     * URLs For referencing remote files either the URL should be prefixed with `binaryninja:` and optionally suffixed with the `expr` query parameter
         * `binaryninja:file://<remote_path>?expr=[.data + 400]` - Download the remote file and navigate to the address at `.data` plus `0x400`
+
+### Opening With Options
+
+![open with options ><](../img/open-with-options.png "Open with Options"){ width="600" }
+
+While Binary Ninja defaults to opening most files with sane defaults without prompting, there are many situations where you wish to specify more details. Additionally, if you are attempting to load a file format without a loader, you will also be presented with the same dialog to specify information such as the base load address and default architecture.
+
+Items 1, 3, 5, 6 in the above list all describe methods you can use to override the default settings and request an "Open with Options" dialog.
 
 ## Saving Files
 
