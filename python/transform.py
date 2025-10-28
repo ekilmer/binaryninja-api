@@ -37,11 +37,14 @@ class _TransformMetaClass(type):
 		count = ctypes.c_ulonglong()
 		xforms = core.BNGetTransformTypeList(count)
 		assert xforms is not None, "core.BNGetTransformTypeList returned None"
-		try:
-			for i in range(0, count.value):
-				yield Transform(xforms[i])
-		finally:
-			core.BNFreeTransformTypeList(xforms)
+		result = []
+		for i in range(0, count.value):
+			ptr_addr = ctypes.cast(xforms[i], ctypes.c_void_p).value
+			handle = ctypes.cast(ptr_addr, type(xforms[i]))
+			result.append(Transform(handle))
+		core.BNFreeTransformTypeList(xforms)
+		for xform in result:
+			yield xform
 
 	def __getitem__(cls, name):
 		binaryninja._init_plugins()
