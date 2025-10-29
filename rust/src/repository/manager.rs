@@ -11,21 +11,16 @@ use std::ptr::NonNull;
 
 /// Keeps track of all the repositories and keeps the `enabled_plugins.json`
 /// file coherent with the plugins that are installed/uninstalled enabled/disabled
-pub struct RepositoryManager {
-}
+pub struct RepositoryManager;
 
 impl RepositoryManager {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     /// Check for updates for all managed [`Repository`] objects
-    pub fn check_for_updates(&self) -> bool {
+    pub fn check_for_updates() -> bool {
         unsafe { BNRepositoryManagerCheckForUpdates() }
     }
 
     /// List of [`Repository`] objects being managed
-    pub fn repositories(&self) -> Array<Repository> {
+    pub fn repositories() -> Array<Repository> {
         let mut count = 0;
         let result =
             unsafe { BNRepositoryManagerGetRepositories(&mut count) };
@@ -44,7 +39,7 @@ impl RepositoryManager {
     /// * `repository_path` - path to where the repository will be stored on disk locally
     ///
     /// Returns true if the repository was successfully added, false otherwise.
-    pub fn add_repository(&self, url: &str, repository_path: &Path) -> bool {
+    pub fn add_repository(url: &str, repository_path: &Path) -> bool {
         let url = url.to_cstr();
         let repo_path = repository_path.to_cstr();
         unsafe {
@@ -52,7 +47,7 @@ impl RepositoryManager {
         }
     }
 
-    pub fn repository_by_path(&self, path: &Path) -> Option<Repository> {
+    pub fn repository_by_path(path: &Path) -> Option<Repository> {
         let path = path.to_cstr();
         let result =
             unsafe { BNRepositoryGetRepositoryByPath(path.as_ptr()) };
@@ -60,7 +55,7 @@ impl RepositoryManager {
     }
 
     /// Gets the default [`Repository`]
-    pub fn default_repository(&self) -> Ref<Repository> {
+    pub fn default_repository() -> Ref<Repository> {
         let result = unsafe { BNRepositoryManagerGetDefaultRepository() };
         assert!(!result.is_null());
         unsafe { Repository::ref_from_raw(NonNull::new(result).unwrap()) }
@@ -70,7 +65,7 @@ impl RepositoryManager {
 impl Debug for RepositoryManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RepositoryManager")
-            .field("repositories", &self.repositories().to_vec())
+            .field("repositories", &RepositoryManager::repositories().to_vec())
             .finish()
     }
 }
