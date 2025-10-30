@@ -50,15 +50,17 @@ The previous tools are used in the generation of our documentation, but are not 
     - [capstone] ([capstone license] - 3-clause BSD) used in the [PPC architecture module] as an example of how to wrap an external disassembler
     - [flatbuffer] ([flatbuffer license] - Apache License 2.0) used in the binary format for the function fingerprint libraries
     - [deprecation] ([deprecation license] - Apache License 2.0) used in the Python API for marking deprecated functions/properties/classes
+    - [GraalVM CE] ([GraalVM CE license] - GPLv2 with the "Classpath" Exception) used in building the Ghidra DB FFI for the Ghidra Import plugin
 
 ## Rust Licenses
 
-Due to its different document generation system, all our rust dependencies and their licenses are collected in: 
+Due to its different document generation system, all our rust dependencies and their licenses are collected in:
 
 * [Binary Ninja Core Rust Licenses](./rust-binaryninjacore.html)
 * [Binary Ninja API Rust Licenses](./rust-binaryninja-api.html)
 * [Tricore Rust Licenses](./rust-tricore.html)
 * [C-SKY Rust Licenses](./rust-csky.html)
+* [Ghidra Import Rust Licenses](./rust-ghidra-import.html)
 
 ## First Party Open Source
 
@@ -72,6 +74,7 @@ Due to its different document generation system, all our rust dependencies and t
     - [DWARF Export] - ([dwarf export license] - MIT)
     - [IDB Import] - ([idb import license] - MIT)
     - [SCC] - ([scc license] - MIT)
+    - [Ghidra DB FFI] - ([Ghidra DB FFI license] - Apache License 2.0)
 
 ## Building Qt
 
@@ -187,3 +190,7 @@ Please note that we offer no support for running Binary Ninja with modified Qt l
 [scc license]: https://github.com/Vector35/scc/blob/master/LICENSE.txt
 [openssl]: https://github.com/openssl/openssl
 [openssl license]: https://github.com/openssl/openssl/blob/master/LICENSE.txt
+[Ghidra DB FFI]: https://github.com/Vector35/ghidra-db-ffi
+[Ghidra DB FFI license]: https://github.com/Vector35/ghidra-db-ffi/blob/main/LICENSE
+[GraalVM CE]: https://github.com/oracle/graal/
+[GraalVM CE license]: https://github.com/oracle/graal/blob/master/LICENSE
