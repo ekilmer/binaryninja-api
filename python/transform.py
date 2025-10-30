@@ -842,7 +842,7 @@ class ZipPython(Transform):
 			log_error("ZipPython: failed to read from BinaryView for signature check")
 			return False
 
-	def perform_decode(self, data: bytes, params: dict) -> bytes | None:
+	def perform_decode(self, data: bytes, params: dict) -> Optional[bytes]:
 		try:
 			zf = zipfile.ZipFile(io.BytesIO(data), "r")
 		except Exception:
