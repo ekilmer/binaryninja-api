@@ -867,13 +867,6 @@ class ZipPython(Transform):
 		return None
 
 	def perform_decode_with_context(self, context, params) -> bool:
-		"""
-		``perform_decode_with_context`` implements context-aware ZIP extraction.
-		Two-phase flow:
-		- Phase 1 (discovery): populate available_files, return False.
-		- Phase 2 (extraction): for each requested file, create a child context and return
-			True if all succeeded, False otherwise.
-		"""
 		try:
 			zf = zipfile.ZipFile(io.BytesIO(context.input.read(0, context.input.length)), "r")
 		except Exception:
