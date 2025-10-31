@@ -6350,7 +6350,8 @@ class MediumLevelILFunction:
 		if expr_type is not None:
 			if isinstance(expr_type, str):
 				(expr_type, _) = self.view.parse_type_string(expr_type)
-			tc = expr_type._to_core_struct()
+			ic = expr_type.immutable_copy()
+			tc = ic._to_core_struct()
 		else:
 			tc = core.BNTypeWithConfidence()
 			tc.type = None

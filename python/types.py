@@ -435,9 +435,10 @@ class FunctionParameter:
 	location: Optional['variable.VariableNameAndType'] = None
 
 	def __repr__(self):
+		ic = self.type.immutable_copy()
 		if (self.location is not None) and (self.location.name != self.name):
-			return f"{self.type.immutable_copy().get_string_before_name()} {self.name}{self.type.immutable_copy().get_string_after_name()} @ {self.location.name}"
-		return f"{self.type.immutable_copy().get_string_before_name()} {self.name}{self.type.immutable_copy().get_string_after_name()}"
+			return f"{ic.get_string_before_name()} {self.name}{ic.get_string_after_name()} @ {self.location.name}"
+		return f"{ic.get_string_before_name()} {self.name}{ic.get_string_after_name()}"
 
 	def immutable_copy(self) -> 'FunctionParameter':
 		return FunctionParameter(self.type.immutable_copy(), self.name, self.location)
@@ -635,18 +636,8 @@ class TypeBuilder:
 	def __str__(self):
 		return str(self.immutable_copy())
 
-	@property
-	def handle(self) -> core.BNTypeHandle:
-		return self.immutable_copy().handle
-
 	def __hash__(self):
-		return hash(ctypes.addressof(self.handle.contents))
-
-	def _to_core_struct(self) -> core.BNTypeWithConfidence:
-		type_conf = core.BNTypeWithConfidence()
-		type_conf.type = self.handle
-		type_conf.confidence = self.confidence
-		return type_conf
+		return hash(ctypes.addressof(self._handle.contents))
 
 	def immutable_copy(self):
 		Types = {
@@ -865,7 +856,8 @@ class TypeBuilder:
 
 	@child.setter
 	def child(self, value: SomeType) -> None:
-		core.BNTypeBuilderSetChildType(self._handle, value.immutable_copy()._to_core_struct())
+		ic = value.immutable_copy()
+		core.BNTypeBuilderSetChildType(self._handle, ic._to_core_struct())
 
 	@property
 	def alternate_name(self) -> Optional[str]:
@@ -1011,7 +1003,8 @@ class PointerBuilder(TypeBuilder):
 
 		_const = BoolWithConfidence.get_core_struct(const)
 		_volatile = BoolWithConfidence.get_core_struct(volatile)
-		handle = core.BNCreatePointerTypeBuilderOfWidth(_width, type._to_core_struct(), _const, _volatile, ref_type)
+		ic = type.immutable_copy()
+		handle = core.BNCreatePointerTypeBuilderOfWidth(_width, ic._to_core_struct(), _const, _volatile, ref_type)
 		assert handle is not None, "BNCreatePointerTypeBuilderOfWidth returned None"
 		return cls(handle, platform, confidence)
 
@@ -1132,7 +1125,8 @@ class ArrayBuilder(TypeBuilder):
 	    cls, type: SomeType, element_count: int, platform: Optional['_platform.Platform'] = None,
 	    confidence: int = core.max_confidence
 	) -> 'ArrayBuilder':
-		handle = core.BNCreateArrayTypeBuilder(type._to_core_struct(), element_count)
+		ic = type.immutable_copy()
+		handle = core.BNCreateArrayTypeBuilder(ic._to_core_struct(), element_count)
 		assert handle is not None, "BNCreateArrayTypeBuilder returned None"
 		return cls(handle, platform, confidence)
 
@@ -1160,11 +1154,11 @@ class FunctionBuilder(TypeBuilder):
 	    name_type: 'NameType' = NameType.NoNameType,
 	    pure: Optional[BoolWithConfidence] = None
 	) -> 'FunctionBuilder':
-		param_buf = FunctionBuilder._to_core_struct(params)
+		param_buf, type_list = FunctionBuilder._to_core_struct(params)
 		if return_type is None:
-			ret_conf = Type.void()._to_core_struct()
+			ret_conf = Type.void()
 		else:
-			ret_conf = return_type._to_core_struct()
+			ret_conf = return_type.immutable_copy()
 
 		conv_conf = core.BNCallingConventionWithConfidence()
 		if calling_convention is None:
@@ -1218,7 +1212,7 @@ class FunctionBuilder(TypeBuilder):
 		if params is None:
 			params = []
 		handle = core.BNCreateFunctionTypeBuilder(
-		    ret_conf, conv_conf, param_buf, len(params), vararg_conf, can_return_conf, stack_adjust_conf,
+		    ret_conf._to_core_struct(), conv_conf, param_buf, len(params), vararg_conf, can_return_conf, stack_adjust_conf,
 		    reg_stack_adjust_regs, reg_stack_adjust_values, len(reg_stack_adjust),
 		    return_regs_set, name_type, pure_conf
 		)
@@ -1315,10 +1309,18 @@ class FunctionBuilder(TypeBuilder):
 	def _to_core_struct(params: Optional[ParamsType] = None):
 		if params is None:
 			params = []
+
+		# type_list is very important as we need to keep a reference to the intermediate type
+		# objects as we're getting their handles if they go out of scope while we're holding
+		# their handles we get a UAF. This is only necessary as we're inside a helper that
+		# has to deal with raw type objects
+		type_list = []
 		param_buf = (core.BNFunctionParameter * len(params))()
 		for i, param in enumerate(params):
 			core_param = param_buf[i]
 			if isinstance(param, (Type, TypeBuilder)):
+				param = param.immutable_copy()
+				type_list.append(param)
 				assert param.handle is not None, "Attempting to construct function parameter without properly constructed type"
 				core_param.name = ""
 				core_param.type = param.handle
@@ -1326,9 +1328,11 @@ class FunctionBuilder(TypeBuilder):
 				core_param.defaultLocation = True
 			elif isinstance(param, FunctionParameter):
 				assert param.type is not None, "Attempting to construct function parameter without properly constructed type"
+				param_type = param.type.immutable_copy()
+				type_list.append(param_type)
 				core_param.name = param.name
-				core_param.type = param.type.handle
-				core_param.typeConfidence = param.type.confidence
+				core_param.type = param_type.handle
+				core_param.typeConfidence = param_type.confidence
 				if param.location is None:
 					core_param.defaultLocation = True
 				else:
@@ -1340,17 +1344,20 @@ class FunctionBuilder(TypeBuilder):
 				name, _type = param
 				if not isinstance(name, str) or not isinstance(_type, (Type, TypeBuilder)):
 					raise ValueError(f"Conversion from unsupported function parameter type {type(param)}")
+				_type = _type.immutable_copy()
+				type_list.append(_type)
 				core_param.name = name
 				core_param.type = _type.handle
 				core_param.typeConfidence = _type.confidence
 				core_param.defaultLocation = True
 			else:
 				raise ValueError(f"Conversion from unsupported function parameter type {type(param)}")
-		return param_buf
+		return param_buf, type_list
 
 	@parameters.setter
 	def parameters(self, params: List[FunctionParameter]) -> None:
-		core.BNSetFunctionTypeBuilderParameters(self._handle, FunctionBuilder._to_core_struct(params), len(params))
+		ic, type_list = FunctionBuilder._to_core_struct(params)
+		core.BNSetFunctionTypeBuilderParameters(self._handle, ic, len(params))
 
 	@property
 	def children(self) -> List[TypeBuilder]:
@@ -1471,17 +1478,20 @@ class StructureBuilder(TypeBuilder):
 		for member in members:
 			if isinstance(member, Tuple):
 				_type, _name = member
+				ic = _type.immutable_copy()
 				core.BNAddStructureBuilderMember(
-				    structure_builder_handle, _type._to_core_struct(), _name, MemberAccess.NoAccess, MemberScope.NoScope
+				    structure_builder_handle, ic._to_core_struct(), _name, MemberAccess.NoAccess, MemberScope.NoScope
 				)
 			elif isinstance(member, StructureMember):
+				ic = member.type.immutable_copy()
 				core.BNAddStructureBuilderMemberAtOffset(
-				    structure_builder_handle, member.type._to_core_struct(), member.name, member.offset, False,
+				    structure_builder_handle, ic._to_core_struct(), member.name, member.offset, False,
 				    member.access, member.scope, member.bit_position, member.bit_width
 				)
 			elif isinstance(member, (TypeBuilder, Type)):
+				ic = member.immutable_copy()
 				core.BNAddStructureBuilderMember(
-				    structure_builder_handle, member._to_core_struct(), "", MemberAccess.NoAccess, MemberScope.NoScope
+				    structure_builder_handle, ic._to_core_struct(), "", MemberAccess.NoAccess, MemberScope.NoScope
 				)
 			else:
 				raise ValueError(f"Structure member type {member} not supported")
@@ -1644,8 +1654,9 @@ class StructureBuilder(TypeBuilder):
 		return None
 
 	def replace(self, index: int, type: SomeType, name: str = "", overwrite_existing: bool = True):
+		ic = type.immutable_copy()
 		core.BNReplaceStructureBuilderMember(
-		    self.builder_handle, index, type._to_core_struct(), name, overwrite_existing
+		    self.builder_handle, index, ic._to_core_struct(), name, overwrite_existing
 		)
 
 	def remove(self, index: int):
@@ -1655,8 +1666,9 @@ class StructureBuilder(TypeBuilder):
 	    self, offset: int, type: SomeType, name: str = "", overwrite_existing: bool = True,
 	    access: MemberAccess = MemberAccess.NoAccess, scope: MemberScope = MemberScope.NoScope, bit_position: int = 0, bit_width: int = 0
 	):
+		ic = type.immutable_copy()
 		core.BNAddStructureBuilderMemberAtOffset(
-		    self.builder_handle, type._to_core_struct(), name, offset, overwrite_existing, access, scope, bit_position,
+		    self.builder_handle, ic._to_core_struct(), name, offset, overwrite_existing, access, scope, bit_position,
 		    bit_width
 		)
 
@@ -1665,7 +1677,8 @@ class StructureBuilder(TypeBuilder):
 	    scope: MemberScope = MemberScope.NoScope
 	) -> 'StructureBuilder':
 		# appends a member at the end of the structure growing the structure
-		core.BNAddStructureBuilderMember(self.builder_handle, type._to_core_struct(), name, access, scope)
+		ic = type.immutable_copy()
+		core.BNAddStructureBuilderMember(self.builder_handle, ic._to_core_struct(), name, access, scope)
 		return self
 
 	def add_member_at_offset(
@@ -1673,8 +1686,9 @@ class StructureBuilder(TypeBuilder):
 	    access: MemberAccess = MemberAccess.NoAccess, scope: MemberScope = MemberScope.NoScope, bit_position: int = 0, bit_width: int = 0
 	) -> 'StructureBuilder':
 		# Adds structure member to the given offset optionally clearing any members within the range offset-offset+len(type)
+		ic = type.immutable_copy()
 		core.BNAddStructureBuilderMemberAtOffset(
-		    self.builder_handle, type._to_core_struct(), name, offset, overwrite_existing, access, scope, bit_position,
+		    self.builder_handle, ic._to_core_struct(), name, offset, overwrite_existing, access, scope, bit_position,
 		    bit_width
 		)
 		return self
@@ -3116,7 +3130,7 @@ class FunctionType(Type):
 			ret = VoidType.create()
 		if params is None:
 			params = []
-		param_buf = FunctionBuilder._to_core_struct(params)
+		param_buf, type_list = FunctionBuilder._to_core_struct(params)
 		ret_conf = ret._to_core_struct()
 		conv_conf = core.BNCallingConventionWithConfidence()
 		if calling_convention is None:

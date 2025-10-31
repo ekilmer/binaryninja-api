@@ -5432,8 +5432,8 @@ class BinaryView:
 
 		if isinstance(var_type, str):
 			(var_type, _) = self.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNDefineDataVariable(self.handle, addr, tc)
+		tc = var_type.immutable_copy()
+		core.BNDefineDataVariable(self.handle, addr, tc._to_core_struct())
 
 		if name is not None:
 			if isinstance(name, str):
@@ -5467,8 +5467,11 @@ class BinaryView:
 
 		if isinstance(var_type, str):
 			(var_type, _) = self.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNDefineUserDataVariable(self.handle, addr, tc)
+
+		# this var_type temporary is essential! It holds the reference to the immutable type
+		# until after BNDefineUserDataVariable takes the reference.
+		var_type = var_type.immutable_copy()
+		core.BNDefineUserDataVariable(self.handle, addr, var_type._to_core_struct())
 
 		if name is not None:
 			if isinstance(name, str):
@@ -8523,6 +8526,7 @@ class BinaryView:
 				default_name = new_name
 		assert default_name is not None, "default_name can only be None if named type is derived from string passed to type_obj"
 		name = _types.QualifiedName(default_name)._to_core_struct()
+		type_obj = type_obj.immutable_copy()
 		reg_name = core.BNDefineAnalysisType(self.handle, type_id, name, type_obj.handle)
 		result = _types.QualifiedName._from_core_struct(reg_name)
 		core.BNFreeQualifiedName(reg_name)
@@ -8553,6 +8557,7 @@ class BinaryView:
 		if name is None:
 			raise ValueError("name can only be None if named type is derived from string passed to type_obj")
 		_name = _types.QualifiedName(name)._to_core_struct()
+		type_obj = type_obj.immutable_copy()
 		core.BNDefineUserAnalysisType(self.handle, _name, type_obj.handle)
 
 	def define_types(self, types: List[Tuple[str, Optional['_types.QualifiedNameType'], StringOrType]], progress_func: Optional[ProgressFuncType]) -> Mapping[str, '_types.QualifiedName']:
@@ -8831,7 +8836,8 @@ class BinaryView:
 			(type_obj, new_name) = self.parse_type_string(type_obj)
 			if name is None:
 				_name = new_name
-		if not isinstance(type_obj, (_types.Type, _types.TypeBuilder)):
+		type_obj = type_obj.immutable_copy()
+		if not isinstance(type_obj, _types.Type):
 			raise TypeError("type_obj must be a Type object")
 		if _name is None:
 			raise ValueError("name can only be None if named type is derived from string passed to type_obj")
@@ -8865,7 +8871,8 @@ class BinaryView:
 			(type_obj, new_name) = self.parse_type_string(type_obj)
 			if name is None:
 				_name = new_name
-		if not isinstance(type_obj, (_types.Type, _types.TypeBuilder)):
+		type_obj = type_obj.immutable_copy()
+		if not isinstance(type_obj, _types.Type):
 			raise TypeError("type_obj must be a Type object")
 		if _name is None:
 			raise ValueError("name can only be None if named type is derived from string passed to type_obj")

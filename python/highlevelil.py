@@ -4816,8 +4816,8 @@ class HighLevelILFunction:
 		"""
 		if isinstance(expr_type, str):
 			(expr_type, _) = self.view.parse_type_string(expr_type)
-		tc = expr_type._to_core_struct()
-		core.BNSetHighLevelILExprType(self.handle, expr_index, tc)
+		ic = expr_type.immutable_copy()
+		core.BNSetHighLevelILExprType(self.handle, expr_index, ic._to_core_struct())
 
 
 class HighLevelILBasicBlock(basicblock.BasicBlock):

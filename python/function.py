@@ -1359,6 +1359,7 @@ class Function:
 			type_conf.type = value.handle
 			type_conf.confidence = core.max_confidence
 		else:
+			value = value.immutable_copy()
 			type_conf.type = value.handle
 			type_conf.confidence = value.confidence
 		core.BNSetUserFunctionReturnType(self.handle, type_conf)
@@ -2270,11 +2271,14 @@ class Function:
 	def apply_imported_types(self, sym: 'types.CoreSymbol', type: Optional[StringOrType] = None) -> None:
 		if isinstance(type, str):
 			(type, _) = self.view.parse_type_string(type)
+		if type is not None:
+			type = type.immutable_copy()
 		core.BNApplyImportedTypes(self.handle, sym.handle, None if type is None else type.handle)
 
 	def apply_auto_discovered_type(self, func_type: StringOrType) -> None:
 		if isinstance(func_type, str):
 			(func_type, _) = self.view.parse_type_string(func_type)
+		func_type = func_type.immutable_copy()
 		core.BNApplyAutoDiscoveredFunctionType(self.handle, func_type.handle)
 
 	def set_auto_indirect_branches(
@@ -2440,11 +2444,13 @@ class Function:
 	def set_auto_type(self, value: StringOrType) -> None:
 		if isinstance(value, str):
 			(value, _) = self.view.parse_type_string(value)
+		value = value.immutable_copy()
 		core.BNSetFunctionAutoType(self.handle, value.handle)
 
 	def set_user_type(self, value: StringOrType) -> None:
 		if isinstance(value, str):
 			(value, _) = self.view.parse_type_string(value)
+		value = value.immutable_copy()
 		core.BNSetFunctionUserType(self.handle, value.handle)
 
 	@property
@@ -2462,6 +2468,7 @@ class Function:
 			type_conf.type = value
 			type_conf.confidence = core.max_confidence
 		else:
+			value = value.immutable_copy()
 			type_conf.type = value.handle
 			type_conf.confidence = value.confidence
 		core.BNSetAutoFunctionReturnType(self.handle, type_conf)
@@ -2807,14 +2814,14 @@ class Function:
 	def create_auto_stack_var(self, offset: int, var_type: StringOrType, name: str) -> None:
 		if isinstance(var_type, str):
 			(var_type, _) = self.view.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNCreateAutoStackVariable(self.handle, offset, tc, name)
+		tc = var_type.immutable_copy()
+		core.BNCreateAutoStackVariable(self.handle, offset, tc._to_core_struct(), name)
 
 	def create_user_stack_var(self, offset: int, var_type: StringOrType, name: str) -> None:
 		if isinstance(var_type, str):
 			(var_type, _) = self.view.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNCreateUserStackVariable(self.handle, offset, tc, name)
+		tc = var_type.immutable_copy()
+		core.BNCreateUserStackVariable(self.handle, offset, tc._to_core_struct(), name)
 
 	def delete_auto_stack_var(self, offset: int) -> None:
 		core.BNDeleteAutoStackVariable(self.handle, offset)
@@ -2827,16 +2834,16 @@ class Function:
 	) -> None:
 		if isinstance(var_type, str):
 			(var_type, _) = self.view.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNCreateAutoVariable(self.handle, var.to_BNVariable(), tc, name, ignore_disjoint_uses)
+		tc = var_type.immutable_copy()
+		core.BNCreateAutoVariable(self.handle, var.to_BNVariable(), tc._to_core_struct(), name, ignore_disjoint_uses)
 
 	def create_user_var(
 	    self, var: 'variable.Variable', var_type: StringOrType, name: str, ignore_disjoint_uses: bool = False
 	) -> None:
 		if isinstance(var_type, str):
 			(var_type, _) = self.view.parse_type_string(var_type)
-		tc = var_type._to_core_struct()
-		core.BNCreateUserVariable(self.handle, var.to_BNVariable(), tc, name, ignore_disjoint_uses)
+		tc = var_type.immutable_copy()
+		core.BNCreateUserVariable(self.handle, var.to_BNVariable(), tc._to_core_struct(), name, ignore_disjoint_uses)
 
 	def delete_user_var(self, var: 'variable.Variable') -> None:
 		core.BNDeleteUserVariable(self.handle, var.to_BNVariable())
@@ -2955,6 +2962,7 @@ class Function:
 			else:
 				confidence = adjust_type.confidence
 			type_conf = core.BNTypeWithConfidence()
+			adjust_type = adjust_type.immutable_copy()
 			type_conf.type = adjust_type.handle
 			type_conf.confidence = confidence
 		else:
