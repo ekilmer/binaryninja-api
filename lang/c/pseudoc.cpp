@@ -423,7 +423,7 @@ PseudoCFunction::FieldDisplayType PseudoCFunction::GetFieldDisplayType(
 		return FieldDisplayOffset;
 	}
 	else if (deref || offset != 0)
-		return FieldDisplayMemberOffset;
+		return FieldDisplayOffset;
 	else
 		return FieldDisplayNone;
 }
@@ -545,11 +545,94 @@ void PseudoCFunction::AppendDefaultSplitExpr(const BinaryNinja::HighLevelILInstr
 }
 
 
-void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& var, uint64_t offset,
-	size_t memberIndex, size_t size, HighLevelILTokenEmitter& tokens, bool deref, bool displayDeref)
+void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& instr, HighLevelILTokenEmitter& tokens,
+	DisassemblySettings* settings, std::optional<bool> signedHint, bool addrOf)
 {
-	const auto type = GetFieldType(var, deref);
-	const auto fieldDisplayType = GetFieldDisplayType(type, offset, memberIndex, deref);
+	const auto srcExpr = instr.GetSourceExpr<HLIL_STRUCT_FIELD>();
+	const auto fieldOffset = instr.GetOffset<HLIL_STRUCT_FIELD>();
+	const auto memberIndex = instr.GetMemberIndex<HLIL_STRUCT_FIELD>();
+
+	const auto type = GetFieldType(srcExpr, false);
+	const auto fieldDisplayType = GetFieldDisplayType(type, fieldOffset, memberIndex, false);
+	if (fieldDisplayType == FieldDisplayOffset)
+	{
+		if (!addrOf)
+			tokens.Append(OperationToken, "*");
+		if (!settings || settings->IsOptionSet(ShowTypeCasts))
+		{
+			tokens.AppendOpenParen();
+			AppendSizeToken(!instr.size ? srcExpr.size : instr.size, signedHint.value_or(false), tokens);
+			tokens.Append(TextToken, "*");
+			tokens.AppendCloseParen();
+		}
+		tokens.AppendOpenParen();
+		if (!settings || settings->IsOptionSet(ShowTypeCasts))
+		{
+			tokens.AppendOpenParen();
+			tokens.Append(TypeNameToken, "char");
+			tokens.Append(TextToken, "*");
+			tokens.AppendCloseParen();
+		}
+		tokens.Append(OperationToken, "&");
+		GetExprTextInternal(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+
+		tokens.Append(OperationToken, " + ");
+		tokens.AppendIntegerTextToken(instr, fieldOffset, instr.size);
+		tokens.AppendCloseParen();
+
+		char offsetStr[64];
+		snprintf(offsetStr, sizeof(offsetStr), "0x%" PRIx64, fieldOffset);
+
+		vector<string> nameList {offsetStr};
+		HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(GetFunction()->GetView(), type, srcExpr, nameList);
+	}
+	else
+	{
+		BNOperatorPrecedence precedence = UnaryOperatorPrecedence;
+		if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
+		{
+			auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
+			if (arrayIndexExpr.operation == HLIL_VAR
+				&& arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
+			{
+				if (!addrOf)
+					tokens.Append(TextToken, "*");
+				tokens.AppendOpenParen();
+				AppendSizeToken(instr.size, signedHint.value_or(false), tokens);
+				tokens.Append(TextToken, "*");
+				tokens.AppendCloseParen();
+				tokens.Append(OperationToken, "&");
+			}
+			else if (addrOf)
+			{
+				tokens.Append(OperationToken, "&");
+			}
+		}
+		else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
+		{
+			if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
+				&& srcExpr.size > instr.size)
+			{
+				if (addrOf)
+					tokens.Append(OperationToken, "&");
+				tokens.AppendOpenParen();
+				AppendSizeToken(instr.size, signedHint.value_or(false), tokens);
+				tokens.AppendCloseParen();
+				precedence = MemberAndFunctionOperatorPrecedence;
+			}
+			else if (addrOf)
+			{
+				tokens.Append(OperationToken, "&");
+			}
+		}
+		else if (addrOf)
+		{
+			tokens.Append(OperationToken, "&");
+		}
+
+		GetExprTextInternal(srcExpr, tokens, settings, precedence);
+	}
+
 	switch (fieldDisplayType)
 	{
 		case FieldDisplayName:
@@ -558,18 +641,15 @@ void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& var, u
 			if (memberIndex != BN_INVALID_EXPR)
 				memberIndexHint = memberIndex;
 
-			if (type->GetStructure()->ResolveMemberOrBaseMember(GetFunction()->GetView(), offset, 0,
+			if (type->GetStructure()->ResolveMemberOrBaseMember(
+					GetFunction()->GetView(), fieldOffset, 0,
 					[&](NamedTypeReference*, Structure* s, size_t memberIndex, uint64_t structOffset,
 						uint64_t adjustedOffset, const StructureMember& member) {
-						if (deref && displayDeref)
-							tokens.Append(OperationToken, "->");
-						else
-							tokens.Append(OperationToken, ".");
-						deref = false;
+						tokens.Append(OperationToken, ".");
 
 						vector<string> nameList {member.name};
 						HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
-							GetFunction()->GetView(), type, var, nameList);
+							GetFunction()->GetView(), type, srcExpr, nameList);
 
 						tokens.Append(FieldNameToken, member.name, structOffset + member.offset, 0, 0,
 							BN_FULL_CONFIDENCE, nameList);
@@ -578,32 +658,22 @@ void PseudoCFunction::AppendFieldTextTokens(const HighLevelILInstruction& var, u
 				return;
 
 			// Part of structure but no defined field, use __offset syntax
-			if (deref && displayDeref)
-				tokens.Append(OperationToken, "->");
-			else
-				tokens.Append(OperationToken, ".");
+			tokens.Append(OperationToken, ".");
 			char offsetStr[64];
-			snprintf(
-				offsetStr, sizeof(offsetStr), "__offset(0x%" PRIx64 ")%s", offset, Type::GetSizeSuffix(size).c_str());
+			snprintf(offsetStr, sizeof(offsetStr), "__offset(0x%" PRIx64 ")%s", fieldOffset,
+				Type::GetSizeSuffix(instr.size).c_str());
 
 			vector<string> nameList {offsetStr};
-			HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(GetFunction()->GetView(), type, var, nameList);
+			HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
+				GetFunction()->GetView(), type, srcExpr, nameList);
 
-			tokens.Append(StructOffsetToken, offsetStr, offset, size, 0, BN_FULL_CONFIDENCE, nameList);
+			tokens.Append(StructOffsetToken, offsetStr, fieldOffset, instr.size, 0, BN_FULL_CONFIDENCE, nameList);
 			return;
 		}
 
 		case FieldDisplayOffset:
 		{
 			/* this is handled before the display */
-			return;
-		}
-
-		case FieldDisplayMemberOffset:
-		{
-			tokens.AppendOpenBracket();
-			tokens.AppendIntegerTextToken(var, offset, size);
-			tokens.AppendCloseBracket();
 			return;
 		}
 
@@ -1568,96 +1638,7 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 
 	case HLIL_STRUCT_FIELD:
 		[&]() {
-			const auto srcExpr = instr.GetSourceExpr<HLIL_STRUCT_FIELD>();
-			const auto fieldOffset = instr.GetOffset<HLIL_STRUCT_FIELD>();
-			const auto memberIndex = instr.GetMemberIndex<HLIL_STRUCT_FIELD>();
-
-			const auto type = GetFieldType(srcExpr, false);
-			const auto fieldDisplayType = GetFieldDisplayType(type, fieldOffset, memberIndex, false);
-			if (fieldDisplayType == FieldDisplayOffset)
-			{
-				tokens.Append(OperationToken, "*");
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendOpenParen();
-					AppendSizeToken(!instr.size ? srcExpr.size : instr.size, false, tokens);
-					tokens.Append(TextToken, "*");
-					tokens.AppendCloseParen();
-				}
-				tokens.AppendOpenParen();
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendOpenParen();
-					tokens.Append(TypeNameToken, "char");
-					tokens.Append(TextToken, "*");
-					tokens.AppendCloseParen();
-				}
-				GetExprTextInternal(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-
-				tokens.Append(OperationToken, " + ");
-				tokens.AppendIntegerTextToken(instr, fieldOffset, instr.size);
-				tokens.AppendCloseParen();
-
-				char offsetStr[64];
-				snprintf(offsetStr, sizeof(offsetStr), "0x%" PRIx64, fieldOffset);
-
-				vector<string> nameList { offsetStr };
-				HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
-					GetFunction()->GetView(), type, srcExpr, nameList);
-			}
-			else if (fieldDisplayType == FieldDisplayMemberOffset)
-			{
-				tokens.Append(OperationToken, "*");
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendOpenParen();
-					AppendSizeToken(!instr.size ? srcExpr.size : instr.size, false, tokens);
-					tokens.Append(TextToken, "*");
-					tokens.AppendCloseParen();
-					tokens.AppendOpenParen();
-					tokens.AppendOpenParen();
-					tokens.Append(TypeNameToken, "char");
-					tokens.Append(TextToken, "*");
-					tokens.AppendCloseParen();
-				}
-				GetExprTextInternal(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendCloseParen();
-				}
-				/* rest is rendered in AppendFieldTextTokens */
-			}
-			else
-			{
-				if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
-				{
-					auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
-					if (arrayIndexExpr.operation == HLIL_VAR &&
-						arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
-					{
-						tokens.Append(TextToken, "*");
-						tokens.AppendOpenParen();
-						AppendSizeToken(instr.size, false, tokens);
-						tokens.Append(TextToken, "*");
-						tokens.AppendCloseParen();
-						tokens.Append(OperationToken, "&");
-					}
-				}
-				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
-				{
-					if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
-						&& srcExpr.size > instr.size)
-					{
-						tokens.AppendOpenParen();
-						AppendSizeToken(instr.size, false, tokens);
-						tokens.AppendCloseParen();
-					}
-				}
-
-				GetExprTextInternal(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-			}
-
-			AppendFieldTextTokens(srcExpr, fieldOffset, memberIndex, instr.size, tokens, false);
+			AppendFieldTextTokens(instr, tokens, settings, signedHint, false);
 			if (statement)
 				tokens.AppendSemicolon();
 		}();
@@ -1804,8 +1785,15 @@ void PseudoCFunction::GetExprTextInternal(const HighLevelILInstruction& instr, H
 			bool parens = precedence > UnaryOperatorPrecedence;
 			if (parens)
 				tokens.AppendOpenParen();
-			tokens.Append(OperationToken, "&");
-			GetExprTextInternal(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			if (srcExpr.operation == HLIL_STRUCT_FIELD)
+			{
+				AppendFieldTextTokens(srcExpr, tokens, settings, signedHint, true);
+			}
+			else
+			{
+				tokens.Append(OperationToken, "&");
+				GetExprTextInternal(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			}
 			if (parens)
 				tokens.AppendCloseParen();
 			if (statement)

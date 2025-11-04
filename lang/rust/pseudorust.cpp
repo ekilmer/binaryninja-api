@@ -492,17 +492,112 @@ PseudoRustFunction::FieldDisplayType PseudoRustFunction::GetFieldDisplayType(
 		return FieldDisplayOffset;
 	}
 	else if (deref || offset != 0)
-		return FieldDisplayMemberOffset;
+		return FieldDisplayOffset;
 	else
 		return FieldDisplayNone;
 }
 
 
-void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& var, uint64_t offset,
-	size_t memberIndex, size_t size, HighLevelILTokenEmitter& tokens, bool deref)
+void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& instr, HighLevelILTokenEmitter& tokens,
+	DisassemblySettings* settings, std::optional<bool> signedHint, bool addrOf)
 {
-	const auto type = GetFieldType(var, deref);
-	const auto fieldDisplayType = GetFieldDisplayType(type, offset, memberIndex, deref);
+	const auto srcExpr = instr.GetSourceExpr<HLIL_STRUCT_FIELD>();
+	const auto fieldOffset = instr.GetOffset<HLIL_STRUCT_FIELD>();
+	const auto memberIndex = instr.GetMemberIndex<HLIL_STRUCT_FIELD>();
+
+	const auto type = GetFieldType(srcExpr, false);
+	const auto fieldDisplayType = GetFieldDisplayType(type, fieldOffset, memberIndex, false);
+	if (fieldDisplayType == FieldDisplayOffset)
+	{
+		if (!addrOf)
+			tokens.Append(OperationToken, "*");
+		if (!settings || settings->IsOptionSet(ShowTypeCasts))
+			tokens.AppendOpenParen();
+
+		tokens.AppendOpenParen();
+		tokens.Append(OperationToken, "&");
+		GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+		tokens.AppendCloseParen();
+
+		tokens.Append(TextToken, ".");
+		tokens.Append(OperationToken, "byte_offset");
+		tokens.AppendOpenParen();
+		tokens.AppendIntegerTextToken(instr, fieldOffset, instr.size);
+		tokens.AppendCloseParen();
+
+		if (!settings || settings->IsOptionSet(ShowTypeCasts))
+		{
+			tokens.Append(KeywordToken, " as ");
+			tokens.Append(TextToken, "*");
+			Ref<Type> srcType = srcExpr.GetType().GetValue();
+			if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
+				tokens.Append(KeywordToken, "const ");
+			else
+				tokens.Append(KeywordToken, "mut ");
+			AppendSizeToken(!instr.size ? srcExpr.size : instr.size, signedHint.value_or(false), tokens);
+			tokens.AppendCloseParen();
+		}
+
+		char offsetStr[64];
+		snprintf(offsetStr, sizeof(offsetStr), "0x%" PRIx64, fieldOffset);
+
+		vector<string> nameList {offsetStr};
+		HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(GetFunction()->GetView(), type, srcExpr, nameList);
+	}
+	else
+	{
+		BNOperatorPrecedence precedence = UnaryOperatorPrecedence;
+		bool castedSrcExpr = false;
+		if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
+		{
+			auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
+			if (arrayIndexExpr.operation == HLIL_VAR
+				&& arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
+			{
+				if (!addrOf)
+					tokens.Append(TextToken, "*");
+				tokens.AppendOpenParen();
+				tokens.Append(OperationToken, "&");
+				GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+				tokens.Append(KeywordToken, " as ");
+				tokens.Append(TextToken, "*");
+				tokens.Append(KeywordToken, "mut ");
+				AppendSizeToken(instr.size, signedHint.value_or(false), tokens);
+				tokens.AppendCloseParen();
+				castedSrcExpr = true;
+				precedence = MemberAndFunctionOperatorPrecedence;
+			}
+			else if (addrOf)
+			{
+				tokens.Append(OperationToken, "&");
+			}
+		}
+		else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
+		{
+			if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
+				&& srcExpr.size > instr.size)
+			{
+				if (addrOf)
+					tokens.Append(OperationToken, "&");
+				GetExprText(srcExpr, tokens, settings, addrOf ? UnaryOperatorPrecedence : LowUnaryOperatorPrecedence);
+				tokens.Append(KeywordToken, " as ");
+				AppendSizeToken(instr.size, signedHint.value_or(false), tokens);
+				castedSrcExpr = true;
+			}
+			else if (addrOf)
+			{
+				tokens.Append(OperationToken, "&");
+			}
+		}
+		else if (addrOf)
+		{
+			tokens.Append(OperationToken, "&");
+		}
+
+		if (!castedSrcExpr)
+			GetExprText(srcExpr, tokens, settings, precedence);
+	}
+
 	switch (fieldDisplayType)
 	{
 		case FieldDisplayName:
@@ -511,14 +606,15 @@ void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& var
 			if (memberIndex != BN_INVALID_EXPR)
 				memberIndexHint = memberIndex;
 
-			if (type->GetStructure()->ResolveMemberOrBaseMember(GetFunction()->GetView(), offset, 0,
+			if (type->GetStructure()->ResolveMemberOrBaseMember(
+					GetFunction()->GetView(), fieldOffset, 0,
 					[&](NamedTypeReference*, Structure* s, size_t memberIndex, uint64_t structOffset,
 						uint64_t adjustedOffset, const StructureMember& member) {
 						tokens.Append(OperationToken, ".");
 
 						vector<string> nameList {member.name};
 						HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
-							GetFunction()->GetView(), type, var, nameList);
+							GetFunction()->GetView(), type, srcExpr, nameList);
 
 						tokens.Append(FieldNameToken, member.name, structOffset + member.offset, 0, 0,
 							BN_FULL_CONFIDENCE, nameList);
@@ -529,27 +625,20 @@ void PseudoRustFunction::AppendFieldTextTokens(const HighLevelILInstruction& var
 			// Part of structure but no defined field, use __offset syntax
 			tokens.Append(OperationToken, ".");
 			char offsetStr[64];
-			snprintf(
-				offsetStr, sizeof(offsetStr), "__offset(0x%" PRIx64 ")%s", offset, Type::GetSizeSuffix(size).c_str());
+			snprintf(offsetStr, sizeof(offsetStr), "__offset(0x%" PRIx64 ")%s", fieldOffset,
+				Type::GetSizeSuffix(instr.size).c_str());
 
 			vector<string> nameList {offsetStr};
-			HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(GetFunction()->GetView(), type, var, nameList);
+			HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
+				GetFunction()->GetView(), type, srcExpr, nameList);
 
-			tokens.Append(StructOffsetToken, offsetStr, offset, size, 0, BN_FULL_CONFIDENCE, nameList);
+			tokens.Append(StructOffsetToken, offsetStr, fieldOffset, instr.size, 0, BN_FULL_CONFIDENCE, nameList);
 			return;
 		}
 
 		case FieldDisplayOffset:
 		{
 			/* this is handled before the display */
-			return;
-		}
-
-		case FieldDisplayMemberOffset:
-		{
-			tokens.AppendOpenBracket();
-			tokens.AppendIntegerTextToken(var, offset, size);
-			tokens.AppendCloseBracket();
 			return;
 		}
 
@@ -1604,108 +1693,7 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 
 	case HLIL_STRUCT_FIELD:
 		[&]() {
-			const auto srcExpr = instr.GetSourceExpr<HLIL_STRUCT_FIELD>();
-			const auto fieldOffset = instr.GetOffset<HLIL_STRUCT_FIELD>();
-			const auto memberIndex = instr.GetMemberIndex<HLIL_STRUCT_FIELD>();
-
-			const auto type = GetFieldType(srcExpr, false);
-			const auto fieldDisplayType = GetFieldDisplayType(type, fieldOffset, memberIndex, false);
-			if (fieldDisplayType == FieldDisplayOffset)
-			{
-				tokens.Append(OperationToken, "*");
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-					tokens.AppendOpenParen();
-
-				GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-
-				tokens.Append(TextToken, ".");
-				tokens.Append(OperationToken, "byte_offset");
-				tokens.AppendOpenParen();
-				tokens.AppendIntegerTextToken(instr, fieldOffset, instr.size);
-				tokens.AppendCloseParen();
-
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.Append(KeywordToken, " as ");
-					tokens.Append(TextToken, "*");
-					Ref<Type> srcType = srcExpr.GetType().GetValue();
-					if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
-						tokens.Append(KeywordToken, "const ");
-					else
-						tokens.Append(KeywordToken, "mut ");
-					AppendSizeToken(!instr.size ? srcExpr.size : instr.size, false, tokens);
-					tokens.AppendCloseParen();
-				}
-
-				char offsetStr[64];
-				snprintf(offsetStr, sizeof(offsetStr), "0x%" PRIx64, fieldOffset);
-
-				vector<string> nameList { offsetStr };
-				HighLevelILTokenEmitter::AddNamesForOuterStructureMembers(
-					GetFunction()->GetView(), type, srcExpr, nameList);
-			}
-			else if (fieldDisplayType == FieldDisplayMemberOffset)
-			{
-				tokens.Append(OperationToken, "*");
-				BNOperatorPrecedence srcPrecedence = UnaryOperatorPrecedence;
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.AppendOpenParen();
-					srcPrecedence = LowUnaryOperatorPrecedence;
-				}
-				GetExprText(srcExpr, tokens, settings, srcPrecedence);
-				if (!settings || settings->IsOptionSet(ShowTypeCasts))
-				{
-					tokens.Append(KeywordToken, " as ");
-					tokens.Append(TextToken, "*");
-					Ref<Type> srcType = srcExpr.GetType().GetValue();
-					if (srcType && srcType->IsPointer() && srcType->GetChildType()->IsConst())
-						tokens.Append(KeywordToken, "const ");
-					else
-						tokens.Append(KeywordToken, "mut ");
-					AppendSizeToken(!instr.size ? srcExpr.size : instr.size, false, tokens);
-					tokens.AppendCloseParen();
-				}
-				/* rest is rendered in AppendFieldTextTokens */
-			}
-			else
-			{
-				bool castedSrcExpr = false;
-				if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_ARRAY_INDEX)
-				{
-					auto arrayIndexExpr = srcExpr.GetSourceExpr<HLIL_ARRAY_INDEX>();
-					if (arrayIndexExpr.operation == HLIL_VAR &&
-						arrayIndexExpr.GetType()->GetChildType()->GetWidth() < instr.size)
-					{
-						tokens.Append(TextToken, "*");
-						tokens.AppendOpenParen();
-						tokens.Append(OperationToken, "&");
-						GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-						tokens.Append(KeywordToken, " as ");
-						tokens.Append(TextToken, "*");
-						tokens.Append(KeywordToken, "mut ");
-						AppendSizeToken(instr.size, false, tokens);
-						tokens.AppendCloseParen();
-						castedSrcExpr = true;
-					}
-				}
-				else if ((!settings || settings->IsOptionSet(ShowTypeCasts)) && srcExpr.operation == HLIL_VAR)
-				{
-					if (srcExpr.GetType().GetValue() && srcExpr.GetType()->GetClass() != StructureTypeClass
-						&& srcExpr.size > instr.size)
-					{
-						GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-						tokens.Append(KeywordToken, " as ");
-						AppendSizeToken(instr.size, false, tokens);
-						castedSrcExpr = true;
-					}
-				}
-
-				if (!castedSrcExpr)
-					GetExprText(srcExpr, tokens, settings, MemberAndFunctionOperatorPrecedence);
-			}
-
-			AppendFieldTextTokens(srcExpr, fieldOffset, memberIndex, instr.size, tokens, false);
+			AppendFieldTextTokens(instr, tokens, settings, signedHint, false);
 			if (exprType != InnerExpression)
 				tokens.AppendSemicolon();
 		}();
@@ -1881,8 +1869,15 @@ void PseudoRustFunction::GetExprText(const HighLevelILInstruction& instr, HighLe
 			bool parens = precedence > UnaryOperatorPrecedence;
 			if (parens)
 				tokens.AppendOpenParen();
-			tokens.Append(OperationToken, "&");
-			GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			if (srcExpr.operation == HLIL_STRUCT_FIELD)
+			{
+				AppendFieldTextTokens(srcExpr, tokens, settings, signedHint, true);
+			}
+			else
+			{
+				tokens.Append(OperationToken, "&");
+				GetExprText(srcExpr, tokens, settings, UnaryOperatorPrecedence);
+			}
 			if (parens)
 				tokens.AppendCloseParen();
 			if (exprType != InnerExpression)
