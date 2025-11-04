@@ -1770,10 +1770,8 @@ void ObjCProcessor::ProcessNSConstantArrays()
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantArray),
 				fmt::format("nsarray_{:x}", i), i, true);
 		}
-		auto id = m_data->BeginUndoActions();
 		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
 	}
 	
 }
@@ -1813,10 +1811,8 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantDictionary),
 				fmt::format("nsdict_{:x}", i), i, true);
 		}
-		auto id = m_data->BeginUndoActions();
 		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
 	}
 }
 
@@ -1870,10 +1866,8 @@ void ObjCProcessor::ProcessNSConstantIntegerNumbers()
 				continue;
 			}
 		}
-		auto id = m_data->BeginUndoActions();
 		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
 	}
 }
 
@@ -1960,10 +1954,8 @@ void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
 			}
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, *typeName), name, i, true);
 		}
-		auto id = m_data->BeginUndoActions();
 		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
 	}
 }
 
@@ -1996,10 +1988,8 @@ void ObjCProcessor::ProcessNSConstantDatas()
 			DefineObjCSymbol(
 				DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantData), fmt::format("nsdata_{:x}", i), i, true);
 		}
-		auto id = m_data->BeginUndoActions();
 		ScopedSymbolQueue::Get().Process();
 		m_data->EndBulkModifySymbols();
-		m_data->ForgetUndoActions(id);
 	}
 }
 
