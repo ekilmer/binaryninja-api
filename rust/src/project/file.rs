@@ -2,7 +2,13 @@ use crate::project::{systime_from_bntime, Project, ProjectFolder};
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
 use crate::string::{BnString, IntoCStr};
 use binaryninjacore_sys::{
-    BNFreeProjectFile, BNFreeProjectFileList, BNNewProjectFileReference, BNProjectFile, BNProjectFileAddDependency, BNProjectFileExistsOnDisk, BNProjectFileExport, BNProjectFileGetCreationTimestamp, BNProjectFileGetDependencies, BNProjectFileGetDescription, BNProjectFileGetFolder, BNProjectFileGetId, BNProjectFileGetName, BNProjectFileGetPathInProject, BNProjectFileGetPathOnDisk, BNProjectFileGetProject, BNProjectFileGetRequiredBy, BNProjectFileRemoveDependency, BNProjectFileSetDescription, BNProjectFileSetFolder, BNProjectFileSetName
+    BNFreeProjectFile, BNFreeProjectFileList, BNNewProjectFileReference, BNProjectFile,
+    BNProjectFileAddDependency, BNProjectFileExistsOnDisk, BNProjectFileExport,
+    BNProjectFileGetCreationTimestamp, BNProjectFileGetDependencies, BNProjectFileGetDescription,
+    BNProjectFileGetFolder, BNProjectFileGetId, BNProjectFileGetName,
+    BNProjectFileGetPathInProject, BNProjectFileGetPathOnDisk, BNProjectFileGetProject,
+    BNProjectFileGetRequiredBy, BNProjectFileRemoveDependency, BNProjectFileSetDescription,
+    BNProjectFileSetFolder, BNProjectFileSetName,
 };
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
