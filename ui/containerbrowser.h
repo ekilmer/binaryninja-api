@@ -100,6 +100,7 @@ class BINARYNINJAUIAPI ContainerBrowser : public QDialog
 	void promptForPassword(TransformContextRef context, bool tryCachedPassword = false);
 	void showContextMenu(const QPoint& position);
 	static QString toHexDump(const QByteArray& data, int bytesPerLine = 16);
+	static QString formatMetadata(BinaryNinja::Ref<BinaryNinja::Metadata> metadata, int indent = 0);
 	QModelIndex findNodeByPath(const QStringList& path);
 
 public:
