@@ -2614,12 +2614,12 @@ class MemoryMap:
 
 		The `source` parameter determines the type:
 
-		- `os.PathLike` or `str`: File path to be loaded into memory as a `DataMemoryRegion`.
-		- `bytes` or `bytearray`: Directly loaded into memory as a `DataMemoryRegion`.
-		- `databuffer.DataBuffer`: Loaded as a `DataMemoryRegion`.
-		- `fileaccessor.FileAccessor`: Remote proxy source.
-		- `BinaryView`: (Reserved for future).
-		- `None`: Creates an unbacked memory region (must specify `length`).
+			- `os.PathLike` or `str`: File path to be loaded into memory as a `DataMemoryRegion`.
+			- `bytes` or `bytearray`: Directly loaded into memory as a `DataMemoryRegion`.
+			- `databuffer.DataBuffer`: Loaded as a `DataMemoryRegion`.
+			- `fileaccessor.FileAccessor`: Remote proxy source.
+			- `BinaryView`: (Reserved for future).
+			- `None`: Creates an unbacked memory region (must specify `length`).
 
 		.. note:: If no flags are specified and the new memory region overlaps with one or more existing regions, the overlapping portions of the new region will inherit the flags of the respective underlying regions.
 
@@ -5209,10 +5209,10 @@ class BinaryView:
 
 		**Thread Restrictions**:
 
-		- **Worker Threads**: This function cannot be called from a worker thread. If called from a worker thread, an error will be
-		logged, and the function will return immediately.
-		- **UI Threads**: This function cannot be called from a UI thread. If called from a UI thread, an error will be logged, and
-		the function will return immediately.
+			- **Worker Threads**: This function cannot be called from a worker thread. If called from a worker thread, an error will be
+			  logged, and the function will return immediately.
+			- **UI Threads**: This function cannot be called from a UI thread. If called from a UI thread, an error will be logged, and
+			  the function will return immediately.
 
 		:rtype: None
 		"""

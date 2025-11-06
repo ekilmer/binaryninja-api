@@ -137,15 +137,43 @@ def check_docstring_formatting(docstring):
                     prev_indent = len(prev_line) - len(prev_line.lstrip())
                     is_indented_continuation = current_indent > prev_indent
 
-                    # Special case: >>> code blocks can have output lines between prompts
-                    # If current line is >>> and previous line has same or greater indent (but isn't also >>>),
-                    # it's likely output from previous command
-                    is_code_output = (description == 'code block' and
-                                     prev_indent >= 0 and
-                                     not prev_line.strip().startswith('>>>') and
-                                     not prev_line.strip().startswith('...'))
+                    # Special case for code blocks (>>>):
+                    if description == 'code block':
+                        # In Python interactive sessions, >>> prompts after output or continuations are normal
+                        # Skip if: previous line is >>> or ..., OR both lines are indented (in code example)
+                        if (prev_line.strip().startswith('...') or
+                            prev_line.strip().startswith('>>>') or
+                            (prev_indent > 0)):  # Both lines indented = inside code example
+                            # Don't report this as an issue
+                            break
 
-                    if not is_prev_list and not is_sphinx_field and not is_indented_continuation and not is_code_output:
+                    # Special case for bullet/numbered lists:
+                    # 1. Check if we're continuing a list (prev line is wrapped text from previous bullet)
+                    # 2. Check if we're nested under another list item
+                    is_nested_list = False
+                    if description in ['bullet list item', 'numbered list item']:
+                        # Look back to find context - skip blank lines
+                        for j in range(i - 1, max(0, i - 10), -1):
+                            check_line = lines[j]
+                            if not check_line.strip():
+                                continue  # Skip blank lines
+                            check_indent = len(check_line) - len(check_line.lstrip())
+
+                            # If we find a line at same indent that's also a list item, we're continuing a list
+                            if check_indent == current_indent and any(re.match(p[0], check_line) for p in patterns):
+                                is_nested_list = True  # This is a list continuation
+                                break
+
+                            # If we find a less-indented line that's also a list item, we're nested
+                            if check_indent < current_indent and any(re.match(p[0], check_line) for p in patterns):
+                                is_nested_list = True
+                                break
+
+                            # If we find a non-list line at current or less indent (intro text), stop looking
+                            if check_indent <= current_indent:
+                                break
+
+                    if not is_prev_list and not is_sphinx_field and not is_indented_continuation and not is_nested_list:
                         issues.append((i + 1, f"{description} without blank line before it"))
                 break  # Only report one issue per line
 

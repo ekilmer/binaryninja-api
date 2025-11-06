@@ -447,11 +447,11 @@ class TransformContext:
 
 	Each context can have:
 
-	- Input data (BinaryView)
-	- Transform information (name, parameters, results)
-	- File selection state (available_files, requested_files)
-	- Parent/child relationships for nested containers
-	- Extraction status and error messages
+		- Input data (BinaryView)
+		- Transform information (name, parameters, results)
+		- File selection state (available_files, requested_files)
+		- Parent/child relationships for nested containers
+		- Extraction status and error messages
 
 	Contexts are typically accessed through a ``TransformSession`` rather than created directly.
 
