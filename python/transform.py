@@ -446,6 +446,7 @@ class TransformContext:
 	transformation state, and relationships to parent/child contexts.
 
 	Each context can have:
+
 	- Input data (BinaryView)
 	- Transform information (name, parameters, results)
 	- File selection state (available_files, requested_files)

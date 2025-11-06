@@ -2613,6 +2613,7 @@ class MemoryMap:
 		- **UnbackedMemoryRegion**: Region not backed by any data source (requires `length` to be set).
 
 		The `source` parameter determines the type:
+
 		- `os.PathLike` or `str`: File path to be loaded into memory as a `DataMemoryRegion`.
 		- `bytes` or `bytearray`: Directly loaded into memory as a `DataMemoryRegion`.
 		- `databuffer.DataBuffer`: Loaded as a `DataMemoryRegion`.
@@ -5207,6 +5208,7 @@ class BinaryView:
 		analysis to finish before returning.
 
 		**Thread Restrictions**:
+
 		- **Worker Threads**: This function cannot be called from a worker thread. If called from a worker thread, an error will be
 		logged, and the function will return immediately.
 		- **UI Threads**: This function cannot be called from a UI thread. If called from a UI thread, an error will be logged, and
