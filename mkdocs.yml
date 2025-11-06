@@ -129,6 +129,7 @@ nav:
         - 'dev/index.md'
         - Cookbook: 'dev/cookbook.md'
         - Writing Plugins: 'dev/plugins.md'
+        - Container Transforms: 'dev/containertransforms.md'
         - Automation: 'dev/batch.md'
         - BNIL / Architectures:
             - BNIL Guide&#58; Overview: 'dev/bnil-overview.md'

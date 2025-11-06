@@ -97,6 +97,79 @@ While Binary Ninja defaults to opening most files with sane defaults without pro
 
 Items 1, 3, 5, 6 in the above list all describe methods you can use to override the default settings and request an "Open with Options" dialog.
 
+### Container Browser
+
+![container browser](../img/container-browser.png "Container Browser"){ width="800" }
+
+The Container Browser provides an interactive way to explore and extract files from container formats such as ZIP archives, encrypted containers, and other nested file structures. When opening files that contain nested content, Binary Ninja can automatically detect and decode these containers, presenting a hierarchical tree view of all available files.
+
+Binary Ninja includes built-in support for the following container formats:
+
+- **Zip**: ZIP archives (including password-protected)
+- **Gzip**: Gzip compressed files
+- **Zlib**: Zlib compressed data
+- **CaRT**: Custom archive format for malware analysis with metadata support
+- **IntelHex**: Intel HEX format files
+- **SRec**: Motorola S-record format files
+- **TiTxt**: Texas Instruments TXT format
+- **IMG4**: Apple IMG4 container format
+- **LZFSE**: Apple LZFSE compressed data
+
+#### Container Detection Modes
+
+Binary Ninja offers three container detection modes, configurable via the [`files.container.mode`](settings.md#files.container.mode) setting:
+
+- **Full** (default): Automatically discovers all nested paths and builds a complete context tree before requesting user selection. This mode provides the most complete view of the container structure upfront.
+- **Interactive**: Requires user interaction at each level of the container hierarchy. This mode is useful when working with deeply nested containers or when you want more control over the extraction process.
+- **Disabled**: Opens the file as-is without attempting to unwrap container formats.
+
+#### Working with Containers
+
+When you open a container file in Full or Interactive mode, the Container Browser dialog displays:
+
+- **Name**: The file or entry name within the container
+- **Type**: The detected format
+- **Size**: File size in bytes
+- **Path**: The hierarchical path within the container structure
+
+The browser supports:
+
+- **Filtering**: Use the search box at the top to filter by name, type, or path
+- **Password Protection**: Binary Ninja will attempt common passwords (configurable via [`files.container.defaultPasswords`](settings.md#files.container.defaultPasswords)) before prompting for manual entry
+- **Custom Extraction**: Right-click any entry to access "Extract With" options, allowing you to apply different transforms (Base64, Hex, etc.) to decode content
+- **Metadata Display**: For containers that include embedded metadata, the associated information is displayed in the preview pane on the right.
+
+#### Virtual Paths
+
+Files opened through the Container Browser maintain a virtual path that tracks the full extraction chain. For example:
+
+```python
+>>> bv.file.virtual_path
+'Zip(.../papi_b64.zip)::Base64(papi_b64)::extracted'
+```
+
+This virtual path is also stored in the file's metadata for the 'Raw' BinaryView and can be accessed programmatically:
+
+```python
+>>> bv.parent_view.auto_metadata['container']
+{'chain': [{'transform': 'Zip'}, {'transform': 'Base64'}], 'virtualPath': 'Zip(.../papi_b64.zip)::Base64(papi_b64)::extracted'}
+```
+
+???+ Note "Note"
+     The virtual path and associated metadata are not persisted when saving to a database (`.bndb` file). Additionally, the format of the virtual path string may change in future releases.
+
+#### Settings
+
+The following settings control Container Browser behavior:
+
+- [`files.container.mode`](settings.md#files.container.mode): Controls container detection mode (Full/Interactive/Disabled)
+- [`files.container.autoOpen`](settings.md#files.container.autoOpen): Automatically opens files when there is exactly one extraction path with no required input
+- [`files.container.defaultPasswords`](settings.md#files.container.defaultPasswords): List of passwords to attempt for encrypted containers
+
+#### Adding Custom Container Support
+
+Binary Ninja's container system is extensible through the Transform API. Developers can create custom container decoders for proprietary or specialized formats. For information on implementing custom container transforms, see the [Container Transforms developer guide](../dev/containertransforms.md).
+
 ## Saving Files
 
 ![save choices >](../img/save-choices.png "Save Menu Choices"){ width="400" }
