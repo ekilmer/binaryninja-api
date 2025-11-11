@@ -127,6 +127,19 @@ class CoreVersionInfo:
 	Structure representing the Binary Ninja Version.
 
 	Use :py:func:`core_version_info` to look up the current version of Binary Ninja loaded.
+
+	:Example:
+
+		>>> from binaryninja import core_version_info, CoreVersionInfo
+		>>> # Check if the current version meets minimum requirements for a plugin
+		>>> if core_version_info() >= CoreVersionInfo(5, 1, 8104):
+		...     print("Using new API available in 5.1.8104 and later")
+		>>> # Parse and compare against a version string
+		>>> if core_version_info() >= CoreVersionInfo("4.2.0"):
+		...     print("Version 4.2.0 or later detected")
+		>>> # Get individual version components
+		>>> version = core_version_info()
+		>>> print(f"Running Binary Ninja {version.major}.{version.minor}.{version.build}")
 	"""
 
 	major: int
@@ -151,7 +164,7 @@ class CoreVersionInfo:
 			self.major = core_version_info.major
 			self.minor = core_version_info.minor
 			self.build = core_version_info.build
-			if core_version_info.channel is not None:
+			if core_version_info._channel is not None:
 				self.channel = core_version_info.channel
 		else:
 			self.major = major

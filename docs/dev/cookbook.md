@@ -375,6 +375,32 @@ context = FileContext(data.file, data, '')
 execute_on_main_thread(lambda: UIContext.activeContext().openFileContext(context))
 ```
 
+## Version Checking
+
+### Checking Binary Ninja version
+
+Plugins often need to check the Binary Ninja version to ensure compatibility or conditionally enable features. Use [`core_version_info()`](https://api.binary.ninja/#binaryninja.core_version_info) and [`CoreVersionInfo`](https://api.binary.ninja/#binaryninja.CoreVersionInfo) for clean version comparisons:
+
+```python
+from binaryninja import core_version_info, CoreVersionInfo
+
+# Check minimum version requirement
+if core_version_info() >= CoreVersionInfo(5, 1, 8104):
+    # Use API only available in 5.1.8104 and later
+    print("New API is available")
+else:
+    # Fall back to older API
+    print("Using legacy API")
+
+# Parse and compare against a version string
+if core_version_info() >= CoreVersionInfo("4.2.0"):
+    print("Version 4.2.0 or later detected")
+
+# Access individual version components
+version = core_version_info()
+print(f"Running Binary Ninja {version.major}.{version.minor}.{version.build}-{version.channel}")
+```
+
 ## Debuging & Logging
 
 ### Logging
