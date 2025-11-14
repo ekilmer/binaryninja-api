@@ -208,8 +208,62 @@ class NewlineSplitRenderLayer(RenderLayer):
         return new_lines
 
     def apply_to_flow_graph(self, graph: 'binaryninja.FlowGraph'):
-        # Don't modify flow graphs
-        pass
+        log_info(f"[NewlineSplitRenderLayer] apply_to_flow_graph called with {len(graph.nodes)} nodes")
+        for node in graph.nodes:
+            lines = node.lines
+            new_lines = []
+
+            for line in lines:
+                # Look for string tokens
+                has_split = False
+                split_info = None
+
+                for i, token in enumerate(line.tokens):
+                    if token.type == InstructionTextTokenType.StringToken:
+                        log_info(f"[NewlineSplitRenderLayer] Found StringToken in flow graph node")
+                        split_tokens = self.split_string_token(token)
+                        if len(split_tokens) > 1:
+                            has_split = True
+                            split_info = (i, split_tokens)
+                            log_info(f"[NewlineSplitRenderLayer] Will split this line in flow graph into {len(split_tokens)} parts")
+                            break
+
+                if not has_split:
+                    new_lines.append(line)
+                    continue
+
+                # Create multiple lines for the split string
+                token_idx, split_tokens = split_info
+
+                # Find the indentation level by looking at the position of the string token
+                indent_count = 0
+                for i in range(token_idx):
+                    indent_count += len(line.tokens[i].text)
+
+                # Create first line with original tokens up to and including first split token
+                first_tokens = line.tokens[:token_idx] + [split_tokens[0]]
+                first_line = DisassemblyTextLine(first_tokens, line.address)
+                first_line.highlight = line.highlight
+                first_line.il_instruction = line.il_instruction
+                new_lines.append(first_line)
+
+                # Create continuation lines for remaining split tokens
+                for j in range(1, len(split_tokens)):
+                    # Add indentation to align with the start of the string
+                    indent_token = InstructionTextToken(InstructionTextTokenType.TextToken, ' ' * indent_count)
+                    cont_tokens = [indent_token, split_tokens[j]]
+
+                    # If this is the last split token, add the rest of the original tokens
+                    if j == len(split_tokens) - 1:
+                        cont_tokens.extend(line.tokens[token_idx + 1:])
+
+                    cont_line = DisassemblyTextLine(cont_tokens, line.address)
+                    cont_line.highlight = line.highlight
+                    cont_line.il_instruction = line.il_instruction
+                    new_lines.append(cont_line)
+
+            # Update the node's lines
+            node.lines = new_lines
 
 
 NewlineSplitRenderLayer.register()
