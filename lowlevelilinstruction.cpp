@@ -2064,143 +2064,146 @@ void LowLevelILInstruction::VisitExprs(const std::function<bool(const LowLevelIL
 }
 
 
-ExprId LowLevelILInstruction::CopyTo(LowLevelILFunction* dest) const
+ExprId LowLevelILInstruction::CopyTo(LowLevelILFunction* dest, const ILSourceLocation& sourceLocation) const
 {
-	return CopyTo(dest, [&](const LowLevelILInstruction& subExpr) { return subExpr.CopyTo(dest); });
+	return CopyTo(dest, [&](const LowLevelILInstruction& subExpr) { return subExpr.CopyTo(dest, sourceLocation); }, sourceLocation);
 }
 
 
 ExprId LowLevelILInstruction::CopyTo(
-    LowLevelILFunction* dest, const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler) const
+    LowLevelILFunction* dest, const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler, const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> params;
 	BNLowLevelILLabel* labelA;
 	BNLowLevelILLabel* labelB;
+
+	const auto& loc = sourceLocation.valid ? sourceLocation : ILSourceLocation{*this};
+
 	switch (operation)
 	{
 	case LLIL_NOP:
-		return dest->Nop();
+		return dest->Nop(loc);
 	case LLIL_SET_REG:
 		return dest->SetRegister(
-		    size, GetDestRegister<LLIL_SET_REG>(), subExprHandler(GetSourceExpr<LLIL_SET_REG>()), flags, *this);
+		    size, GetDestRegister<LLIL_SET_REG>(), subExprHandler(GetSourceExpr<LLIL_SET_REG>()), flags, loc);
 	case LLIL_SET_REG_SPLIT:
 		return dest->SetRegisterSplit(size, GetHighRegister<LLIL_SET_REG_SPLIT>(), GetLowRegister<LLIL_SET_REG_SPLIT>(),
-		    subExprHandler(GetSourceExpr<LLIL_SET_REG_SPLIT>()), flags, *this);
+		    subExprHandler(GetSourceExpr<LLIL_SET_REG_SPLIT>()), flags, loc);
 	case LLIL_SET_REG_SSA:
 		return dest->SetRegisterSSA(
-		    size, GetDestSSARegister<LLIL_SET_REG_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_REG_SSA>()), *this);
+		    size, GetDestSSARegister<LLIL_SET_REG_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_REG_SSA>()), loc);
 	case LLIL_SET_REG_SSA_PARTIAL:
 		return dest->SetRegisterSSAPartial(size, GetDestSSARegister<LLIL_SET_REG_SSA_PARTIAL>(),
 		    GetPartialRegister<LLIL_SET_REG_SSA_PARTIAL>(), subExprHandler(GetSourceExpr<LLIL_SET_REG_SSA_PARTIAL>()),
-		    *this);
+		    loc);
 	case LLIL_SET_REG_SPLIT_SSA:
 		return dest->SetRegisterSplitSSA(size, GetHighSSARegister<LLIL_SET_REG_SPLIT_SSA>(),
 		    GetLowSSARegister<LLIL_SET_REG_SPLIT_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_REG_SPLIT_SSA>()),
-		    *this);
+		    loc);
 	case LLIL_SET_REG_STACK_REL:
 		return dest->SetRegisterStackTopRelative(size, GetDestRegisterStack<LLIL_SET_REG_STACK_REL>(),
 		    subExprHandler(GetDestExpr<LLIL_SET_REG_STACK_REL>()),
-		    subExprHandler(GetSourceExpr<LLIL_SET_REG_STACK_REL>()), flags, *this);
+		    subExprHandler(GetSourceExpr<LLIL_SET_REG_STACK_REL>()), flags, loc);
 	case LLIL_REG_STACK_PUSH:
 		return dest->RegisterStackPush(size, GetDestRegisterStack<LLIL_REG_STACK_PUSH>(),
-		    subExprHandler(GetSourceExpr<LLIL_REG_STACK_PUSH>()), flags, *this);
+		    subExprHandler(GetSourceExpr<LLIL_REG_STACK_PUSH>()), flags, loc);
 	case LLIL_SET_REG_STACK_REL_SSA:
 		return dest->SetRegisterStackTopRelativeSSA(size,
 		    GetDestSSARegisterStack<LLIL_SET_REG_STACK_REL_SSA>().regStack,
 		    GetDestSSARegisterStack<LLIL_SET_REG_STACK_REL_SSA>().version,
 		    GetSourceSSARegisterStack<LLIL_SET_REG_STACK_REL_SSA>().version,
 		    subExprHandler(GetDestExpr<LLIL_SET_REG_STACK_REL_SSA>()), GetTopSSARegister<LLIL_SET_REG_STACK_REL_SSA>(),
-		    subExprHandler(GetSourceExpr<LLIL_SET_REG_STACK_REL_SSA>()), *this);
+		    subExprHandler(GetSourceExpr<LLIL_SET_REG_STACK_REL_SSA>()), loc);
 	case LLIL_SET_REG_STACK_ABS_SSA:
 		return dest->SetRegisterStackAbsoluteSSA(size, GetDestSSARegisterStack<LLIL_SET_REG_STACK_ABS_SSA>().regStack,
 		    GetDestSSARegisterStack<LLIL_SET_REG_STACK_ABS_SSA>().version,
 		    GetSourceSSARegisterStack<LLIL_SET_REG_STACK_ABS_SSA>().version,
 		    GetDestRegister<LLIL_SET_REG_STACK_ABS_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_REG_STACK_ABS_SSA>()),
-		    *this);
+		    loc);
 	case LLIL_SET_FLAG:
-		return dest->SetFlag(GetDestFlag<LLIL_SET_FLAG>(), subExprHandler(GetSourceExpr<LLIL_SET_FLAG>()), *this);
+		return dest->SetFlag(GetDestFlag<LLIL_SET_FLAG>(), subExprHandler(GetSourceExpr<LLIL_SET_FLAG>()), loc);
 	case LLIL_SET_FLAG_SSA:
 		return dest->SetFlagSSA(
-		    GetDestSSAFlag<LLIL_SET_FLAG_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_FLAG_SSA>()), *this);
+		    GetDestSSAFlag<LLIL_SET_FLAG_SSA>(), subExprHandler(GetSourceExpr<LLIL_SET_FLAG_SSA>()), loc);
 	case LLIL_FORCE_VER:
-		return dest->ForceVer(size, GetDestRegister<LLIL_FORCE_VER>(), *this);
+		return dest->ForceVer(size, GetDestRegister<LLIL_FORCE_VER>(), loc);
 	case LLIL_FORCE_VER_SSA:
-		return dest->ForceVerSSA(size, GetDestSSARegister<LLIL_FORCE_VER_SSA>(), GetSourceSSARegister<LLIL_FORCE_VER_SSA>(), *this);
+		return dest->ForceVerSSA(size, GetDestSSARegister<LLIL_FORCE_VER_SSA>(), GetSourceSSARegister<LLIL_FORCE_VER_SSA>(), loc);
 	case LLIL_ASSERT:
-		return dest->Assert(size, GetSourceRegister<LLIL_ASSERT>(), GetConstraint<LLIL_ASSERT>(), *this);
+		return dest->Assert(size, GetSourceRegister<LLIL_ASSERT>(), GetConstraint<LLIL_ASSERT>(), loc);
 	case LLIL_ASSERT_SSA:
-		return dest->AssertSSA(size, GetSourceSSARegister<LLIL_ASSERT_SSA>(), GetConstraint<LLIL_ASSERT_SSA>(), *this);
+		return dest->AssertSSA(size, GetSourceSSARegister<LLIL_ASSERT_SSA>(), GetConstraint<LLIL_ASSERT_SSA>(), loc);
 	case LLIL_LOAD:
-		return dest->Load(size, subExprHandler(GetSourceExpr<LLIL_LOAD>()), flags, *this);
+		return dest->Load(size, subExprHandler(GetSourceExpr<LLIL_LOAD>()), flags, loc);
 	case LLIL_LOAD_SSA:
 		return dest->LoadSSA(
-		    size, subExprHandler(GetSourceExpr<LLIL_LOAD_SSA>()), GetSourceMemoryVersion<LLIL_LOAD_SSA>(), *this);
+		    size, subExprHandler(GetSourceExpr<LLIL_LOAD_SSA>()), GetSourceMemoryVersion<LLIL_LOAD_SSA>(), loc);
 	case LLIL_STORE:
 		return dest->Store(
-		    size, subExprHandler(GetDestExpr<LLIL_STORE>()), subExprHandler(GetSourceExpr<LLIL_STORE>()), flags, *this);
+		    size, subExprHandler(GetDestExpr<LLIL_STORE>()), subExprHandler(GetSourceExpr<LLIL_STORE>()), flags, loc);
 	case LLIL_STORE_SSA:
 		return dest->StoreSSA(size, subExprHandler(GetDestExpr<LLIL_STORE_SSA>()),
 		    subExprHandler(GetSourceExpr<LLIL_STORE_SSA>()), GetDestMemoryVersion<LLIL_STORE_SSA>(),
-		    GetSourceMemoryVersion<LLIL_STORE_SSA>(), *this);
+		    GetSourceMemoryVersion<LLIL_STORE_SSA>(), loc);
 	case LLIL_REG:
-		return dest->Register(size, GetSourceRegister<LLIL_REG>(), *this);
+		return dest->Register(size, GetSourceRegister<LLIL_REG>(), loc);
 	case LLIL_REG_SSA:
-		return dest->RegisterSSA(size, GetSourceSSARegister<LLIL_REG_SSA>(), *this);
+		return dest->RegisterSSA(size, GetSourceSSARegister<LLIL_REG_SSA>(), loc);
 	case LLIL_REG_SSA_PARTIAL:
 		return dest->RegisterSSAPartial(
-		    size, GetSourceSSARegister<LLIL_REG_SSA_PARTIAL>(), GetPartialRegister<LLIL_REG_SSA_PARTIAL>(), *this);
+		    size, GetSourceSSARegister<LLIL_REG_SSA_PARTIAL>(), GetPartialRegister<LLIL_REG_SSA_PARTIAL>(), loc);
 	case LLIL_REG_SPLIT:
-		return dest->RegisterSplit(size, GetHighRegister<LLIL_REG_SPLIT>(), GetLowRegister<LLIL_REG_SPLIT>(), *this);
+		return dest->RegisterSplit(size, GetHighRegister<LLIL_REG_SPLIT>(), GetLowRegister<LLIL_REG_SPLIT>(), loc);
 	case LLIL_REG_SPLIT_SSA:
 		return dest->RegisterSplitSSA(
-		    size, GetHighSSARegister<LLIL_REG_SPLIT_SSA>(), GetLowSSARegister<LLIL_REG_SPLIT_SSA>(), *this);
+		    size, GetHighSSARegister<LLIL_REG_SPLIT_SSA>(), GetLowSSARegister<LLIL_REG_SPLIT_SSA>(), loc);
 	case LLIL_REG_STACK_REL:
 		return dest->RegisterStackTopRelative(size, GetSourceRegisterStack<LLIL_REG_STACK_REL>(),
-		    subExprHandler(GetSourceExpr<LLIL_REG_STACK_REL>()), *this);
+		    subExprHandler(GetSourceExpr<LLIL_REG_STACK_REL>()), loc);
 	case LLIL_REG_STACK_POP:
-		return dest->RegisterStackPop(size, GetSourceRegisterStack<LLIL_REG_STACK_POP>(), flags, *this);
+		return dest->RegisterStackPop(size, GetSourceRegisterStack<LLIL_REG_STACK_POP>(), flags, loc);
 	case LLIL_REG_STACK_FREE_REG:
-		return dest->RegisterStackFreeReg(GetDestRegister<LLIL_REG_STACK_FREE_REG>(), *this);
+		return dest->RegisterStackFreeReg(GetDestRegister<LLIL_REG_STACK_FREE_REG>(), loc);
 	case LLIL_REG_STACK_FREE_REL:
 		return dest->RegisterStackFreeTopRelative(GetDestRegisterStack<LLIL_REG_STACK_FREE_REL>(),
-		    subExprHandler(GetDestExpr<LLIL_REG_STACK_FREE_REL>()), *this);
+		    subExprHandler(GetDestExpr<LLIL_REG_STACK_FREE_REL>()), loc);
 	case LLIL_REG_STACK_REL_SSA:
 		return dest->RegisterStackTopRelativeSSA(size, GetSourceSSARegisterStack<LLIL_REG_STACK_REL_SSA>(),
 		    subExprHandler(GetSourceExpr<LLIL_REG_STACK_REL_SSA>()), GetTopSSARegister<LLIL_REG_STACK_REL_SSA>(),
-		    *this);
+		    loc);
 	case LLIL_REG_STACK_ABS_SSA:
 		return dest->RegisterStackAbsoluteSSA(size, GetSourceSSARegisterStack<LLIL_REG_STACK_ABS_SSA>(),
-		    GetSourceRegister<LLIL_REG_STACK_ABS_SSA>(), *this);
+		    GetSourceRegister<LLIL_REG_STACK_ABS_SSA>(), loc);
 	case LLIL_REG_STACK_FREE_REL_SSA:
 		return dest->RegisterStackFreeTopRelativeSSA(GetDestSSARegisterStack<LLIL_REG_STACK_FREE_REL_SSA>().regStack,
 		    GetDestSSARegisterStack<LLIL_REG_STACK_FREE_REL_SSA>().version,
 		    GetSourceSSARegisterStack<LLIL_REG_STACK_FREE_REL_SSA>().version,
 		    subExprHandler(GetDestExpr<LLIL_REG_STACK_FREE_REL_SSA>()),
-		    GetTopSSARegister<LLIL_REG_STACK_FREE_REL_SSA>(), *this);
+		    GetTopSSARegister<LLIL_REG_STACK_FREE_REL_SSA>(), loc);
 	case LLIL_REG_STACK_FREE_ABS_SSA:
 		return dest->RegisterStackFreeAbsoluteSSA(GetDestSSARegisterStack<LLIL_REG_STACK_FREE_ABS_SSA>().regStack,
 		    GetDestSSARegisterStack<LLIL_REG_STACK_FREE_ABS_SSA>().version,
 		    GetSourceSSARegisterStack<LLIL_REG_STACK_FREE_ABS_SSA>().version,
-		    GetDestRegister<LLIL_REG_STACK_FREE_ABS_SSA>(), *this);
+		    GetDestRegister<LLIL_REG_STACK_FREE_ABS_SSA>(), loc);
 	case LLIL_FLAG:
-		return dest->Flag(GetSourceFlag<LLIL_FLAG>(), *this);
+		return dest->Flag(GetSourceFlag<LLIL_FLAG>(), loc);
 	case LLIL_FLAG_SSA:
-		return dest->FlagSSA(GetSourceSSAFlag<LLIL_FLAG_SSA>(), *this);
+		return dest->FlagSSA(GetSourceSSAFlag<LLIL_FLAG_SSA>(), loc);
 	case LLIL_FLAG_BIT:
-		return dest->FlagBit(size, GetSourceFlag<LLIL_FLAG_BIT>(), GetBitIndex<LLIL_FLAG_BIT>(), *this);
+		return dest->FlagBit(size, GetSourceFlag<LLIL_FLAG_BIT>(), GetBitIndex<LLIL_FLAG_BIT>(), loc);
 	case LLIL_FLAG_BIT_SSA:
-		return dest->FlagBitSSA(size, GetSourceSSAFlag<LLIL_FLAG_BIT_SSA>(), GetBitIndex<LLIL_FLAG_BIT_SSA>(), *this);
+		return dest->FlagBitSSA(size, GetSourceSSAFlag<LLIL_FLAG_BIT_SSA>(), GetBitIndex<LLIL_FLAG_BIT_SSA>(), loc);
 	case LLIL_JUMP:
-		return dest->Jump(subExprHandler(GetDestExpr<LLIL_JUMP>()), *this);
+		return dest->Jump(subExprHandler(GetDestExpr<LLIL_JUMP>()), loc);
 	case LLIL_CALL:
-		return dest->Call(subExprHandler(GetDestExpr<LLIL_CALL>()), *this);
+		return dest->Call(subExprHandler(GetDestExpr<LLIL_CALL>()), loc);
 	case LLIL_CALL_STACK_ADJUST:
 		return dest->CallStackAdjust(subExprHandler(GetDestExpr<LLIL_CALL_STACK_ADJUST>()),
-		    GetStackAdjustment<LLIL_CALL_STACK_ADJUST>(), GetRegisterStackAdjustments<LLIL_CALL_STACK_ADJUST>(), *this);
+		    GetStackAdjustment<LLIL_CALL_STACK_ADJUST>(), GetRegisterStackAdjustments<LLIL_CALL_STACK_ADJUST>(), loc);
 	case LLIL_TAILCALL:
-		return dest->TailCall(subExprHandler(GetDestExpr<LLIL_TAILCALL>()), *this);
+		return dest->TailCall(subExprHandler(GetDestExpr<LLIL_TAILCALL>()), loc);
 	case LLIL_RET:
-		return dest->Return(subExprHandler(GetDestExpr<LLIL_RET>()), *this);
+		return dest->Return(subExprHandler(GetDestExpr<LLIL_RET>()), loc);
 	case LLIL_JUMP_TO:
 	{
 		map<uint64_t, BNLowLevelILLabel*> labelList;
@@ -2208,10 +2211,10 @@ ExprId LowLevelILInstruction::CopyTo(
 		{
 			labelA = dest->GetLabelForSourceInstruction(target.second);
 			if (!labelA)
-				return dest->Jump(subExprHandler(GetDestExpr<LLIL_JUMP_TO>()), *this);
+				return dest->Jump(subExprHandler(GetDestExpr<LLIL_JUMP_TO>()), loc);
 			labelList[target.first] = labelA;
 		}
-		return dest->JumpTo(subExprHandler(GetDestExpr<LLIL_JUMP_TO>()), labelList, *this);
+		return dest->JumpTo(subExprHandler(GetDestExpr<LLIL_JUMP_TO>()), labelList, loc);
 	}
 	case LLIL_GOTO:
 		labelA = dest->GetLabelForSourceInstruction(GetTarget<LLIL_GOTO>());
@@ -2219,63 +2222,63 @@ ExprId LowLevelILInstruction::CopyTo(
 		{
 			return dest->Jump(dest->ConstPointer(function->GetArchitecture()->GetAddressSize(),
 			                      function->GetInstruction(GetTarget<LLIL_GOTO>()).address),
-			    *this);
+			    loc);
 		}
-		return dest->Goto(*labelA, *this);
+		return dest->Goto(*labelA, loc);
 	case LLIL_IF:
 		labelA = dest->GetLabelForSourceInstruction(GetTrueTarget<LLIL_IF>());
 		labelB = dest->GetLabelForSourceInstruction(GetFalseTarget<LLIL_IF>());
 		if ((!labelA) || (!labelB))
-			return dest->Undefined(*this);
-		return dest->If(subExprHandler(GetConditionExpr<LLIL_IF>()), *labelA, *labelB, *this);
+			return dest->Undefined(loc);
+		return dest->If(subExprHandler(GetConditionExpr<LLIL_IF>()), *labelA, *labelB, loc);
 	case LLIL_FLAG_COND:
-		return dest->FlagCondition(GetFlagCondition<LLIL_FLAG_COND>(), GetSemanticFlagClass<LLIL_FLAG_COND>(), *this);
+		return dest->FlagCondition(GetFlagCondition<LLIL_FLAG_COND>(), GetSemanticFlagClass<LLIL_FLAG_COND>(), loc);
 	case LLIL_FLAG_GROUP:
-		return dest->FlagGroup(GetSemanticFlagGroup<LLIL_FLAG_GROUP>(), *this);
+		return dest->FlagGroup(GetSemanticFlagGroup<LLIL_FLAG_GROUP>(), loc);
 	case LLIL_TRAP:
-		return dest->Trap(GetVector<LLIL_TRAP>(), *this);
+		return dest->Trap(GetVector<LLIL_TRAP>(), loc);
 	case LLIL_CALL_SSA:
 		for (auto i : GetParameterExprs<LLIL_CALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->CallSSA(GetOutputSSARegisters<LLIL_CALL_SSA>(), subExprHandler(GetDestExpr<LLIL_CALL_SSA>()),
 		    params, GetStackSSARegister<LLIL_CALL_SSA>(), GetDestMemoryVersion<LLIL_CALL_SSA>(),
-		    GetSourceMemoryVersion<LLIL_CALL_SSA>(), *this);
+		    GetSourceMemoryVersion<LLIL_CALL_SSA>(), loc);
 	case LLIL_SYSCALL_SSA:
 		for (auto i : GetParameterExprs<LLIL_SYSCALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->SystemCallSSA(GetOutputSSARegisters<LLIL_SYSCALL_SSA>(), params,
 		    GetStackSSARegister<LLIL_SYSCALL_SSA>(), GetDestMemoryVersion<LLIL_SYSCALL_SSA>(),
-		    GetSourceMemoryVersion<LLIL_SYSCALL_SSA>(), *this);
+		    GetSourceMemoryVersion<LLIL_SYSCALL_SSA>(), loc);
 	case LLIL_TAILCALL_SSA:
 		for (auto i : GetParameterExprs<LLIL_TAILCALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->TailCallSSA(GetOutputSSARegisters<LLIL_TAILCALL_SSA>(),
 		    subExprHandler(GetDestExpr<LLIL_TAILCALL_SSA>()), params, GetStackSSARegister<LLIL_TAILCALL_SSA>(),
-		    GetDestMemoryVersion<LLIL_TAILCALL_SSA>(), GetSourceMemoryVersion<LLIL_TAILCALL_SSA>(), *this);
+		    GetDestMemoryVersion<LLIL_TAILCALL_SSA>(), GetSourceMemoryVersion<LLIL_TAILCALL_SSA>(), loc);
 	case LLIL_REG_PHI:
-		return dest->RegisterPhi(GetDestSSARegister<LLIL_REG_PHI>(), GetSourceSSARegisters<LLIL_REG_PHI>(), *this);
+		return dest->RegisterPhi(GetDestSSARegister<LLIL_REG_PHI>(), GetSourceSSARegisters<LLIL_REG_PHI>(), loc);
 	case LLIL_REG_STACK_PHI:
 		return dest->RegisterStackPhi(
-		    GetDestSSARegisterStack<LLIL_REG_STACK_PHI>(), GetSourceSSARegisterStacks<LLIL_REG_STACK_PHI>(), *this);
+		    GetDestSSARegisterStack<LLIL_REG_STACK_PHI>(), GetSourceSSARegisterStacks<LLIL_REG_STACK_PHI>(), loc);
 	case LLIL_FLAG_PHI:
-		return dest->FlagPhi(GetDestSSAFlag<LLIL_FLAG_PHI>(), GetSourceSSAFlags<LLIL_FLAG_PHI>(), *this);
+		return dest->FlagPhi(GetDestSSAFlag<LLIL_FLAG_PHI>(), GetSourceSSAFlags<LLIL_FLAG_PHI>(), loc);
 	case LLIL_MEM_PHI:
-		return dest->MemoryPhi(GetDestMemoryVersion<LLIL_MEM_PHI>(), GetSourceMemoryVersions<LLIL_MEM_PHI>(), *this);
+		return dest->MemoryPhi(GetDestMemoryVersion<LLIL_MEM_PHI>(), GetSourceMemoryVersions<LLIL_MEM_PHI>(), loc);
 	case LLIL_CONST:
-		return dest->Const(size, GetConstant<LLIL_CONST>(), *this);
+		return dest->Const(size, GetConstant<LLIL_CONST>(), loc);
 	case LLIL_CONST_PTR:
-		return dest->ConstPointer(size, GetConstant<LLIL_CONST_PTR>(), *this);
+		return dest->ConstPointer(size, GetConstant<LLIL_CONST_PTR>(), loc);
 	case LLIL_EXTERN_PTR:
-		return dest->ExternPointer(size, GetConstant<LLIL_EXTERN_PTR>(), GetOffset<LLIL_EXTERN_PTR>(), *this);
+		return dest->ExternPointer(size, GetConstant<LLIL_EXTERN_PTR>(), GetOffset<LLIL_EXTERN_PTR>(), loc);
 	case LLIL_FLOAT_CONST:
-		return dest->FloatConstRaw(size, GetConstant<LLIL_FLOAT_CONST>(), *this);
+		return dest->FloatConstRaw(size, GetConstant<LLIL_FLOAT_CONST>(), loc);
 	case LLIL_POP:
 	case LLIL_NORET:
 	case LLIL_SYSCALL:
 	case LLIL_BP:
 	case LLIL_UNDEF:
 	case LLIL_UNIMPL:
-		return dest->AddExprWithLocation(operation, *this, size, flags);
+		return dest->AddExprWithLocation(operation, loc, size, flags);
 	case LLIL_PUSH:
 	case LLIL_NEG:
 	case LLIL_NOT:
@@ -2294,7 +2297,7 @@ ExprId LowLevelILInstruction::CopyTo(
 	case LLIL_FLOOR:
 	case LLIL_CEIL:
 	case LLIL_FTRUNC:
-		return dest->AddExprWithLocation(operation, *this, size, flags, subExprHandler(AsOneOperand().GetSourceExpr()));
+		return dest->AddExprWithLocation(operation, loc, size, flags, subExprHandler(AsOneOperand().GetSourceExpr()));
 	case LLIL_ADD:
 	case LLIL_SUB:
 	case LLIL_AND:
@@ -2340,13 +2343,13 @@ ExprId LowLevelILInstruction::CopyTo(
 	case LLIL_FCMP_GT:
 	case LLIL_FCMP_O:
 	case LLIL_FCMP_UO:
-		return dest->AddExprWithLocation(operation, *this, size, flags, subExprHandler(AsTwoOperand().GetLeftExpr()),
+		return dest->AddExprWithLocation(operation, loc, size, flags, subExprHandler(AsTwoOperand().GetLeftExpr()),
 		    subExprHandler(AsTwoOperand().GetRightExpr()));
 	case LLIL_ADC:
 	case LLIL_SBB:
 	case LLIL_RLC:
 	case LLIL_RRC:
-		return dest->AddExprWithLocation(operation, *this, size, flags,
+		return dest->AddExprWithLocation(operation, loc, size, flags,
 		    subExprHandler(AsTwoOperandWithCarry().GetLeftExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetRightExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetCarryExpr()));
@@ -2354,25 +2357,25 @@ ExprId LowLevelILInstruction::CopyTo(
 		for (auto i : GetParameterExprs<LLIL_INTRINSIC>())
 			params.push_back(subExprHandler(i));
 		return dest->Intrinsic(
-		    GetOutputRegisterOrFlagList<LLIL_INTRINSIC>(), GetIntrinsic<LLIL_INTRINSIC>(), params, flags, *this);
+		    GetOutputRegisterOrFlagList<LLIL_INTRINSIC>(), GetIntrinsic<LLIL_INTRINSIC>(), params, flags, loc);
 	case LLIL_INTRINSIC_SSA:
 		for (auto i : GetParameterExprs<LLIL_INTRINSIC_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->IntrinsicSSA(
-		    GetOutputSSARegisterOrFlagList<LLIL_INTRINSIC_SSA>(), GetIntrinsic<LLIL_INTRINSIC_SSA>(), params, *this);
+		    GetOutputSSARegisterOrFlagList<LLIL_INTRINSIC_SSA>(), GetIntrinsic<LLIL_INTRINSIC_SSA>(), params, loc);
 	case LLIL_MEMORY_INTRINSIC_SSA:
 		for (auto i : GetParameterExprs<LLIL_MEMORY_INTRINSIC_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->MemoryIntrinsicSSA(GetOutputSSARegisterOrFlagList<LLIL_MEMORY_INTRINSIC_SSA>(), GetIntrinsic<LLIL_MEMORY_INTRINSIC_SSA>(),
-			params, GetDestMemoryVersion<LLIL_MEMORY_INTRINSIC_SSA>(), GetSourceMemoryVersion<LLIL_MEMORY_INTRINSIC_SSA>(), *this);
+			params, GetDestMemoryVersion<LLIL_MEMORY_INTRINSIC_SSA>(), GetSourceMemoryVersion<LLIL_MEMORY_INTRINSIC_SSA>(), loc);
 	case LLIL_SEPARATE_PARAM_LIST_SSA:
 		for (auto i : GetParameterExprs<LLIL_SEPARATE_PARAM_LIST_SSA>())
 			params.push_back(subExprHandler(i));
-		return dest->SeparateParamListSSA(params, *this);
+		return dest->SeparateParamListSSA(params, loc);
 	case LLIL_SHARED_PARAM_SLOT_SSA:
 		for (auto i : GetParameterExprs<LLIL_SHARED_PARAM_SLOT_SSA>())
 			params.push_back(subExprHandler(i));
-		return dest->SharedParamSlotSSA(params, *this);
+		return dest->SharedParamSlotSSA(params, loc);
 	default:
 		throw LowLevelILInstructionAccessException();
 	}

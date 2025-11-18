@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <vector>
 #ifdef BINARYNINJACORE_LIBRARY
+	#include "ilsourcelocation.h"
 	#include "type.h"
 #else
 	#include "binaryninjaapi.h"
@@ -872,9 +873,10 @@ namespace BinaryNinja
 
 		void VisitExprs(const std::function<bool(const LowLevelILInstruction& expr)>& func) const;
 
-		ExprId CopyTo(LowLevelILFunction* dest) const;
+		ExprId CopyTo(LowLevelILFunction* dest, const ILSourceLocation& sourceLocation = {}) const;
 		ExprId CopyTo(LowLevelILFunction* dest,
-		    const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler) const;
+			const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler,
+			const ILSourceLocation& sourceLocation = {}) const;
 
 		// Templated accessors for instruction operands, use these for efficient access to a known instruction
 		template <BNLowLevelILOperation N>

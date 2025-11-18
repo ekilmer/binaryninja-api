@@ -1578,145 +1578,149 @@ void MediumLevelILInstruction::VisitExprs(const std::function<bool(const MediumL
 }
 
 
-ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest) const
+ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest, const ILSourceLocation& sourceLocation) const
 {
-	return CopyTo(dest, [&](const MediumLevelILInstruction& subExpr) { return subExpr.CopyTo(dest); });
+	return CopyTo(dest, [&](const MediumLevelILInstruction& subExpr) { return subExpr.CopyTo(dest, sourceLocation); }, sourceLocation);
 }
 
 
 ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
-    const std::function<ExprId(const MediumLevelILInstruction& subExpr)>& subExprHandler) const
+    const std::function<ExprId(const MediumLevelILInstruction& subExpr)>& subExprHandler,
+	const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> params;
 	BNMediumLevelILLabel* labelA;
 	BNMediumLevelILLabel* labelB;
+
+	const auto& loc = sourceLocation.valid ? sourceLocation : ILSourceLocation{*this};
+
 	switch (operation)
 	{
 	case MLIL_NOP:
-		return dest->Nop(*this);
+		return dest->Nop(loc);
 	case MLIL_SET_VAR:
 		return dest->SetVar(
-		    size, GetDestVariable<MLIL_SET_VAR>(), subExprHandler(GetSourceExpr<MLIL_SET_VAR>()), *this);
+		    size, GetDestVariable<MLIL_SET_VAR>(), subExprHandler(GetSourceExpr<MLIL_SET_VAR>()), loc);
 	case MLIL_SET_VAR_SSA:
 		return dest->SetVarSSA(
-		    size, GetDestSSAVariable<MLIL_SET_VAR_SSA>(), subExprHandler(GetSourceExpr<MLIL_SET_VAR_SSA>()), *this);
+		    size, GetDestSSAVariable<MLIL_SET_VAR_SSA>(), subExprHandler(GetSourceExpr<MLIL_SET_VAR_SSA>()), loc);
 	case MLIL_SET_VAR_ALIASED:
 		return dest->SetVarAliased(size, GetDestSSAVariable<MLIL_SET_VAR_ALIASED>().var,
 		    GetDestSSAVariable<MLIL_SET_VAR_ALIASED>().version, GetSourceSSAVariable<MLIL_SET_VAR_ALIASED>().version,
-		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_ALIASED>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_ALIASED>()), loc);
 	case MLIL_SET_VAR_SPLIT:
 		return dest->SetVarSplit(size, GetHighVariable<MLIL_SET_VAR_SPLIT>(), GetLowVariable<MLIL_SET_VAR_SPLIT>(),
-		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_SPLIT>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_SPLIT>()), loc);
 	case MLIL_SET_VAR_SPLIT_SSA:
 		return dest->SetVarSSASplit(size, GetHighSSAVariable<MLIL_SET_VAR_SPLIT_SSA>(),
 		    GetLowSSAVariable<MLIL_SET_VAR_SPLIT_SSA>(), subExprHandler(GetSourceExpr<MLIL_SET_VAR_SPLIT_SSA>()),
-		    *this);
+		    loc);
 	case MLIL_SET_VAR_FIELD:
 		return dest->SetVarField(size, GetDestVariable<MLIL_SET_VAR_FIELD>(), GetOffset<MLIL_SET_VAR_FIELD>(),
-		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_FIELD>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_FIELD>()), loc);
 	case MLIL_SET_VAR_SSA_FIELD:
 		return dest->SetVarSSAField(size, GetDestSSAVariable<MLIL_SET_VAR_SSA_FIELD>().var,
 		    GetDestSSAVariable<MLIL_SET_VAR_SSA_FIELD>().version,
 		    GetSourceSSAVariable<MLIL_SET_VAR_SSA_FIELD>().version, GetOffset<MLIL_SET_VAR_SSA_FIELD>(),
-		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_SSA_FIELD>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_SSA_FIELD>()), loc);
 	case MLIL_SET_VAR_ALIASED_FIELD:
 		return dest->SetVarAliasedField(size, GetDestSSAVariable<MLIL_SET_VAR_ALIASED_FIELD>().var,
 		    GetDestSSAVariable<MLIL_SET_VAR_ALIASED_FIELD>().version,
 		    GetSourceSSAVariable<MLIL_SET_VAR_ALIASED_FIELD>().version, GetOffset<MLIL_SET_VAR_ALIASED_FIELD>(),
-		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_ALIASED_FIELD>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_SET_VAR_ALIASED_FIELD>()), loc);
 	case MLIL_VAR:
-		return dest->Var(size, GetSourceVariable<MLIL_VAR>(), *this);
+		return dest->Var(size, GetSourceVariable<MLIL_VAR>(), loc);
 	case MLIL_VAR_FIELD:
-		return dest->VarField(size, GetSourceVariable<MLIL_VAR_FIELD>(), GetOffset<MLIL_VAR_FIELD>(), *this);
+		return dest->VarField(size, GetSourceVariable<MLIL_VAR_FIELD>(), GetOffset<MLIL_VAR_FIELD>(), loc);
 	case MLIL_VAR_SPLIT:
-		return dest->VarSplit(size, GetHighVariable<MLIL_VAR_SPLIT>(), GetLowVariable<MLIL_VAR_SPLIT>(), *this);
+		return dest->VarSplit(size, GetHighVariable<MLIL_VAR_SPLIT>(), GetLowVariable<MLIL_VAR_SPLIT>(), loc);
 	case MLIL_VAR_SSA:
-		return dest->VarSSA(size, GetSourceSSAVariable<MLIL_VAR_SSA>(), *this);
+		return dest->VarSSA(size, GetSourceSSAVariable<MLIL_VAR_SSA>(), loc);
 	case MLIL_VAR_SSA_FIELD:
 		return dest->VarSSAField(
-		    size, GetSourceSSAVariable<MLIL_VAR_SSA_FIELD>(), GetOffset<MLIL_VAR_SSA_FIELD>(), *this);
+		    size, GetSourceSSAVariable<MLIL_VAR_SSA_FIELD>(), GetOffset<MLIL_VAR_SSA_FIELD>(), loc);
 	case MLIL_VAR_ALIASED:
 		return dest->VarAliased(size, GetSourceSSAVariable<MLIL_VAR_ALIASED>().var,
-		    GetSourceSSAVariable<MLIL_VAR_ALIASED>().version, *this);
+		    GetSourceSSAVariable<MLIL_VAR_ALIASED>().version, loc);
 	case MLIL_VAR_ALIASED_FIELD:
 		return dest->VarAliasedField(size, GetSourceSSAVariable<MLIL_VAR_ALIASED_FIELD>().var,
-		    GetSourceSSAVariable<MLIL_VAR_ALIASED_FIELD>().version, GetOffset<MLIL_VAR_ALIASED_FIELD>(), *this);
+		    GetSourceSSAVariable<MLIL_VAR_ALIASED_FIELD>().version, GetOffset<MLIL_VAR_ALIASED_FIELD>(), loc);
 	case MLIL_VAR_SPLIT_SSA:
 		return dest->VarSplitSSA(
-		    size, GetHighSSAVariable<MLIL_VAR_SPLIT_SSA>(), GetLowSSAVariable<MLIL_VAR_SPLIT_SSA>(), *this);
+		    size, GetHighSSAVariable<MLIL_VAR_SPLIT_SSA>(), GetLowSSAVariable<MLIL_VAR_SPLIT_SSA>(), loc);
 	case MLIL_FORCE_VER:
-		return dest->ForceVer(size, GetDestVariable<MLIL_FORCE_VER>(), GetSourceVariable<MLIL_FORCE_VER>(), *this);
+		return dest->ForceVer(size, GetDestVariable<MLIL_FORCE_VER>(), GetSourceVariable<MLIL_FORCE_VER>(), loc);
 	case MLIL_FORCE_VER_SSA:
-		return dest->ForceVerSSA(size, GetDestSSAVariable<MLIL_FORCE_VER_SSA>(), GetSourceSSAVariable<MLIL_FORCE_VER_SSA>(), *this);
+		return dest->ForceVerSSA(size, GetDestSSAVariable<MLIL_FORCE_VER_SSA>(), GetSourceSSAVariable<MLIL_FORCE_VER_SSA>(), loc);
 	case MLIL_ASSERT:
-		return dest->Assert(size, GetSourceVariable<MLIL_ASSERT>(), GetConstraint<MLIL_ASSERT>(), *this);
+		return dest->Assert(size, GetSourceVariable<MLIL_ASSERT>(), GetConstraint<MLIL_ASSERT>(), loc);
 	case MLIL_ASSERT_SSA:
-		return dest->AssertSSA(size, GetSourceSSAVariable<MLIL_ASSERT_SSA>(), GetConstraint<MLIL_ASSERT_SSA>(), *this);
+		return dest->AssertSSA(size, GetSourceSSAVariable<MLIL_ASSERT_SSA>(), GetConstraint<MLIL_ASSERT_SSA>(), loc);
 	case MLIL_ADDRESS_OF:
-		return dest->AddressOf(GetSourceVariable<MLIL_ADDRESS_OF>(), *this);
+		return dest->AddressOf(GetSourceVariable<MLIL_ADDRESS_OF>(), loc);
 	case MLIL_ADDRESS_OF_FIELD:
 		return dest->AddressOfField(
-		    GetSourceVariable<MLIL_ADDRESS_OF_FIELD>(), GetOffset<MLIL_ADDRESS_OF_FIELD>(), *this);
+		    GetSourceVariable<MLIL_ADDRESS_OF_FIELD>(), GetOffset<MLIL_ADDRESS_OF_FIELD>(), loc);
 	case MLIL_CALL:
 		for (auto i : GetParameterExprs<MLIL_CALL>())
 			params.push_back(subExprHandler(i));
-		return dest->Call(GetOutputVariables<MLIL_CALL>(), subExprHandler(GetDestExpr<MLIL_CALL>()), params, *this);
+		return dest->Call(GetOutputVariables<MLIL_CALL>(), subExprHandler(GetDestExpr<MLIL_CALL>()), params, loc);
 	case MLIL_CALL_UNTYPED:
 		for (auto i : GetParameterExprs<MLIL_CALL_UNTYPED>())
 			params.push_back(subExprHandler(i));
 		return dest->CallUntyped(GetOutputVariables<MLIL_CALL_UNTYPED>(),
 		    subExprHandler(GetDestExpr<MLIL_CALL_UNTYPED>()), params,
-		    subExprHandler(GetStackExpr<MLIL_CALL_UNTYPED>()), *this);
+		    subExprHandler(GetStackExpr<MLIL_CALL_UNTYPED>()), loc);
 	case MLIL_CALL_SSA:
 		for (auto i : GetParameterExprs<MLIL_CALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->CallSSA(GetOutputSSAVariables<MLIL_CALL_SSA>(), subExprHandler(GetDestExpr<MLIL_CALL_SSA>()),
-		    params, GetDestMemoryVersion<MLIL_CALL_SSA>(), GetSourceMemoryVersion<MLIL_CALL_SSA>(), *this);
+		    params, GetDestMemoryVersion<MLIL_CALL_SSA>(), GetSourceMemoryVersion<MLIL_CALL_SSA>(), loc);
 	case MLIL_CALL_UNTYPED_SSA:
 		for (auto i : GetParameterExprs<MLIL_CALL_UNTYPED_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->CallUntypedSSA(GetOutputSSAVariables<MLIL_CALL_UNTYPED_SSA>(),
 		    subExprHandler(GetDestExpr<MLIL_CALL_UNTYPED_SSA>()), params,
 		    GetDestMemoryVersion<MLIL_CALL_UNTYPED_SSA>(), GetSourceMemoryVersion<MLIL_CALL_UNTYPED_SSA>(),
-		    subExprHandler(GetStackExpr<MLIL_CALL_UNTYPED_SSA>()), *this);
+		    subExprHandler(GetStackExpr<MLIL_CALL_UNTYPED_SSA>()), loc);
 	case MLIL_SYSCALL:
 		for (auto i : GetParameterExprs<MLIL_SYSCALL>())
 			params.push_back(subExprHandler(i));
-		return dest->Syscall(GetOutputVariables<MLIL_SYSCALL>(), params, *this);
+		return dest->Syscall(GetOutputVariables<MLIL_SYSCALL>(), params, loc);
 	case MLIL_SYSCALL_UNTYPED:
 		for (auto i : GetParameterExprs<MLIL_SYSCALL_UNTYPED>())
 			params.push_back(subExprHandler(i));
 		return dest->SyscallUntyped(GetOutputVariables<MLIL_SYSCALL_UNTYPED>(),
-		    params, subExprHandler(GetStackExpr<MLIL_SYSCALL_UNTYPED>()), *this);
+		    params, subExprHandler(GetStackExpr<MLIL_SYSCALL_UNTYPED>()), loc);
 	case MLIL_SYSCALL_SSA:
 		for (auto i : GetParameterExprs<MLIL_SYSCALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->SyscallSSA(GetOutputSSAVariables<MLIL_SYSCALL_SSA>(), params,
-		    GetDestMemoryVersion<MLIL_SYSCALL_SSA>(), GetSourceMemoryVersion<MLIL_SYSCALL_SSA>(), *this);
+		    GetDestMemoryVersion<MLIL_SYSCALL_SSA>(), GetSourceMemoryVersion<MLIL_SYSCALL_SSA>(), loc);
 	case MLIL_SYSCALL_UNTYPED_SSA:
 		for (auto i : GetParameterExprs<MLIL_SYSCALL_UNTYPED_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->SyscallUntypedSSA(GetOutputSSAVariables<MLIL_SYSCALL_UNTYPED_SSA>(),
 		    params, GetDestMemoryVersion<MLIL_SYSCALL_UNTYPED_SSA>(),
 		    GetSourceMemoryVersion<MLIL_SYSCALL_UNTYPED_SSA>(),
-		    subExprHandler(GetStackExpr<MLIL_SYSCALL_UNTYPED_SSA>()), *this);
+		    subExprHandler(GetStackExpr<MLIL_SYSCALL_UNTYPED_SSA>()), loc);
 	case MLIL_TAILCALL:
 		for (auto i : GetParameterExprs<MLIL_TAILCALL>())
 			params.push_back(subExprHandler(i));
 		return dest->TailCall(
-		    GetOutputVariables<MLIL_TAILCALL>(), subExprHandler(GetDestExpr<MLIL_TAILCALL>()), params, *this);
+		    GetOutputVariables<MLIL_TAILCALL>(), subExprHandler(GetDestExpr<MLIL_TAILCALL>()), params, loc);
 	case MLIL_TAILCALL_UNTYPED:
 		for (auto i : GetParameterExprs<MLIL_TAILCALL_UNTYPED>())
 			params.push_back(subExprHandler(i));
 		return dest->TailCallUntyped(GetOutputVariables<MLIL_TAILCALL_UNTYPED>(),
 		    subExprHandler(GetDestExpr<MLIL_TAILCALL_UNTYPED>()), params,
-		    subExprHandler(GetStackExpr<MLIL_TAILCALL_UNTYPED>()), *this);
+		    subExprHandler(GetStackExpr<MLIL_TAILCALL_UNTYPED>()), loc);
 	case MLIL_TAILCALL_SSA:
 		for (auto i : GetParameterExprs<MLIL_TAILCALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->TailCallSSA(GetOutputSSAVariables<MLIL_TAILCALL_SSA>(),
 		    subExprHandler(GetDestExpr<MLIL_TAILCALL_SSA>()), params, GetDestMemoryVersion<MLIL_TAILCALL_SSA>(),
-		    GetSourceMemoryVersion<MLIL_TAILCALL_SSA>(), *this);
+		    GetSourceMemoryVersion<MLIL_TAILCALL_SSA>(), loc);
 	case MLIL_TAILCALL_UNTYPED_SSA:
 		for (auto i : GetParameterExprs<MLIL_TAILCALL_UNTYPED_SSA>())
 			params.push_back(subExprHandler(i));
@@ -1724,47 +1728,47 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 		    subExprHandler(GetDestExpr<MLIL_TAILCALL_UNTYPED_SSA>()),
 		    params, GetDestMemoryVersion<MLIL_TAILCALL_UNTYPED_SSA>(),
 		    GetSourceMemoryVersion<MLIL_TAILCALL_UNTYPED_SSA>(),
-		    subExprHandler(GetStackExpr<MLIL_TAILCALL_UNTYPED_SSA>()), *this);
+		    subExprHandler(GetStackExpr<MLIL_TAILCALL_UNTYPED_SSA>()), loc);
 	case MLIL_SEPARATE_PARAM_LIST:
 		for (auto i : GetParameterExprs<MLIL_SEPARATE_PARAM_LIST>())
 			params.push_back(subExprHandler(i));
-		return dest->SeparateParamList(params, *this);
+		return dest->SeparateParamList(params, loc);
 	case MLIL_SHARED_PARAM_SLOT:
 		for (auto i : GetParameterExprs<MLIL_SHARED_PARAM_SLOT>())
 			params.push_back(subExprHandler(i));
-		return dest->SharedParamSlot(params, *this);
+		return dest->SharedParamSlot(params, loc);
 	case MLIL_RET:
 		for (auto i : GetSourceExprs<MLIL_RET>())
 			params.push_back(subExprHandler(i));
-		return dest->Return(params, *this);
+		return dest->Return(params, loc);
 	case MLIL_NORET:
-		return dest->NoReturn(*this);
+		return dest->NoReturn(loc);
 	case MLIL_STORE:
 		return dest->Store(
-		    size, subExprHandler(GetDestExpr<MLIL_STORE>()), subExprHandler(GetSourceExpr<MLIL_STORE>()), *this);
+		    size, subExprHandler(GetDestExpr<MLIL_STORE>()), subExprHandler(GetSourceExpr<MLIL_STORE>()), loc);
 	case MLIL_STORE_STRUCT:
 		return dest->StoreStruct(size, subExprHandler(GetDestExpr<MLIL_STORE_STRUCT>()), GetOffset<MLIL_STORE_STRUCT>(),
-		    subExprHandler(GetSourceExpr<MLIL_STORE_STRUCT>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_STORE_STRUCT>()), loc);
 	case MLIL_STORE_SSA:
 		return dest->StoreSSA(size, subExprHandler(GetDestExpr<MLIL_STORE_SSA>()),
 		    GetDestMemoryVersion<MLIL_STORE_SSA>(), GetSourceMemoryVersion<MLIL_STORE_SSA>(),
-		    subExprHandler(GetSourceExpr<MLIL_STORE_SSA>()), *this);
+		    subExprHandler(GetSourceExpr<MLIL_STORE_SSA>()), loc);
 	case MLIL_STORE_STRUCT_SSA:
 		return dest->StoreStructSSA(size, subExprHandler(GetDestExpr<MLIL_STORE_STRUCT_SSA>()),
 		    GetOffset<MLIL_STORE_STRUCT_SSA>(), GetDestMemoryVersion<MLIL_STORE_STRUCT_SSA>(),
 		    GetSourceMemoryVersion<MLIL_STORE_STRUCT_SSA>(), subExprHandler(GetSourceExpr<MLIL_STORE_STRUCT_SSA>()),
-		    *this);
+		    loc);
 	case MLIL_LOAD:
-		return dest->Load(size, subExprHandler(GetSourceExpr<MLIL_LOAD>()), *this);
+		return dest->Load(size, subExprHandler(GetSourceExpr<MLIL_LOAD>()), loc);
 	case MLIL_LOAD_STRUCT:
 		return dest->LoadStruct(
-		    size, subExprHandler(GetSourceExpr<MLIL_LOAD_STRUCT>()), GetOffset<MLIL_LOAD_STRUCT>(), *this);
+		    size, subExprHandler(GetSourceExpr<MLIL_LOAD_STRUCT>()), GetOffset<MLIL_LOAD_STRUCT>(), loc);
 	case MLIL_LOAD_SSA:
 		return dest->LoadSSA(
-		    size, subExprHandler(GetSourceExpr<MLIL_LOAD_SSA>()), GetSourceMemoryVersion<MLIL_LOAD_SSA>(), *this);
+		    size, subExprHandler(GetSourceExpr<MLIL_LOAD_SSA>()), GetSourceMemoryVersion<MLIL_LOAD_SSA>(), loc);
 	case MLIL_LOAD_STRUCT_SSA:
 		return dest->LoadStructSSA(size, subExprHandler(GetSourceExpr<MLIL_LOAD_STRUCT_SSA>()),
-		    GetOffset<MLIL_LOAD_STRUCT_SSA>(), GetSourceMemoryVersion<MLIL_LOAD_STRUCT_SSA>(), *this);
+		    GetOffset<MLIL_LOAD_STRUCT_SSA>(), GetSourceMemoryVersion<MLIL_LOAD_STRUCT_SSA>(), loc);
 	case MLIL_NEG:
 	case MLIL_NOT:
 	case MLIL_SX:
@@ -1784,7 +1788,7 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 	case MLIL_FLOOR:
 	case MLIL_CEIL:
 	case MLIL_FTRUNC:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsOneOperand().GetSourceExpr()));
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsOneOperand().GetSourceExpr()));
 	case MLIL_ADD:
 	case MLIL_SUB:
 	case MLIL_AND:
@@ -1830,13 +1834,13 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 	case MLIL_FCMP_GT:
 	case MLIL_FCMP_O:
 	case MLIL_FCMP_UO:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsTwoOperand().GetLeftExpr()),
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsTwoOperand().GetLeftExpr()),
 		    subExprHandler(AsTwoOperand().GetRightExpr()));
 	case MLIL_ADC:
 	case MLIL_SBB:
 	case MLIL_RLC:
 	case MLIL_RRC:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsTwoOperandWithCarry().GetLeftExpr()),
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsTwoOperandWithCarry().GetLeftExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetRightExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetCarryExpr()));
 	case MLIL_JUMP_TO:
@@ -1846,10 +1850,10 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 		{
 			labelA = dest->GetLabelForSourceInstruction(target.second);
 			if (!labelA)
-				return dest->Jump(subExprHandler(GetDestExpr<MLIL_JUMP_TO>()), *this);
+				return dest->Jump(subExprHandler(GetDestExpr<MLIL_JUMP_TO>()), loc);
 			labelList[target.first] = labelA;
 		}
-		return dest->JumpTo(subExprHandler(GetDestExpr<MLIL_JUMP_TO>()), labelList, *this);
+		return dest->JumpTo(subExprHandler(GetDestExpr<MLIL_JUMP_TO>()), labelList, loc);
 	}
 	case MLIL_GOTO:
 		labelA = dest->GetLabelForSourceInstruction(GetTarget<MLIL_GOTO>());
@@ -1857,56 +1861,56 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
 		{
 			return dest->Jump(dest->ConstPointer(function->GetArchitecture()->GetAddressSize(),
 			                      function->GetInstruction(GetTarget<MLIL_GOTO>()).address),
-			    *this);
+			    loc);
 		}
-		return dest->Goto(*labelA, *this);
+		return dest->Goto(*labelA, loc);
 	case MLIL_IF:
 		labelA = dest->GetLabelForSourceInstruction(GetTrueTarget<MLIL_IF>());
 		labelB = dest->GetLabelForSourceInstruction(GetFalseTarget<MLIL_IF>());
 		if ((!labelA) || (!labelB))
-			return dest->Undefined(*this);
-		return dest->If(subExprHandler(GetConditionExpr<MLIL_IF>()), *labelA, *labelB, *this);
+			return dest->Undefined(loc);
+		return dest->If(subExprHandler(GetConditionExpr<MLIL_IF>()), *labelA, *labelB, loc);
 	case MLIL_CONST:
-		return dest->Const(size, GetConstant<MLIL_CONST>(), *this);
+		return dest->Const(size, GetConstant<MLIL_CONST>(), loc);
 	case MLIL_CONST_PTR:
-		return dest->ConstPointer(size, GetConstant<MLIL_CONST_PTR>(), *this);
+		return dest->ConstPointer(size, GetConstant<MLIL_CONST_PTR>(), loc);
 	case MLIL_EXTERN_PTR:
-		return dest->ExternPointer(size, GetConstant<MLIL_EXTERN_PTR>(), GetOffset<MLIL_EXTERN_PTR>(), *this);
+		return dest->ExternPointer(size, GetConstant<MLIL_EXTERN_PTR>(), GetOffset<MLIL_EXTERN_PTR>(), loc);
 	case MLIL_FLOAT_CONST:
-		return dest->FloatConstRaw(size, GetConstant<MLIL_FLOAT_CONST>(), *this);
+		return dest->FloatConstRaw(size, GetConstant<MLIL_FLOAT_CONST>(), loc);
 	case MLIL_IMPORT:
-		return dest->ImportedAddress(size, GetConstant<MLIL_IMPORT>(), *this);
+		return dest->ImportedAddress(size, GetConstant<MLIL_IMPORT>(), loc);
 	case MLIL_CONST_DATA:
-		return dest->ConstData(size, GetConstantData<MLIL_CONST_DATA>(), *this);
+		return dest->ConstData(size, GetConstantData<MLIL_CONST_DATA>(), loc);
 	case MLIL_BP:
-		return dest->Breakpoint(*this);
+		return dest->Breakpoint(loc);
 	case MLIL_TRAP:
-		return dest->Trap(GetVector<MLIL_TRAP>(), *this);
+		return dest->Trap(GetVector<MLIL_TRAP>(), loc);
 	case MLIL_INTRINSIC:
 		for (auto i : GetParameterExprs<MLIL_INTRINSIC>())
 			params.push_back(subExprHandler(i));
-		return dest->Intrinsic(GetOutputVariables<MLIL_INTRINSIC>(), GetIntrinsic<MLIL_INTRINSIC>(), params, *this);
+		return dest->Intrinsic(GetOutputVariables<MLIL_INTRINSIC>(), GetIntrinsic<MLIL_INTRINSIC>(), params, loc);
 	case MLIL_INTRINSIC_SSA:
 		for (auto i : GetParameterExprs<MLIL_INTRINSIC_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->IntrinsicSSA(
-		    GetOutputSSAVariables<MLIL_INTRINSIC_SSA>(), GetIntrinsic<MLIL_INTRINSIC_SSA>(), params, *this);
+		    GetOutputSSAVariables<MLIL_INTRINSIC_SSA>(), GetIntrinsic<MLIL_INTRINSIC_SSA>(), params, loc);
 	case MLIL_MEMORY_INTRINSIC_SSA:
 		for (auto i : GetParameterExprs<MLIL_MEMORY_INTRINSIC_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->MemoryIntrinsicSSA(GetOutputSSAVariables<MLIL_MEMORY_INTRINSIC_SSA>(),
 		    GetIntrinsic<MLIL_MEMORY_INTRINSIC_SSA>(), params, GetDestMemoryVersion<MLIL_MEMORY_INTRINSIC_SSA>(),
-		    GetSourceMemoryVersion<MLIL_MEMORY_INTRINSIC_SSA>(), *this);
+		    GetSourceMemoryVersion<MLIL_MEMORY_INTRINSIC_SSA>(), loc);
 	case MLIL_FREE_VAR_SLOT:
-		return dest->FreeVarSlot(GetDestVariable<MLIL_FREE_VAR_SLOT>(), *this);
+		return dest->FreeVarSlot(GetDestVariable<MLIL_FREE_VAR_SLOT>(), loc);
 	case MLIL_FREE_VAR_SLOT_SSA:
 		return dest->FreeVarSlotSSA(GetDestSSAVariable<MLIL_FREE_VAR_SLOT_SSA>().var,
 		    GetDestSSAVariable<MLIL_FREE_VAR_SLOT_SSA>().version,
-		    GetSourceSSAVariable<MLIL_FREE_VAR_SLOT_SSA>().version, *this);
+		    GetSourceSSAVariable<MLIL_FREE_VAR_SLOT_SSA>().version, loc);
 	case MLIL_UNDEF:
-		return dest->Undefined(*this);
+		return dest->Undefined(loc);
 	case MLIL_UNIMPL:
-		return dest->Unimplemented(*this);
+		return dest->Unimplemented(loc);
 	default:
 		throw MediumLevelILInstructionAccessException();
 	}

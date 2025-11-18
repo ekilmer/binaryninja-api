@@ -26,6 +26,7 @@
 #ifdef BINARYNINJACORE_LIBRARY
 	#include "constantdata.h"
 	#include "variable.h"
+	#include "ilsourcelocation.h"
 #else
 	#include "binaryninjaapi.h"
 #endif
@@ -620,9 +621,10 @@ namespace BinaryNinja
 
 		void VisitExprs(const std::function<bool(const MediumLevelILInstruction& expr)>& func) const;
 
-		ExprId CopyTo(MediumLevelILFunction* dest) const;
+		ExprId CopyTo(MediumLevelILFunction* dest, const ILSourceLocation& sourceLocation = {}) const;
 		ExprId CopyTo(MediumLevelILFunction* dest,
-		    const std::function<ExprId(const MediumLevelILInstruction& subExpr)>& subExprHandler) const;
+		    const std::function<ExprId(const MediumLevelILInstruction& subExpr)>& subExprHandler,
+			const ILSourceLocation& sourceLocation = {}) const;
 
 		// Templated accessors for instruction operands, use these for efficient access to a known instruction
 		template <BNMediumLevelILOperation N>

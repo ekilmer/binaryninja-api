@@ -1370,162 +1370,165 @@ void HighLevelILInstruction::VisitExprs(const std::function<bool(const HighLevel
 }
 
 
-ExprId HighLevelILInstruction::CopyTo(HighLevelILFunction* dest) const
+ExprId HighLevelILInstruction::CopyTo(HighLevelILFunction* dest, const ILSourceLocation& sourceLocation) const
 {
-	return CopyTo(dest, [&](const HighLevelILInstruction& subExpr) { return subExpr.CopyTo(dest); });
+	return CopyTo(dest, [&](const HighLevelILInstruction& subExpr) { return subExpr.CopyTo(dest, sourceLocation); }, sourceLocation);
 }
 
 
 ExprId HighLevelILInstruction::CopyTo(
-    HighLevelILFunction* dest, const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler) const
+    HighLevelILFunction* dest, const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler, const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> output, params;
+
+	const auto& loc = sourceLocation.valid ? sourceLocation : ILSourceLocation{*this};
+
 	switch (operation)
 	{
 	case HLIL_NOP:
-		return dest->Nop(*this);
+		return dest->Nop(loc);
 	case HLIL_BLOCK:
 		for (auto i : GetBlockExprs<HLIL_BLOCK>())
 			params.push_back(subExprHandler(i));
-		return dest->Block(params, *this);
+		return dest->Block(params, loc);
 	case HLIL_IF:
 		return dest->If(subExprHandler(GetConditionExpr<HLIL_IF>()), subExprHandler(GetTrueExpr<HLIL_IF>()),
-		    subExprHandler(GetFalseExpr<HLIL_IF>()), *this);
+		    subExprHandler(GetFalseExpr<HLIL_IF>()), loc);
 	case HLIL_WHILE:
 		return dest->While(
-		    subExprHandler(GetConditionExpr<HLIL_WHILE>()), subExprHandler(GetLoopExpr<HLIL_WHILE>()), *this);
+		    subExprHandler(GetConditionExpr<HLIL_WHILE>()), subExprHandler(GetLoopExpr<HLIL_WHILE>()), loc);
 	case HLIL_WHILE_SSA:
 		return dest->WhileSSA(subExprHandler(GetConditionPhiExpr<HLIL_WHILE_SSA>()),
-		    subExprHandler(GetConditionExpr<HLIL_WHILE_SSA>()), subExprHandler(GetLoopExpr<HLIL_WHILE_SSA>()), *this);
+		    subExprHandler(GetConditionExpr<HLIL_WHILE_SSA>()), subExprHandler(GetLoopExpr<HLIL_WHILE_SSA>()), loc);
 	case HLIL_DO_WHILE:
 		return dest->DoWhile(
-		    subExprHandler(GetLoopExpr<HLIL_DO_WHILE>()), subExprHandler(GetConditionExpr<HLIL_DO_WHILE>()), *this);
+		    subExprHandler(GetLoopExpr<HLIL_DO_WHILE>()), subExprHandler(GetConditionExpr<HLIL_DO_WHILE>()), loc);
 	case HLIL_DO_WHILE_SSA:
 		return dest->DoWhileSSA(subExprHandler(GetLoopExpr<HLIL_DO_WHILE_SSA>()),
 		    subExprHandler(GetConditionPhiExpr<HLIL_DO_WHILE_SSA>()),
-		    subExprHandler(GetConditionExpr<HLIL_DO_WHILE_SSA>()), *this);
+		    subExprHandler(GetConditionExpr<HLIL_DO_WHILE_SSA>()), loc);
 	case HLIL_FOR:
 		return dest->For(subExprHandler(GetInitExpr<HLIL_FOR>()), subExprHandler(GetConditionExpr<HLIL_FOR>()),
-		    subExprHandler(GetUpdateExpr<HLIL_FOR>()), subExprHandler(GetLoopExpr<HLIL_FOR>()), *this);
+		    subExprHandler(GetUpdateExpr<HLIL_FOR>()), subExprHandler(GetLoopExpr<HLIL_FOR>()), loc);
 	case HLIL_FOR_SSA:
 		return dest->ForSSA(subExprHandler(GetInitExpr<HLIL_FOR_SSA>()),
 		    subExprHandler(GetConditionPhiExpr<HLIL_FOR_SSA>()), subExprHandler(GetConditionExpr<HLIL_FOR_SSA>()),
-		    subExprHandler(GetUpdateExpr<HLIL_FOR_SSA>()), subExprHandler(GetLoopExpr<HLIL_FOR_SSA>()), *this);
+		    subExprHandler(GetUpdateExpr<HLIL_FOR_SSA>()), subExprHandler(GetLoopExpr<HLIL_FOR_SSA>()), loc);
 	case HLIL_SWITCH:
 		for (auto i : GetCases<HLIL_SWITCH>())
 			params.push_back(subExprHandler(i));
 		return dest->Switch(subExprHandler(GetConditionExpr<HLIL_SWITCH>()),
-		    subExprHandler(GetDefaultExpr<HLIL_SWITCH>()), params, *this);
+		    subExprHandler(GetDefaultExpr<HLIL_SWITCH>()), params, loc);
 	case HLIL_CASE:
 		for (auto i : GetValueExprs<HLIL_CASE>())
 			params.push_back(subExprHandler(i));
-		return dest->Case(params, subExprHandler(GetTrueExpr<HLIL_CASE>()), *this);
+		return dest->Case(params, subExprHandler(GetTrueExpr<HLIL_CASE>()), loc);
 	case HLIL_BREAK:
-		return dest->Break(*this);
+		return dest->Break(loc);
 	case HLIL_CONTINUE:
-		return dest->Continue(*this);
+		return dest->Continue(loc);
 	case HLIL_GOTO:
-		return dest->Goto(GetTarget<HLIL_GOTO>(), *this);
+		return dest->Goto(GetTarget<HLIL_GOTO>(), loc);
 	case HLIL_LABEL:
-		return dest->Label(GetTarget<HLIL_LABEL>(), *this);
+		return dest->Label(GetTarget<HLIL_LABEL>(), loc);
 	case HLIL_VAR_DECLARE:
-		return dest->VarDeclare(GetVariable<HLIL_VAR_DECLARE>(), *this);
+		return dest->VarDeclare(GetVariable<HLIL_VAR_DECLARE>(), loc);
 	case HLIL_VAR_INIT:
 		return dest->VarInit(
-		    size, GetDestVariable<HLIL_VAR_INIT>(), subExprHandler(GetSourceExpr<HLIL_VAR_INIT>()), *this);
+		    size, GetDestVariable<HLIL_VAR_INIT>(), subExprHandler(GetSourceExpr<HLIL_VAR_INIT>()), loc);
 	case HLIL_VAR_INIT_SSA:
 		return dest->VarInitSSA(
-		    size, GetDestSSAVariable<HLIL_VAR_INIT_SSA>(), subExprHandler(GetSourceExpr<HLIL_VAR_INIT_SSA>()), *this);
+		    size, GetDestSSAVariable<HLIL_VAR_INIT_SSA>(), subExprHandler(GetSourceExpr<HLIL_VAR_INIT_SSA>()), loc);
 	case HLIL_ASSIGN:
 		return dest->Assign(
-		    size, subExprHandler(GetDestExpr<HLIL_ASSIGN>()), subExprHandler(GetSourceExpr<HLIL_ASSIGN>()), *this);
+		    size, subExprHandler(GetDestExpr<HLIL_ASSIGN>()), subExprHandler(GetSourceExpr<HLIL_ASSIGN>()), loc);
 	case HLIL_ASSIGN_UNPACK:
 		for (auto i : GetDestExprs<HLIL_ASSIGN_UNPACK>())
 			output.push_back(subExprHandler(i));
-		return dest->AssignUnpack(output, subExprHandler(GetSourceExpr<HLIL_ASSIGN_UNPACK>()), *this);
+		return dest->AssignUnpack(output, subExprHandler(GetSourceExpr<HLIL_ASSIGN_UNPACK>()), loc);
 	case HLIL_ASSIGN_MEM_SSA:
 		return dest->AssignMemSSA(size, subExprHandler(GetDestExpr<HLIL_ASSIGN_MEM_SSA>()),
 		    GetDestMemoryVersion<HLIL_ASSIGN_MEM_SSA>(), subExprHandler(GetSourceExpr<HLIL_ASSIGN_MEM_SSA>()),
-		    GetSourceMemoryVersion<HLIL_ASSIGN_MEM_SSA>(), *this);
+		    GetSourceMemoryVersion<HLIL_ASSIGN_MEM_SSA>(), loc);
 	case HLIL_ASSIGN_UNPACK_MEM_SSA:
 		for (auto i : GetDestExprs<HLIL_ASSIGN_UNPACK_MEM_SSA>())
 			output.push_back(subExprHandler(i));
 		return dest->AssignUnpackMemSSA(output, GetDestMemoryVersion<HLIL_ASSIGN_UNPACK_MEM_SSA>(),
 		    subExprHandler(GetSourceExpr<HLIL_ASSIGN_UNPACK_MEM_SSA>()),
-		    GetSourceMemoryVersion<HLIL_ASSIGN_UNPACK_MEM_SSA>(), *this);
+		    GetSourceMemoryVersion<HLIL_ASSIGN_UNPACK_MEM_SSA>(), loc);
 	case HLIL_FORCE_VER:
-		return dest->ForceVer(size, GetDestVariable<HLIL_FORCE_VER>(), GetVariable<HLIL_FORCE_VER>(), *this);
+		return dest->ForceVer(size, GetDestVariable<HLIL_FORCE_VER>(), GetVariable<HLIL_FORCE_VER>(), loc);
 	case HLIL_FORCE_VER_SSA:
-		return dest->ForceVerSSA(size, GetDestSSAVariable<HLIL_FORCE_VER_SSA>(), GetSSAVariable<HLIL_FORCE_VER_SSA>(), *this);
+		return dest->ForceVerSSA(size, GetDestSSAVariable<HLIL_FORCE_VER_SSA>(), GetSSAVariable<HLIL_FORCE_VER_SSA>(), loc);
 	case HLIL_ASSERT:
-		return dest->Assert(size, GetVariable<HLIL_ASSERT>(), GetConstraint<HLIL_ASSERT>(), *this);
+		return dest->Assert(size, GetVariable<HLIL_ASSERT>(), GetConstraint<HLIL_ASSERT>(), loc);
 	case HLIL_ASSERT_SSA:
-		return dest->AssertSSA(size, GetSSAVariable<HLIL_ASSERT_SSA>(), GetConstraint<HLIL_ASSERT_SSA>(), *this);
+		return dest->AssertSSA(size, GetSSAVariable<HLIL_ASSERT_SSA>(), GetConstraint<HLIL_ASSERT_SSA>(), loc);
 	case HLIL_VAR:
-		return dest->Var(size, GetVariable<HLIL_VAR>(), *this);
+		return dest->Var(size, GetVariable<HLIL_VAR>(), loc);
 	case HLIL_VAR_SSA:
-		return dest->VarSSA(size, GetSSAVariable<HLIL_VAR_SSA>(), *this);
+		return dest->VarSSA(size, GetSSAVariable<HLIL_VAR_SSA>(), loc);
 	case HLIL_VAR_PHI:
-		return dest->VarPhi(GetDestSSAVariable<HLIL_VAR_PHI>(), GetSourceSSAVariables<HLIL_VAR_PHI>(), *this);
+		return dest->VarPhi(GetDestSSAVariable<HLIL_VAR_PHI>(), GetSourceSSAVariables<HLIL_VAR_PHI>(), loc);
 	case HLIL_MEM_PHI:
-		return dest->MemPhi(GetDestMemoryVersion<HLIL_MEM_PHI>(), GetSourceMemoryVersions<HLIL_MEM_PHI>(), *this);
+		return dest->MemPhi(GetDestMemoryVersion<HLIL_MEM_PHI>(), GetSourceMemoryVersions<HLIL_MEM_PHI>(), loc);
 	case HLIL_STRUCT_FIELD:
 		return dest->StructField(size, subExprHandler(GetSourceExpr<HLIL_STRUCT_FIELD>()),
-		    GetOffset<HLIL_STRUCT_FIELD>(), GetMemberIndex<HLIL_STRUCT_FIELD>(), *this);
+		    GetOffset<HLIL_STRUCT_FIELD>(), GetMemberIndex<HLIL_STRUCT_FIELD>(), loc);
 	case HLIL_ARRAY_INDEX:
 		return dest->ArrayIndex(size, subExprHandler(GetSourceExpr<HLIL_ARRAY_INDEX>()),
-		    subExprHandler(GetIndexExpr<HLIL_ARRAY_INDEX>()), *this);
+		    subExprHandler(GetIndexExpr<HLIL_ARRAY_INDEX>()), loc);
 	case HLIL_ARRAY_INDEX_SSA:
 		return dest->ArrayIndexSSA(size, subExprHandler(GetSourceExpr<HLIL_ARRAY_INDEX_SSA>()),
 		    GetSourceMemoryVersion<HLIL_ARRAY_INDEX_SSA>(), subExprHandler(GetIndexExpr<HLIL_ARRAY_INDEX_SSA>()),
-		    *this);
+		    loc);
 	case HLIL_SPLIT:
 		return dest->Split(
-		    size, subExprHandler(GetHighExpr<HLIL_SPLIT>()), subExprHandler(GetLowExpr<HLIL_SPLIT>()), *this);
+		    size, subExprHandler(GetHighExpr<HLIL_SPLIT>()), subExprHandler(GetLowExpr<HLIL_SPLIT>()), loc);
 	case HLIL_DEREF:
-		return dest->Deref(size, subExprHandler(GetSourceExpr<HLIL_DEREF>()), *this);
+		return dest->Deref(size, subExprHandler(GetSourceExpr<HLIL_DEREF>()), loc);
 	case HLIL_DEREF_FIELD:
 		return dest->DerefField(size, subExprHandler(GetSourceExpr<HLIL_DEREF_FIELD>()), GetOffset<HLIL_DEREF_FIELD>(),
-		    GetMemberIndex<HLIL_DEREF_FIELD>(), *this);
+		    GetMemberIndex<HLIL_DEREF_FIELD>(), loc);
 	case HLIL_DEREF_SSA:
 		return dest->DerefSSA(
-		    size, subExprHandler(GetSourceExpr<HLIL_DEREF_SSA>()), GetSourceMemoryVersion<HLIL_DEREF_SSA>(), *this);
+		    size, subExprHandler(GetSourceExpr<HLIL_DEREF_SSA>()), GetSourceMemoryVersion<HLIL_DEREF_SSA>(), loc);
 	case HLIL_DEREF_FIELD_SSA:
 		return dest->DerefFieldSSA(size, subExprHandler(GetSourceExpr<HLIL_DEREF_FIELD_SSA>()),
 		    GetSourceMemoryVersion<HLIL_DEREF_FIELD_SSA>(), GetOffset<HLIL_DEREF_FIELD_SSA>(),
-		    GetMemberIndex<HLIL_DEREF_FIELD_SSA>(), *this);
+		    GetMemberIndex<HLIL_DEREF_FIELD_SSA>(), loc);
 	case HLIL_ADDRESS_OF:
-		return dest->AddressOf(subExprHandler(GetSourceExpr<HLIL_ADDRESS_OF>()), *this);
+		return dest->AddressOf(subExprHandler(GetSourceExpr<HLIL_ADDRESS_OF>()), loc);
 	case HLIL_CALL:
 		for (auto i : GetParameterExprs<HLIL_CALL>())
 			params.push_back(subExprHandler(i));
-		return dest->Call(subExprHandler(GetDestExpr<HLIL_CALL>()), params, *this);
+		return dest->Call(subExprHandler(GetDestExpr<HLIL_CALL>()), params, loc);
 	case HLIL_SYSCALL:
 		for (auto i : GetParameterExprs<HLIL_SYSCALL>())
 			params.push_back(subExprHandler(i));
-		return dest->Syscall(params, *this);
+		return dest->Syscall(params, loc);
 	case HLIL_TAILCALL:
 		for (auto i : GetParameterExprs<HLIL_TAILCALL>())
 			params.push_back(subExprHandler(i));
-		return dest->TailCall(subExprHandler(GetDestExpr<HLIL_TAILCALL>()), params, *this);
+		return dest->TailCall(subExprHandler(GetDestExpr<HLIL_TAILCALL>()), params, loc);
 	case HLIL_CALL_SSA:
 		for (auto i : GetParameterExprs<HLIL_CALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->CallSSA(subExprHandler(GetDestExpr<HLIL_CALL_SSA>()), params,
-		    GetDestMemoryVersion<HLIL_CALL_SSA>(), GetSourceMemoryVersion<HLIL_CALL_SSA>(), *this);
+		    GetDestMemoryVersion<HLIL_CALL_SSA>(), GetSourceMemoryVersion<HLIL_CALL_SSA>(), loc);
 	case HLIL_SYSCALL_SSA:
 		for (auto i : GetParameterExprs<HLIL_SYSCALL_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->SyscallSSA(
-		    params, GetDestMemoryVersion<HLIL_SYSCALL_SSA>(), GetSourceMemoryVersion<HLIL_SYSCALL_SSA>(), *this);
+		    params, GetDestMemoryVersion<HLIL_SYSCALL_SSA>(), GetSourceMemoryVersion<HLIL_SYSCALL_SSA>(), loc);
 	case HLIL_RET:
 		for (auto i : GetSourceExprs<HLIL_RET>())
 			params.push_back(subExprHandler(i));
-		return dest->Return(params, *this);
+		return dest->Return(params, loc);
 	case HLIL_NORET:
-		return dest->NoReturn(*this);
+		return dest->NoReturn(loc);
 	case HLIL_UNREACHABLE:
-		return dest->Unreachable(*this);
+		return dest->Unreachable(loc);
 	case HLIL_NEG:
 	case HLIL_NOT:
 	case HLIL_SX:
@@ -1544,7 +1547,7 @@ ExprId HighLevelILInstruction::CopyTo(
 	case HLIL_FLOOR:
 	case HLIL_CEIL:
 	case HLIL_FTRUNC:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsOneOperand().GetSourceExpr()));
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsOneOperand().GetSourceExpr()));
 	case HLIL_ADD:
 	case HLIL_SUB:
 	case HLIL_AND:
@@ -1590,44 +1593,44 @@ ExprId HighLevelILInstruction::CopyTo(
 	case HLIL_FCMP_GT:
 	case HLIL_FCMP_O:
 	case HLIL_FCMP_UO:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsTwoOperand().GetLeftExpr()),
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsTwoOperand().GetLeftExpr()),
 		    subExprHandler(AsTwoOperand().GetRightExpr()));
 	case HLIL_ADC:
 	case HLIL_SBB:
 	case HLIL_RLC:
 	case HLIL_RRC:
-		return dest->AddExprWithLocation(operation, *this, size, subExprHandler(AsTwoOperandWithCarry().GetLeftExpr()),
+		return dest->AddExprWithLocation(operation, loc, size, subExprHandler(AsTwoOperandWithCarry().GetLeftExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetRightExpr()),
 		    subExprHandler(AsTwoOperandWithCarry().GetCarryExpr()));
 	case HLIL_CONST:
-		return dest->Const(size, GetConstant<HLIL_CONST>(), *this);
+		return dest->Const(size, GetConstant<HLIL_CONST>(), loc);
 	case HLIL_CONST_PTR:
-		return dest->ConstPointer(size, GetConstant<HLIL_CONST_PTR>(), *this);
+		return dest->ConstPointer(size, GetConstant<HLIL_CONST_PTR>(), loc);
 	case HLIL_EXTERN_PTR:
-		return dest->ExternPointer(size, GetConstant<HLIL_EXTERN_PTR>(), GetOffset<HLIL_EXTERN_PTR>(), *this);
+		return dest->ExternPointer(size, GetConstant<HLIL_EXTERN_PTR>(), GetOffset<HLIL_EXTERN_PTR>(), loc);
 	case HLIL_FLOAT_CONST:
-		return dest->FloatConstRaw(size, GetConstant<HLIL_FLOAT_CONST>(), *this);
+		return dest->FloatConstRaw(size, GetConstant<HLIL_FLOAT_CONST>(), loc);
 	case HLIL_IMPORT:
-		return dest->ImportedAddress(size, GetConstant<HLIL_IMPORT>(), *this);
+		return dest->ImportedAddress(size, GetConstant<HLIL_IMPORT>(), loc);
 	case HLIL_CONST_DATA:
-		return dest->ConstData(size, GetConstantData<HLIL_CONST_DATA>(), *this);
+		return dest->ConstData(size, GetConstantData<HLIL_CONST_DATA>(), loc);
 	case HLIL_BP:
-		return dest->Breakpoint(*this);
+		return dest->Breakpoint(loc);
 	case HLIL_TRAP:
-		return dest->Trap(GetVector<HLIL_TRAP>(), *this);
+		return dest->Trap(GetVector<HLIL_TRAP>(), loc);
 	case HLIL_INTRINSIC:
 		for (auto i : GetParameterExprs<HLIL_INTRINSIC>())
 			params.push_back(subExprHandler(i));
-		return dest->Intrinsic(GetIntrinsic<HLIL_INTRINSIC>(), params, *this);
+		return dest->Intrinsic(GetIntrinsic<HLIL_INTRINSIC>(), params, loc);
 	case HLIL_INTRINSIC_SSA:
 		for (auto i : GetParameterExprs<HLIL_INTRINSIC_SSA>())
 			params.push_back(subExprHandler(i));
 		return dest->IntrinsicSSA(GetIntrinsic<HLIL_INTRINSIC_SSA>(), params,
-		    GetDestMemoryVersion<HLIL_INTRINSIC_SSA>(), GetSourceMemoryVersion<HLIL_INTRINSIC_SSA>(), *this);
+		    GetDestMemoryVersion<HLIL_INTRINSIC_SSA>(), GetSourceMemoryVersion<HLIL_INTRINSIC_SSA>(), loc);
 	case HLIL_UNDEF:
-		return dest->Undefined(*this);
+		return dest->Undefined(loc);
 	case HLIL_UNIMPL:
-		return dest->Unimplemented(*this);
+		return dest->Unimplemented(loc);
 	default:
 		throw HighLevelILInstructionAccessException();
 	}

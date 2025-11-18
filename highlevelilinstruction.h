@@ -25,6 +25,7 @@
 #include <vector>
 #ifdef BINARYNINJACORE_LIBRARY
 	#include "variable.h"
+	#include "ilsourcelocation.h"
 #else
 	#include "binaryninjaapi.h"
 #endif
@@ -487,9 +488,10 @@ namespace BinaryNinja
 		void VisitExprs(const std::function<bool(const HighLevelILInstruction& expr)>& preFunc,
 			const std::function<void(const HighLevelILInstruction& expr)>& postFunc) const;
 
-		ExprId CopyTo(HighLevelILFunction* dest) const;
+		ExprId CopyTo(HighLevelILFunction* dest, const ILSourceLocation& sourceLocation = {}) const;
 		ExprId CopyTo(HighLevelILFunction* dest,
-		    const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler) const;
+		    const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler,
+			const ILSourceLocation& sourceLocation = {}) const;
 
 		bool operator<(const HighLevelILInstruction& other) const;
 		bool operator==(const HighLevelILInstruction& other) const;
