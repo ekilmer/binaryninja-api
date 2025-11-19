@@ -14,16 +14,14 @@
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::{ops::Deref, str::FromStr, sync::mpsc};
+use std::{str::FromStr, sync::mpsc};
 
 use crate::{DebugInfoBuilderContext, ReaderType};
 use binaryninja::binary_view::BinaryViewBase;
-use binaryninja::file_metadata::FileMetadata;
 use binaryninja::Endianness;
 use binaryninja::{
     binary_view::{BinaryView, BinaryViewExt},
     download::{DownloadInstanceInputOutputCallbacks, DownloadProvider},
-    rc::Ref,
     settings::Settings,
 };
 use gimli::Dwarf;
@@ -381,8 +379,8 @@ pub(crate) fn get_expr_value<R: ReaderType>(unit: &Unit<R>, attr: Attribute<R>) 
     }
 }
 
-pub(crate) fn get_build_id(view: &BinaryView) -> Result<String, String> {
-    let mut build_id: Option<String> = None;
+pub(crate) fn get_build_id(view: &BinaryView) -> Result<Option<Vec<u8>>, String> {
+    let mut build_id: Option<Vec<u8>> = None;
 
     if let Some(raw_view) = view.raw_view() {
         if let Some(build_id_section) = raw_view.section_by_name(".note.gnu.build-id") {
@@ -432,21 +430,18 @@ pub(crate) fn get_build_id(view: &BinaryView) -> Result<String, String> {
             }
 
             let desc: &[u8] = &build_id_bytes[(12 + name_len as usize)..expected_len];
-            build_id = Some(desc.iter().map(|b| format!("{:02x}", b)).collect());
+            build_id = Some(desc.to_vec());
         }
     }
 
-    if let Some(x) = build_id {
-        Ok(x)
-    } else {
-        Err("Failed to get build id".to_string())
-    }
+    Ok(build_id)
 }
 
 pub(crate) fn download_debug_info(
-    build_id: &str,
+    build_id: &[u8],
     view: &BinaryView,
-) -> Result<Ref<BinaryView>, String> {
+) -> Result<Option<Vec<u8>>, String> {
+    let build_id_hex: String = build_id.iter().map(|x| format!("{:02x}", x)).collect();
     let mut settings_query_opts = QueryOptions::new_with_view(view);
     let settings = Settings::new();
     let debug_server_urls =
@@ -456,7 +451,7 @@ pub(crate) fn download_debug_info(
         let artifact_url = format!(
             "{}/buildid/{}/debuginfo",
             debug_server_url.trim_end_matches("/"),
-            build_id
+            build_id_hex
         );
 
         // Download from remote
@@ -510,15 +505,9 @@ pub(crate) fn download_debug_info(
                 ));
             }
         }
-
-        let options = "{\"analysis.debugInfo.internal\": false}";
-        let bv = BinaryView::from_data(FileMetadata::new().deref(), &data)
-            .map_err(|_| "Unable to create binary view from downloaded data".to_string())?;
-
-        return binaryninja::load_view(bv.deref(), false, Some(options))
-            .ok_or("Unable to load binary view from downloaded data".to_string());
+        return Ok(Some(data));
     }
-    Err("Could not find a server with debug info for this file".to_string())
+    Ok(None)
 }
 
 pub(crate) fn find_local_debug_file_from_path(path: &PathBuf, view: &BinaryView) -> Option<String> {
@@ -557,13 +546,15 @@ pub(crate) fn find_local_debug_file_from_path(path: &PathBuf, view: &BinaryView)
 }
 
 pub(crate) fn find_local_debug_file_for_build_id(
-    build_id: &str,
+    build_id: &[u8],
     view: &BinaryView,
 ) -> Option<String> {
-    let debug_ext_path = PathBuf::from(&build_id[..2]).join(format!("{}.debug", &build_id[2..]));
+    let build_id_hex: String = build_id.iter().map(|x| format!("{:02x}", x)).collect();
+    let debug_ext_path =
+        PathBuf::from(&build_id_hex[..2]).join(format!("{}.debug", &build_id_hex[2..]));
 
-    let elf_path = PathBuf::from(&build_id[..2])
-        .join(&build_id[2..])
+    let elf_path = PathBuf::from(&build_id_hex[..2])
+        .join(&build_id_hex[2..])
         .join("elf");
 
     find_local_debug_file_from_path(&debug_ext_path, view)
@@ -571,24 +562,19 @@ pub(crate) fn find_local_debug_file_for_build_id(
 }
 
 pub(crate) fn load_debug_info_for_build_id(
-    build_id: &str,
+    build_id: &[u8],
     view: &BinaryView,
-) -> (Option<Ref<BinaryView>>, bool) {
+) -> Result<Option<Vec<u8>>, String> {
     let mut settings_query_opts = QueryOptions::new_with_view(view);
     let settings = Settings::new();
     if let Some(debug_file_path) = find_local_debug_file_for_build_id(build_id, view) {
-        return (
-            binaryninja::load_with_options(
-                debug_file_path,
-                false,
-                Some("{\"analysis.debugInfo.internal\": false}"),
-            ),
-            true,
-        );
+        return std::fs::read(&debug_file_path)
+            .map(|x| Some(x))
+            .map_err(|e| format!("Failed to read local debug file {}: {}", debug_file_path, e));
     } else if settings.get_bool_with_opts("network.enableDebuginfod", &mut settings_query_opts) {
-        return (download_debug_info(build_id, view).ok(), true);
+        return download_debug_info(build_id, view);
     }
-    (None, false)
+    Ok(None)
 }
 
 pub(crate) fn find_sibling_debug_file(view: &BinaryView) -> Option<String> {
@@ -650,21 +636,12 @@ pub(crate) fn find_sibling_debug_file(view: &BinaryView) -> Option<String> {
     None
 }
 
-pub(crate) fn load_sibling_debug_file(view: &BinaryView) -> (Option<Ref<BinaryView>>, bool) {
+pub(crate) fn load_sibling_debug_file(view: &BinaryView) -> Result<Option<Vec<u8>>, String> {
     let Some(debug_file) = find_sibling_debug_file(view) else {
-        return (None, false);
+        return Ok(None);
     };
 
-    let load_settings = match view.default_platform() {
-        Some(plat) => format!(
-            "{{\"analysis.debugInfo.internal\": false, \"loader.platform\": \"{}\"}}",
-            plat.name()
-        ),
-        None => "{\"analysis.debugInfo.internal\": false}".to_string(),
-    };
-
-    (
-        binaryninja::load_with_options(debug_file, false, Some(load_settings)),
-        true,
-    )
+    std::fs::read(&debug_file)
+        .map(|x| Some(x))
+        .map_err(|e| format!("Failed to read sibling debug file {}: {}", debug_file, e))
 }

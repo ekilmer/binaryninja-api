@@ -20,7 +20,6 @@ mod types;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use crate::dwarfdebuginfo::{DebugInfoBuilder, DebugInfoBuilderContext};
 use crate::functions::parse_function_entry;
@@ -499,44 +498,6 @@ where
     }
 }
 
-fn get_supplementary_build_id(bv: &BinaryView) -> Option<String> {
-    let raw_view = bv.raw_view()?;
-    if let Some(section) = raw_view.section_by_name(".gnu_debugaltlink") {
-        let start = section.start();
-        let len = section.len();
-
-        if len < 20 {
-            // Not large enough to hold a build id
-            return None;
-        }
-
-        raw_view
-            .read_vec(start, len)
-            .splitn(2, |x| *x == 0)
-            .last()
-            .map(|a| a.iter().map(|b| format!("{:02x}", b)).collect())
-    } else {
-        None
-    }
-}
-
-fn get_supplementary_file_path(bv: &BinaryView) -> Option<PathBuf> {
-    let raw_view = bv.raw_view()?;
-    if let Some(section) = raw_view.section_by_name(".gnu_debugaltlink") {
-        let start = section.start();
-        let len = section.len();
-
-        raw_view
-            .read_vec(start, len)
-            .splitn(2, |x| *x == 0)
-            .next()
-            .and_then(|a| String::from_utf8(a.to_vec()).ok())
-            .and_then(|p| PathBuf::from_str(&p).ok())
-    } else {
-        None
-    }
-}
-
 fn parse_range_data_offsets(file: &object::File) -> Result<IntervalMap<u64, i64>, String> {
     let dwo_file = file.section_by_name(".debug_info.dwo").is_some();
     let endian = match file.endianness() {
@@ -697,7 +658,7 @@ impl CustomDebugInfoParser for DWARFParser {
             return true;
         }
         if dwarfreader::has_build_id_section(view) {
-            if let Ok(build_id) = get_build_id(view) {
+            if let Ok(Some(build_id)) = get_build_id(view) {
                 if helpers::find_local_debug_file_for_build_id(&build_id, view).is_some() {
                     return true;
                 }
@@ -713,30 +674,46 @@ impl CustomDebugInfoParser for DWARFParser {
         &self,
         debug_info: &mut DebugInfo,
         bv: &BinaryView,
-        debug_file: &BinaryView,
+        debug_bv: &BinaryView,
         progress: Box<dyn Fn(usize, usize) -> Result<(), ()>>,
     ) -> bool {
-        let (external_file, close_external) = if !dwarfreader::is_valid(bv) {
-            if let (Some(debug_view), x) = helpers::load_sibling_debug_file(bv) {
-                (Some(debug_view), x)
-            } else if let Ok(build_id) = get_build_id(bv) {
-                load_debug_info_for_build_id(&build_id, bv)
-            } else {
-                (None, false)
-            }
-        } else {
-            (None, false)
-        };
-
-        let debug_bv = external_file.as_deref().unwrap_or(debug_file);
-
-        // Read the raw view to an object::File so relocations get handled for us
-        let Some(raw_view) = debug_bv.raw_view() else {
-            log::error!("Failed to get raw view for debug bv");
+        let Some(debug_data_vec) = dwarfreader::is_valid(debug_bv)
+            .then(|| {
+                // Load the raw view of the debug bv passed in if it has valid debug info
+                let raw_view = debug_bv.raw_view().expect("Failed to get raw view");
+                raw_view.read_vec(0, raw_view.len() as usize)
+            })
+            .or_else(|| {
+                // Try loading sibling debug files
+                match helpers::load_sibling_debug_file(bv) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        log::error!("Failed loading sibling debug file: {}", e);
+                        None
+                    }
+                }
+            })
+            .or_else(|| {
+                // Try loading from the file's build id
+                if let Ok(Some(build_id)) = get_build_id(bv) {
+                    match load_debug_info_for_build_id(&build_id, bv) {
+                        Ok(x) => x,
+                        Err(e) => {
+                            log::error!("Failed loading debug info from build id: {}", e);
+                            None
+                        }
+                    }
+                } else {
+                    // No build id found
+                    None
+                }
+            })
+        else {
+            // There isn't any dwarf info available to load
             return false;
         };
-        let raw_view_data = raw_view.read_vec(0, raw_view.len() as usize);
-        let debug_file = match object::File::parse(&*raw_view_data) {
+
+        let debug_file = match object::File::parse(debug_data_vec.as_slice()) {
             Ok(x) => x,
             Err(e) => {
                 log::error!("Failed to parse bv: {}", e);
@@ -746,31 +723,35 @@ impl CustomDebugInfoParser for DWARFParser {
 
         // TODO: allow passing a supplementary file path as a setting?
         // Try to load supplementary file from build id, falling back to file path
-        let sup_view_data = get_supplementary_build_id(debug_bv)
-            .and_then(|build_id| {
-                load_debug_info_for_build_id(&build_id, bv)
-                    .0
-                    .map(|x| x.raw_view().expect("Failed to get raw view"))
-            })
-            .or_else(|| {
-                get_supplementary_file_path(debug_bv).and_then(|sup_file_path_suggestion| {
-                    find_local_debug_file_from_path(&sup_file_path_suggestion, debug_bv).and_then(
-                        |sup_file_path| {
-                            binaryninja::load_with_options(
-                                sup_file_path,
-                                false,
-                                Some("{\"analysis.debugInfo.internal\": false}"),
-                            )
+        let sup_view_data = debug_file.gnu_debugaltlink().ok().flatten().and_then(
+            |(sup_filename, sup_build_id)| {
+                // Try loading from build id
+                let sup_data = match load_debug_info_for_build_id(sup_build_id, bv) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        log::error!("Failed to load supplementary debug file: {}", e);
+                        None
+                    }
+                };
+
+                // Try loading from file path if build id loading didn't work
+                sup_data.or_else(|| match std::str::from_utf8(sup_filename) {
+                    Ok(x) => find_local_debug_file_from_path(&PathBuf::from(x), bv).and_then(
+                        |sup_file_path| match std::fs::read(sup_file_path) {
+                            Ok(sup_data) => Some(sup_data),
+                            Err(e) => {
+                                log::error!("Failed reading supplementary file {}: {}", x, e);
+                                None
+                            }
                         },
-                    )
+                    ),
+                    Err(e) => {
+                        log::error!("Supplementary file path is invalid utf8: {}", e);
+                        None
+                    }
                 })
-            })
-            .and_then(|sup_bv| {
-                let sup_raw_view = sup_bv.raw_view()?;
-                let sup_raw_data = sup_raw_view.read_vec(0, sup_raw_view.len() as usize);
-                sup_raw_view.file().close();
-                Some(sup_raw_data)
-            });
+            },
+        );
 
         let sup_file =
             sup_view_data
@@ -814,10 +795,6 @@ impl CustomDebugInfoParser for DWARFParser {
                 false
             }
         };
-
-        if let (Some(ext), true) = (external_file, close_external) {
-            ext.file().close();
-        }
 
         result
     }
