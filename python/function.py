@@ -3803,8 +3803,8 @@ class DisassemblyTextLine:
 
 	def __repr__(self):
 		if self.address is None:
-			return f"<disassemblyTextLine {self}>"
-		return f"<disassemblyTextLine {self.address:#x}: {self}>"
+			return f"<DisassemblyTextLine {self}>"
+		return f"<DisassemblyTextLine {self.address:#x}: {self}>"
 
 	@property
 	def total_width(self):
