@@ -22,7 +22,7 @@ import os
 import ctypes
 import traceback
 import warnings
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 
 # Binary Ninja components
 import binaryninja
@@ -55,6 +55,23 @@ class _PlatformMetaClass(type):
 		if platform is None:
 			raise KeyError("'%s' is not a valid platform" % str(value))
 		return CorePlatform(handle=platform)
+
+	def __contains__(cls: '_PlatformMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_PlatformMetaClass', name: str, default: Any = None) -> Optional['Platform']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class Platform(metaclass=_PlatformMetaClass):

@@ -1448,6 +1448,23 @@ class _BinaryViewTypeMetaclass(type):
 			raise KeyError(f"'{value}' is not a valid view type")
 		return BinaryViewType(view_type)
 
+	def __contains__(cls: '_BinaryViewTypeMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_BinaryViewTypeMetaclass', name: str, default: Any = None) -> Optional['BinaryViewType']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
+
 
 class BinaryViewType(metaclass=_BinaryViewTypeMetaclass):
 	"""

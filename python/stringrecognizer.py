@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from dataclasses import dataclass
 import ctypes
 
@@ -48,6 +48,23 @@ class _CustomStringTypeMetaClass(type):
 		if string_type is None:
 			raise KeyError("'%s' is not a valid type" % str(value))
 		return CustomStringType(handle=string_type)
+
+	def __contains__(cls: '_CustomStringTypeMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_CustomStringTypeMetaClass', name: str, default: Any = None) -> Optional['CustomStringType']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class CustomStringType(metaclass=_CustomStringTypeMetaClass):
@@ -124,6 +141,23 @@ class _StringRecognizerMetaClass(type):
 		if recognizer is None:
 			raise KeyError("'%s' is not a valid recognizer" % str(value))
 		return CoreStringRecognizer(handle=recognizer)
+
+	def __contains__(cls: '_StringRecognizerMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_StringRecognizerMetaClass', name: str, default: Any = None) -> Optional['StringRecognizer']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class StringRecognizer(metaclass=_StringRecognizerMetaClass):

@@ -23,6 +23,7 @@ import ctypes
 from json import dumps
 import sys
 import traceback
+from typing import Any, Optional
 from urllib.parse import urlencode
 
 # Binary Ninja Components
@@ -57,6 +58,23 @@ class _SecretsProviderMetaclass(type):
 		if provider is None:
 			raise KeyError(f"'{value}' is not a valid secrets provider")
 		return SecretsProvider(provider)
+
+	def __contains__(cls: '_SecretsProviderMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_SecretsProviderMetaclass', name: str, default: Any = None) -> Optional['SecretsProvider']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class SecretsProvider(metaclass=_SecretsProviderMetaclass):

@@ -21,7 +21,7 @@
 import ctypes
 import traceback
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 # Binary Ninja components
 import binaryninja
@@ -117,6 +117,23 @@ class _LineFormatterMetaClass(type):
         if lang is None:
             raise KeyError("'%s' is not a valid formatter" % str(value))
         return CoreLineFormatter(handle=lang)
+
+    def __contains__(cls: '_LineFormatterMetaClass', name: object) -> bool:
+        if not isinstance(name, str):
+            return False
+        try:
+            cls[name]
+            return True
+        except KeyError:
+            return False
+
+    def get(cls: '_LineFormatterMetaClass', name: str, default: Any = None) -> Optional['LineFormatter']:
+        try:
+            return cls[name]
+        except KeyError:
+            if default is not None:
+                return default
+            return None
 
 
 class LineFormatter(metaclass=_LineFormatterMetaClass):

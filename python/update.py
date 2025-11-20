@@ -20,6 +20,7 @@
 
 import traceback
 import ctypes
+from typing import Any, Optional
 
 # Binary Ninja components
 import binaryninja
@@ -64,6 +65,23 @@ class _UpdateChannelMetaClass(type):
 		if result is None:
 			raise KeyError("'%s' is not a valid channel" % str(name))
 		return result
+
+	def __contains__(cls: '_UpdateChannelMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_UpdateChannelMetaClass', name: str, default: Any = None) -> Optional['UpdateChannel']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class UpdateProgressCallback:

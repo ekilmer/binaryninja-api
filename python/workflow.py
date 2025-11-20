@@ -291,6 +291,23 @@ class _WorkflowMetaclass(type):
 		workflow = core.BNWorkflowGetOrCreate(str(value))
 		return Workflow(handle=workflow)
 
+	def __contains__(cls: '_WorkflowMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_WorkflowMetaclass', name: str, default: Any = None) -> Optional['Workflow']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
+
 
 class Workflow(metaclass=_WorkflowMetaclass):
 	"""

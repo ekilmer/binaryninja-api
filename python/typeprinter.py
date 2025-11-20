@@ -21,7 +21,7 @@ import abc
 import ctypes
 import dataclasses
 from json import dumps
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 import sys
 import traceback
@@ -65,6 +65,23 @@ class _TypePrinterMetaclass(type):
 		if handle is None:
 			raise KeyError(f"'{value}' is not a valid TypePrinter")
 		return CoreTypePrinter(handle)
+
+	def __contains__(cls: '_TypePrinterMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_TypePrinterMetaclass', name: str, default: Any = None) -> Optional['TypePrinter']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 	@property
 	def default(self):

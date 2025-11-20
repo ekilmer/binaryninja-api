@@ -23,7 +23,7 @@ import ctypes
 import abc
 import io
 import zipfile
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 # Binary Ninja components
 import binaryninja
@@ -57,6 +57,23 @@ class _TransformMetaClass(type):
 		if xform is None:
 			raise KeyError("'%s' is not a valid transform" % str(name))
 		return Transform(xform)
+
+	def __contains__(cls: '_TransformMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_TransformMetaClass', name: str, default: Any = None) -> Optional['Transform']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class TransformParameter:

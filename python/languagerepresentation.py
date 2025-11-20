@@ -20,7 +20,7 @@
 
 import ctypes
 import traceback
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 # Binary Ninja components
 import binaryninja
@@ -663,6 +663,23 @@ class _LanguageRepresentationFunctionTypeMetaClass(type):
 		if lang is None:
 			raise KeyError("'%s' is not a valid language" % str(value))
 		return CoreLanguageRepresentationFunctionType(handle=lang)
+
+	def __contains__(cls: '_LanguageRepresentationFunctionTypeMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_LanguageRepresentationFunctionTypeMetaClass', name: str, default: Any = None) -> Optional['LanguageRepresentationFunctionType']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class LanguageRepresentationFunctionType(metaclass=_LanguageRepresentationFunctionTypeMetaClass):

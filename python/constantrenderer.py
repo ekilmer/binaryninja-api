@@ -20,7 +20,7 @@
 
 import traceback
 import ctypes
-from typing import Optional
+from typing import Optional, Any
 
 import binaryninja
 from . import _binaryninjacore as core
@@ -50,6 +50,23 @@ class _ConstantRendererMetaClass(type):
 		if renderer is None:
 			raise KeyError("'%s' is not a valid renderer" % str(value))
 		return CoreConstantRenderer(handle=renderer)
+
+	def __contains__(cls: '_ConstantRendererMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_ConstantRendererMetaClass', name: str, default: Any = None) -> Optional['ConstantRenderer']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class ConstantRenderer(metaclass=_ConstantRendererMetaClass):

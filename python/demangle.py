@@ -29,7 +29,7 @@ from . import types
 from .log import log_error_for_exception
 from .architecture import Architecture, CoreArchitecture
 from .platform import Platform
-from typing import Iterable, List, Optional, Union, Tuple
+from typing import Iterable, List, Optional, Union, Tuple, Any
 
 
 def get_qualified_name(names: Iterable[str]):
@@ -299,6 +299,23 @@ class _DemanglerMetaclass(type):
 		if handle is None:
 			raise KeyError(f"'{value}' is not a valid Demangler")
 		return CoreDemangler(handle)
+
+	def __contains__(cls: '_DemanglerMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_DemanglerMetaclass', name: str, default: Any = None) -> Optional['Demangler']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class Demangler(metaclass=_DemanglerMetaclass):

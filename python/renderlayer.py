@@ -28,7 +28,7 @@ from .enums import LinearDisassemblyLineType, RenderLayerDefaultEnableState
 from . import binaryview
 from . import types
 from .log import log_error_for_exception
-from typing import Iterable, List, Optional, Union, Tuple
+from typing import Iterable, List, Optional, Union, Tuple, Any
 
 
 class _RenderLayerMetaclass(type):
@@ -48,6 +48,23 @@ class _RenderLayerMetaclass(type):
 		if handle is None:
 			raise KeyError(f"'{value}' is not a valid RenderLayer")
 		return self._handle_to_instance(handle)
+
+	def __contains__(cls: '_RenderLayerMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_RenderLayerMetaclass', name: str, default: Any = None) -> Optional['RenderLayer']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 	def _handle_to_instance(self, handle):
 		handle_ptr = ctypes.cast(handle, ctypes.c_void_p)

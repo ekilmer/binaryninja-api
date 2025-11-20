@@ -399,6 +399,23 @@ class _ScriptingProviderMetaclass(type):
 			raise KeyError("'%s' is not a valid scripting provider" % str(value))
 		return ScriptingProvider(provider)
 
+	def __contains__(cls: '_ScriptingProviderMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_ScriptingProviderMetaclass', name: str, default: Any = None) -> Optional['ScriptingProvider']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
+
 
 class ScriptingProvider(metaclass=_ScriptingProviderMetaclass):
 	_registered_providers = []

@@ -22,6 +22,7 @@ import abc
 import ctypes
 import sys
 import traceback
+from typing import Any, Optional
 
 # Binary Ninja Components
 import binaryninja._binaryninjacore as core
@@ -248,6 +249,23 @@ class _WebsocketProviderMetaclass(type):
 		if provider is None:
 			raise KeyError("'%s' is not a valid websocket provider" % str(value))
 		return WebsocketProvider(provider)
+
+	def __contains__(cls: '_WebsocketProviderMetaclass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_WebsocketProviderMetaclass', name: str, default: Any = None) -> Optional['WebsocketProvider']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 	def __setattr__(self, name, value):
 		try:

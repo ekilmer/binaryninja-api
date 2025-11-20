@@ -19,7 +19,7 @@
 # IN THE SOFTWARE.
 
 import ctypes
-from typing import Optional, List, Iterator, Callable, Tuple
+from typing import Optional, List, Iterator, Callable, Tuple, Any
 import traceback
 from dataclasses import dataclass, field
 
@@ -77,6 +77,23 @@ class _DebugInfoParserMetaClass(type):
 		parser_ref = core.BNNewDebugInfoParserReference(parser)
 		assert parser_ref is not None, "core.BNNewDebugInfoParserReference returned None"
 		return DebugInfoParser(parser_ref)
+
+	def __contains__(cls: '_DebugInfoParserMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_DebugInfoParserMetaClass', name: str, default: Any = None) -> Optional['DebugInfoParser']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 	@staticmethod
 	def get_parsers_for_view(view: 'binaryview.BinaryView') -> List['DebugInfoParser']:

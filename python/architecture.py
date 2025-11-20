@@ -20,7 +20,7 @@
 
 import traceback
 import ctypes
-from typing import Generator, Union, List, Optional, Mapping, Tuple, NewType, Dict, Set
+from typing import Generator, Union, List, Optional, Mapping, Tuple, NewType, Dict, Set, Any
 from dataclasses import dataclass, field
 
 # Binary Ninja components
@@ -513,6 +513,23 @@ class _ArchitectureMetaClass(type):
 		if arch is None:
 			raise KeyError(f"'{name}' is not a valid architecture")
 		return CoreArchitecture._from_cache(arch)
+
+	def __contains__(cls: '_ArchitectureMetaClass', name: object) -> bool:
+		if not isinstance(name, str):
+			return False
+		try:
+			cls[name]
+			return True
+		except KeyError:
+			return False
+
+	def get(cls: '_ArchitectureMetaClass', name: str, default: Any = None) -> Optional['Architecture']:
+		try:
+			return cls[name]
+		except KeyError:
+			if default is not None:
+				return default
+			return None
 
 
 class Architecture(metaclass=_ArchitectureMetaClass):
