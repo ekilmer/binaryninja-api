@@ -1,14 +1,18 @@
 use binaryninjacore_sys::*;
 
+// Needed for documentation.
+#[allow(unused)]
+use crate::binary_view::{memory_map::MemoryMap, BinaryViewBase, BinaryViewExt};
+
 use crate::basic_block::BasicBlock;
-use crate::binary_view::BinaryView;
+use crate::binary_view::{AddressRange, BinaryView};
 use crate::flowgraph::FlowGraph;
 use crate::function::{Function, NativeBlock};
 use crate::high_level_il::HighLevelILFunction;
 use crate::low_level_il::{LowLevelILMutableFunction, LowLevelILRegularFunction};
 use crate::medium_level_il::MediumLevelILFunction;
 use crate::rc::{Array, CoreArrayProvider, CoreArrayProviderInner, Guard, Ref, RefCountable};
-use crate::segment::Segment;
+use crate::segment::{Segment, SegmentFlags};
 use crate::string::{BnString, IntoCStr};
 use std::ffi::c_char;
 use std::ptr;
@@ -176,65 +180,87 @@ impl AnalysisContext {
         }
     }
 
-    // Memory map access - lock-free access to cached MemoryMap
-
-    /// Check if an offset is mapped in the cached memory map
-    pub fn is_valid_offset(&self, offset: u64) -> bool {
+    /// Check if an offset is mapped in the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::offset_valid`].
+    pub fn is_offset_valid(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsValidOffset(self.handle.as_ptr(), offset) }
     }
 
-    /// Check if an offset is readable in the cached memory map
+    /// Check if an offset is readable in the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::offset_readable`].
     pub fn is_offset_readable(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetReadable(self.handle.as_ptr(), offset) }
     }
 
-    /// Check if an offset is writable in the cached memory map
+    /// Check if an offset is writable in the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::offset_writable`].
     pub fn is_offset_writable(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetWritable(self.handle.as_ptr(), offset) }
     }
 
-    /// Check if an offset is executable in the cached memory map
+    /// Check if an offset is executable in the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::offset_executable`].
     pub fn is_offset_executable(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetExecutable(self.handle.as_ptr(), offset) }
     }
 
-    /// Check if an offset is backed by file in the cached memory map
+    /// Check if an offset is backed by file in the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::offset_backed_by_file`].
     pub fn is_offset_backed_by_file(&self, offset: u64) -> bool {
         unsafe { BNAnalysisContextIsOffsetBackedByFile(self.handle.as_ptr(), offset) }
     }
 
-    /// Get the start address from the cached memory map
-    pub fn get_start(&self) -> u64 {
+    /// Get the start address (the lowest address) from the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::start`].
+    pub fn start(&self) -> u64 {
         unsafe { BNAnalysisContextGetStart(self.handle.as_ptr()) }
     }
 
-    /// Get the end address from the cached memory map
-    pub fn get_end(&self) -> u64 {
+    /// Get the end address (the highest address) from the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryViewBase::end`].
+    pub fn end(&self) -> u64 {
         unsafe { BNAnalysisContextGetEnd(self.handle.as_ptr()) }
     }
 
-    /// Get the length of the cached memory map
-    pub fn get_length(&self) -> u64 {
+    /// Get the length of the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryViewBase::len`].
+    pub fn length(&self) -> u64 {
         unsafe { BNAnalysisContextGetLength(self.handle.as_ptr()) }
     }
 
-    /// Get the next valid offset after the given offset from the cached memory map
-    pub fn get_next_valid_offset(&self, offset: u64) -> u64 {
+    /// Get the next valid offset after the given offset from the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::next_valid_offset_after`].
+    pub fn next_valid_offset(&self, offset: u64) -> u64 {
         unsafe { BNAnalysisContextGetNextValidOffset(self.handle.as_ptr(), offset) }
     }
 
-    /// Get the next mapped address after the given address from the cached memory map
-    pub fn get_next_mapped_address(&self, addr: u64, flags: u32) -> u64 {
-        unsafe { BNAnalysisContextGetNextMappedAddress(self.handle.as_ptr(), addr, flags) }
+    /// Get the next mapped address after the given address from the cached [`MemoryMap`].
+    pub fn next_mapped_address(&self, addr: u64, flags: &SegmentFlags) -> u64 {
+        unsafe {
+            BNAnalysisContextGetNextMappedAddress(self.handle.as_ptr(), addr, flags.into_raw())
+        }
     }
 
-    /// Get the next backed address after the given address from the cached memory map
-    pub fn get_next_backed_address(&self, addr: u64, flags: u32) -> u64 {
-        unsafe { BNAnalysisContextGetNextBackedAddress(self.handle.as_ptr(), addr, flags) }
+    /// Get the next backed address after the given address from the cached [`MemoryMap`].
+    pub fn next_backed_address(&self, addr: u64, flags: &SegmentFlags) -> u64 {
+        unsafe {
+            BNAnalysisContextGetNextBackedAddress(self.handle.as_ptr(), addr, flags.into_raw())
+        }
     }
 
-    /// Get the segment containing the given address from the cached memory map
-    pub fn get_segment_at(&self, addr: u64) -> Option<Ref<Segment>> {
+    /// Get the segment containing the given address from the cached [`MemoryMap`].
+    ///
+    /// NOTE: This is a lock-free alternative to [`BinaryView::segment_at`].
+    pub fn segment_at(&self, addr: u64) -> Option<Ref<Segment>> {
         unsafe {
             let result = BNAnalysisContextGetSegmentAt(self.handle.as_ptr(), addr);
             if result.is_null() {
@@ -245,35 +271,21 @@ impl AnalysisContext {
         }
     }
 
-    /// Get all mapped address ranges from the cached memory map
-    pub fn get_mapped_address_ranges(&self) -> Vec<(u64, u64)> {
+    /// Get all mapped address ranges from the cached [`MemoryMap`].
+    pub fn mapped_address_ranges(&self) -> Array<AddressRange> {
         unsafe {
             let mut count = 0;
             let ranges = BNAnalysisContextGetMappedAddressRanges(self.handle.as_ptr(), &mut count);
-            let result = (0..count)
-                .map(|i| {
-                    let range = *ranges.add(i);
-                    (range.start, range.end)
-                })
-                .collect();
-            BNFreeAddressRanges(ranges);
-            result
+            Array::new(ranges, count, ())
         }
     }
 
-    /// Get all backed address ranges from the cached memory map
-    pub fn get_backed_address_ranges(&self) -> Vec<(u64, u64)> {
+    /// Get all backed address ranges from the cached [`MemoryMap`].
+    pub fn backed_address_ranges(&self) -> Array<AddressRange> {
         unsafe {
             let mut count = 0;
             let ranges = BNAnalysisContextGetBackedAddressRanges(self.handle.as_ptr(), &mut count);
-            let result = (0..count)
-                .map(|i| {
-                    let range = *ranges.add(i);
-                    (range.start, range.end)
-                })
-                .collect();
-            BNFreeAddressRanges(ranges);
-            result
+            Array::new(ranges, count, ())
         }
     }
 }

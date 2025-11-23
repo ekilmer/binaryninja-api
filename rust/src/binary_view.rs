@@ -23,6 +23,10 @@
 
 use binaryninjacore_sys::*;
 
+// Used for documentation
+#[allow(unused)]
+pub use crate::workflow::AnalysisContext;
+
 use crate::architecture::{Architecture, CoreArchitecture};
 use crate::base_detection::BaseAddressDetection;
 use crate::basic_block::BasicBlock;
@@ -447,12 +451,27 @@ pub trait BinaryViewExt: BinaryViewBase {
         }
     }
 
+    /// Consults the [`Section`]'s current [`crate::section::Semantics`] to determine if the
+    /// offset has code semantics.
     fn offset_has_code_semantics(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetCodeSemantics(self.as_ref().handle, offset) }
     }
 
+    /// Check if the offset is within a [`Section`] with [`crate::section::Semantics::External`].
+    fn offset_has_extern_semantics(&self, offset: u64) -> bool {
+        unsafe { BNIsOffsetExternSemantics(self.as_ref().handle, offset) }
+    }
+
+    /// Consults the [`Section`]'s current [`crate::section::Semantics`] to determine if the
+    /// offset has writable semantics.
     fn offset_has_writable_semantics(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetWritableSemantics(self.as_ref().handle, offset) }
+    }
+
+    /// Consults the [`Section`]'s current [`crate::section::Semantics`] to determine if the
+    /// offset has read only semantics.
+    fn offset_has_read_only_semantics(&self, offset: u64) -> bool {
+        unsafe { BNIsOffsetExternSemantics(self.as_ref().handle, offset) }
     }
 
     fn image_base(&self) -> u64 {
@@ -467,6 +486,9 @@ pub trait BinaryViewExt: BinaryViewBase {
         unsafe { BNSetOriginalImageBase(self.as_ref().handle, image_base) }
     }
 
+    /// The highest address in the view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::end`].
     fn end(&self) -> u64 {
         unsafe { BNGetEndOffset(self.as_ref().handle) }
     }
@@ -2371,26 +2393,45 @@ impl BinaryViewBase for BinaryView {
         unsafe { BNRemoveViewData(self.handle, offset, len as u64) }
     }
 
+    /// Check if the offset is valid for the current view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::is_offset_valid`].
     fn offset_valid(&self, offset: u64) -> bool {
         unsafe { BNIsValidOffset(self.handle, offset) }
     }
 
+    /// Check if the offset is readable for the current view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::is_offset_valid`].
     fn offset_readable(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetReadable(self.handle, offset) }
     }
 
+    /// Check if the offset is writable for the current view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::is_offset_writable`].
     fn offset_writable(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetWritable(self.handle, offset) }
     }
 
+    /// Check if the offset is executable for the current view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::is_offset_executable`].
     fn offset_executable(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetExecutable(self.handle, offset) }
     }
 
+    /// Check if the offset is backed by the original file and not added after the fact.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::is_offset_backed_by_file`].
     fn offset_backed_by_file(&self, offset: u64) -> bool {
         unsafe { BNIsOffsetBackedByFile(self.handle, offset) }
     }
 
+    /// Get the next valid offset after the provided `offset`, useful if you need to iterate over all
+    /// readable offsets in the view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::next_valid_offset`].
     fn next_valid_offset_after(&self, offset: u64) -> u64 {
         unsafe { BNGetNextValidOffset(self.handle, offset) }
     }
@@ -2399,10 +2440,16 @@ impl BinaryViewBase for BinaryView {
         unsafe { BNGetModification(self.handle, offset) }
     }
 
+    /// The lowest address in the view.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::start`].
     fn start(&self) -> u64 {
         unsafe { BNGetStartOffset(self.handle) }
     }
 
+    /// The length of the view, lowest to highest address.
+    ///
+    /// NOTE: If operating within a [`Workflow`], consider using [`AnalysisContext::length`].
     fn len(&self) -> u64 {
         unsafe { BNGetViewLength(self.handle) }
     }
@@ -2576,6 +2623,46 @@ impl CoreArrayProvider for StringReference {
 unsafe impl CoreArrayProviderInner for StringReference {
     unsafe fn free(raw: *mut Self::Raw, _count: usize, _context: &Self::Context) {
         BNFreeStringReferenceList(raw)
+    }
+
+    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {
+        Self::from(*raw)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct AddressRange {
+    pub start: u64,
+    pub end: u64,
+}
+
+impl From<BNAddressRange> for AddressRange {
+    fn from(raw: BNAddressRange) -> Self {
+        Self {
+            start: raw.start,
+            end: raw.end,
+        }
+    }
+}
+
+impl From<AddressRange> for BNAddressRange {
+    fn from(raw: AddressRange) -> Self {
+        Self {
+            start: raw.start,
+            end: raw.end,
+        }
+    }
+}
+
+impl CoreArrayProvider for AddressRange {
+    type Raw = BNAddressRange;
+    type Context = ();
+    type Wrapped<'a> = Self;
+}
+
+unsafe impl CoreArrayProviderInner for AddressRange {
+    unsafe fn free(raw: *mut Self::Raw, _count: usize, _context: &Self::Context) {
+        BNFreeAddressRanges(raw);
     }
 
     unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {

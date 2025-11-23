@@ -38,6 +38,7 @@ pub use binaryninjacore_sys::BNFunctionUpdateType as FunctionUpdateType;
 pub use binaryninjacore_sys::BNHighlightStandardColor as HighlightStandardColor;
 
 use crate::architecture::RegisterId;
+use crate::binary_view::AddressRange;
 use crate::confidence::Conf;
 use crate::high_level_il::HighLevelILFunction;
 use crate::language_representation::CoreLanguageRepresentationFunction;
@@ -373,7 +374,6 @@ impl Function {
         unsafe {
             let mut count = 0;
             let addresses = BNGetFunctionAddressRanges(self.handle, &mut count);
-
             Array::new(addresses, count, ())
         }
     }
@@ -2681,46 +2681,6 @@ impl PartialEq for Function {
         self.start() == other.start()
             && self.arch() == other.arch()
             && self.platform() == other.platform()
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct AddressRange {
-    pub start: u64,
-    pub end: u64,
-}
-
-impl From<BNAddressRange> for AddressRange {
-    fn from(raw: BNAddressRange) -> Self {
-        Self {
-            start: raw.start,
-            end: raw.end,
-        }
-    }
-}
-
-impl From<AddressRange> for BNAddressRange {
-    fn from(raw: AddressRange) -> Self {
-        Self {
-            start: raw.start,
-            end: raw.end,
-        }
-    }
-}
-
-impl CoreArrayProvider for AddressRange {
-    type Raw = BNAddressRange;
-    type Context = ();
-    type Wrapped<'a> = Self;
-}
-
-unsafe impl CoreArrayProviderInner for AddressRange {
-    unsafe fn free(raw: *mut Self::Raw, _count: usize, _context: &Self::Context) {
-        BNFreeAddressRanges(raw);
-    }
-
-    unsafe fn wrap_raw<'a>(raw: &'a Self::Raw, _context: &'a Self::Context) -> Self::Wrapped<'a> {
-        Self::from(*raw)
     }
 }
 
