@@ -52,7 +52,7 @@ void SharedCacheMachOProcessor::ApplyHeader(const SharedCache& cache, SharedCach
 				m_view->AddFunctionForAnalysis(targetPlatform, func, false);
 		}
 
-		m_view->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_view);
 
 		// Apply symbols from symbol table.
 		if (header.symtab.symoff != 0)
@@ -80,7 +80,6 @@ void SharedCacheMachOProcessor::ApplyHeader(const SharedCache& cache, SharedCach
 				ApplySymbol(m_view, typeLib, symbol, symbolType);
 			}
 		}
-		m_view->EndBulkModifySymbols();
 	}
 
 	// Apply symbols from the .symbols cache files.
@@ -127,14 +126,13 @@ void SharedCacheMachOProcessor::ApplyUnmappedLocalSymbols(const SharedCache& cac
 		uint64_t symbolTableStart = localSymbolsAddr + (localSymbolsEntry.nlistStartIndex * sizeof(nlist_64));
 		TableInfo symbolInfo = {symbolTableStart, localSymbolsEntry.nlistCount};
 		TableInfo stringInfo = {localStringsAddr, localSymbolsInfo.stringsSize};
-		m_view->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_view);
 		const auto symbols = header.ReadSymbolTable(*localSymbolsVM, symbolInfo, stringInfo);
 		for (const auto &sym: symbols)
 		{
 			auto [symbol, symbolType] = sym.GetBNSymbolAndType(*m_view);
 			ApplySymbol(m_view, typeLib, std::move(symbol), std::move(symbolType));
 		}
-		m_view->EndBulkModifySymbols();
 		return;
 	}
 }

@@ -50,7 +50,7 @@ void KernelCacheMachOProcessor::ApplyHeader(const KernelCache& cache, KernelCach
 			m_view->AddFunctionForAnalysis(targetPlatform, func, false);
 	}
 
-	m_view->BeginBulkModifySymbols();
+	BulkSymbolModification bulkSymbolModification(m_view);
 
 	// Apply symbols from symbol table.
 	if (header.symtab.symoff != 0)
@@ -78,7 +78,6 @@ void KernelCacheMachOProcessor::ApplyHeader(const KernelCache& cache, KernelCach
 			ApplySymbol(m_view, typeLib, symbol, symbolType);
 		}
 	}
-	m_view->EndBulkModifySymbols();
 }
 
 uint64_t KernelCacheMachOProcessor::ApplyHeaderSections(KernelCacheMachOHeader& header)

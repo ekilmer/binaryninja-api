@@ -1584,7 +1584,7 @@ void ObjCProcessor::ProcessObjCData()
 	protocolBuilder.AddMember(Type::IntegerType(4, false), "flags");
 	m_typeNames.protocol = finalizeStructureBuilder(m_data, protocolBuilder, "objc_protocol_t").first;
 
-	m_data->BeginBulkModifySymbols();
+	BulkSymbolModification bulkSymbolModification(m_data);
 	if (auto classList = GetSectionWithName("__objc_classlist"))
 		LoadClasses(reader.get(), classList);
 	if (auto nonLazyClassList = GetSectionWithName("__objc_nlclslist"))
@@ -1607,7 +1607,6 @@ void ObjCProcessor::ProcessObjCData()
 	PostProcessObjCSections(reader.get());
 
 	ScopedSymbolQueue::Get().Process();
-	m_data->EndBulkModifySymbols();
 
 	auto meta = SerializeMetadata();
 	m_data->StoreMetadata("Objective-C", meta, true);
@@ -1666,7 +1665,7 @@ void ObjCProcessor::ProcessCFStrings()
 		auto start = cfstrings->GetStart();
 		auto end = cfstrings->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.cfString)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + ptrSize);
@@ -1737,7 +1736,6 @@ void ObjCProcessor::ProcessCFStrings()
 		}
 
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 }
 
@@ -1759,7 +1757,7 @@ void ObjCProcessor::ProcessNSConstantArrays()
 		auto start = arrays->GetStart();
 		auto end = arrays->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantArray)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + ptrSize);
@@ -1771,7 +1769,6 @@ void ObjCProcessor::ProcessNSConstantArrays()
 				fmt::format("nsarray_{:x}", i), i, true);
 		}
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 	
 }
@@ -1796,7 +1793,7 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 		auto start = dicts->GetStart();
 		auto end = dicts->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDictionary)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + (ptrSize * 2));
@@ -1812,7 +1809,6 @@ void ObjCProcessor::ProcessNSConstantDictionaries()
 				fmt::format("nsdict_{:x}", i), i, true);
 		}
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 }
 
@@ -1834,7 +1830,7 @@ void ObjCProcessor::ProcessNSConstantIntegerNumbers()
 		auto start = numbers->GetStart();
 		auto end = numbers->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantIntegerNumber)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + ptrSize);
@@ -1867,7 +1863,6 @@ void ObjCProcessor::ProcessNSConstantIntegerNumbers()
 			}
 		}
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 }
 
@@ -1917,7 +1912,7 @@ void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
 		auto start = numbers->GetStart();
 		auto end = numbers->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantDoubleNumber)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + ptrSize);
@@ -1955,7 +1950,6 @@ void ObjCProcessor::ProcessNSConstantFloatingPointNumbers()
 			DefineObjCSymbol(DataSymbol, Type::NamedType(m_data, *typeName), name, i, true);
 		}
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 }
 
@@ -1977,7 +1971,7 @@ void ObjCProcessor::ProcessNSConstantDatas()
 		auto start = datas->GetStart();
 		auto end = datas->GetEnd();
 		auto typeWidth = Type::NamedType(m_data, m_typeNames.nsConstantData)->GetWidth();
-		m_data->BeginBulkModifySymbols();
+		BulkSymbolModification bulkSymbolModification(m_data);
 		for (view_ptr_t i = start; i < end; i += typeWidth)
 		{
 			reader->Seek(i + ptrSize);
@@ -1989,7 +1983,6 @@ void ObjCProcessor::ProcessNSConstantDatas()
 				DataSymbol, Type::NamedType(m_data, m_typeNames.nsConstantData), fmt::format("nsdata_{:x}", i), i, true);
 		}
 		ScopedSymbolQueue::Get().Process();
-		m_data->EndBulkModifySymbols();
 	}
 }
 

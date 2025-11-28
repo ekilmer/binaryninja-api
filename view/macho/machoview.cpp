@@ -2088,7 +2088,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 			ParseFunctionStarts(GetDefaultPlatform(), header.textBase, header.functionStarts);
 	}
 
-	BeginBulkModifySymbols();
+	BulkSymbolModification bulkSymbolModification(this);
 	m_symbolQueue = new SymbolQueue();
 
 	try
@@ -2105,8 +2105,7 @@ bool MachoView::InitializeHeader(MachOHeader& header, bool isMainHeader, uint64_
 	m_symbolQueue->Process();
 	delete m_symbolQueue;
 	m_symbolQueue = nullptr;
-
-	EndBulkModifySymbols();
+	bulkSymbolModification.End();
 
 	for (auto& relocation : header.rebaseRelocations)
 	{

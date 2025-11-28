@@ -760,7 +760,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
             m_logger->LogWarn("Too many failed scans for section %llx... skipping", section->GetStart());
     };
 
-    m_view->BeginBulkModifySymbols();
+    BulkSymbolModification bulkSymbolModification(m_view);
     // Scan data sections for rtti.
     for (const Ref<Section> &section : m_view->GetSections())
     {
@@ -782,7 +782,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
             }
         }
     }
-    m_view->EndBulkModifySymbols();
+    bulkSymbolModification.End();
 
     // Go through all classes and recurse into the base classes using the base class name
     for (auto &[classAddr, classInfo]: m_classInfo)

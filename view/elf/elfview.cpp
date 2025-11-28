@@ -1053,7 +1053,7 @@ bool ElfView::Init()
 		m_logger->LogError("ELF relocation table invalid");
 	}
 
-	BeginBulkModifySymbols();
+	BulkSymbolModification bulkSymbolModification(this);
 
 	vector<ElfSymbolTableEntry> auxSymbolTable;
 	try
@@ -1408,7 +1408,7 @@ bool ElfView::Init()
 	delete m_symbolQueue;
 	m_symbolQueue = nullptr;
 
-	EndBulkModifySymbols();
+	bulkSymbolModification.End();
 
 	auto relocHandler = m_arch->GetRelocationHandler("ELF");
 	if (relocHandler)

@@ -6869,7 +6869,24 @@ namespace BinaryNinja {
 		*/
 		bool IsApplyingDebugInfo() const;
 
+		/*! Begin an operation that may potentially modify many symbols
+
+			When performing bulk symbol modifications, surrounding the modifications with
+			\c BeginBulkModifySymbols and \c EndBulkModifySymbols will defer some work until
+			the end of the operation, improving performance.
+
+			\deprecated Prefer \c BulkSymbolModification for bulk symbol modifications.
+		*/
 		void BeginBulkModifySymbols();
+
+		/*! Finish an operation that potentially modified many symbols
+
+			When performing bulk symbol modifications, surrounding the modifications with
+			\c BeginBulkModifySymbols and \c EndBulkModifySymbols will defer some work until
+			the end of the operation, improving performance.
+
+			\deprecated Prefer \c BulkSymbolModification for bulk symbol modifications.
+		*/
 		void EndBulkModifySymbols();
 
 		/*! Add a new TagType to this binaryview
@@ -8298,6 +8315,54 @@ namespace BinaryNinja {
 		{
 			BNResetMemoryMap(m_object);
 		}
+	};
+
+	/*! An RAII helper for use when modifying symbols in bulk.
+
+		\ingroup binaryview
+
+		When modifying many symbols, it is more efficient to wrap the modifications
+		in a \c BulkSymbolModification object. This will defer some processing until
+		all bulk modifications are complete.
+
+		While a bulk modification is active, some API calls may not reflect (or may
+		only partially reflect) any symbol changes made until all bulk modifications
+		are complete.
+
+		The bulk modification will be active for the lifetime of the
+		\c BulkSymbolModification object. It can be ended early via the \c End method,
+		if needed.
+	*/
+	class BulkSymbolModification
+	{
+	public:
+		BulkSymbolModification(Ref<BinaryView> view)
+			: m_view(std::move(view))
+		{
+			m_view->BeginBulkModifySymbols();
+		}
+
+		~BulkSymbolModification()
+		{
+			if (m_view)
+				m_view->EndBulkModifySymbols();
+		}
+
+		/*! End this bulk modification early. */
+		void End()
+		{
+			m_view->EndBulkModifySymbols();
+			m_view = nullptr;
+		}
+
+		// Move-only.
+		BulkSymbolModification(const BulkSymbolModification&) = delete;
+		BulkSymbolModification& operator=(const BulkSymbolModification&) = delete;
+		BulkSymbolModification(BulkSymbolModification&&) = default;
+		BulkSymbolModification& operator=(BulkSymbolModification&&) = default;
+
+	private:	
+		Ref<BinaryView> m_view;
 	};
 
 	/*!

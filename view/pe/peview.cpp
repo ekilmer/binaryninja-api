@@ -1307,7 +1307,8 @@ bool PEView::Init()
 	}
 
 	vector<pair<BNRelocationInfo, string>> relocs;
-	BeginBulkModifySymbols();
+	
+	BulkSymbolModification bulkSymbolModification(this);
 	m_symbolQueue = new SymbolQueue();
 	m_symExternMappingMetadata = new Metadata(KeyValueDataType);
 
@@ -2582,7 +2583,7 @@ bool PEView::Init()
 	delete m_symbolQueue;
 	m_symbolQueue = nullptr;
 
-	EndBulkModifySymbols();
+	bulkSymbolModification.End();
 
 	StoreMetadata("SymbolExternalLibraryMapping", m_symExternMappingMetadata, true);
 
