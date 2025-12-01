@@ -11,6 +11,7 @@ use binaryninja::{
         lifting::LowLevelILLabel,
         LowLevelILRegisterKind,
     },
+    variable::PossibleValueSet,
     workflow::AnalysisContext,
 };
 
@@ -36,10 +37,12 @@ fn is_call_to_ignorable_memory_management_function<'func>(
 ) -> bool {
     let target = match instr.kind() {
         LowLevelILInstructionKind::Call(call) | LowLevelILInstructionKind::TailCall(call) => {
-            let LowLevelILExpressionKind::ConstPtr(address) = call.target().kind() else {
-                return false;
-            };
-            address.value()
+            match call.target().possible_values() {
+                PossibleValueSet::ConstantValue { value }
+                | PossibleValueSet::ConstantPointerValue { value }
+                | PossibleValueSet::ImportedAddressValue { value } => value as u64,
+                _ => return false,
+            }
         }
         LowLevelILInstructionKind::Goto(target) => target.address(),
         _ => return false,
