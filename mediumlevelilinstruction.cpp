@@ -1350,7 +1350,7 @@ void MediumLevelILInstructionBase::ClearAttribute(BNILInstructionAttribute attri
 }
 
 
-void MediumLevelILInstruction::VisitExprs(const std::function<bool(const MediumLevelILInstruction& expr)>& func) const
+void MediumLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const MediumLevelILInstruction& expr)> func) const
 {
 	if (!func(*this))
 		return;
@@ -1569,7 +1569,7 @@ ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest, const ILSou
 
 
 ExprId MediumLevelILInstruction::CopyTo(MediumLevelILFunction* dest,
-    const std::function<ExprId(const MediumLevelILInstruction& subExpr)>& subExprHandler,
+    bn::base::function_ref<ExprId(const MediumLevelILInstruction& subExpr)> subExprHandler,
 	const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> params;

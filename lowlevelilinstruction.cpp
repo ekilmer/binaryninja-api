@@ -1885,7 +1885,7 @@ void LowLevelILInstructionBase::ClearAttribute(BNILInstructionAttribute attribut
 }
 
 
-void LowLevelILInstruction::VisitExprs(const std::function<bool(const LowLevelILInstruction& expr)>& func) const
+void LowLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const LowLevelILInstruction& expr)> func) const
 {
 	if (!func(*this))
 		return;
@@ -2096,7 +2096,7 @@ ExprId LowLevelILInstruction::CopyTo(LowLevelILFunction* dest, const ILSourceLoc
 
 
 ExprId LowLevelILInstruction::CopyTo(
-    LowLevelILFunction* dest, const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler, const ILSourceLocation& sourceLocation) const
+    LowLevelILFunction* dest, bn::base::function_ref<ExprId(const LowLevelILInstruction& subExpr)> subExprHandler, const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> params;
 	BNLowLevelILLabel* labelA;

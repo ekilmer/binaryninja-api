@@ -1342,7 +1342,7 @@ void HighLevelILInstruction::CollectSubExprs(stack<size_t>& toProcess) const
 }
 
 
-void HighLevelILInstruction::VisitExprs(const std::function<bool(const HighLevelILInstruction& expr)>& func) const
+void HighLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const HighLevelILInstruction& expr)> func) const
 {
 	stack<size_t> toProcess;
 	toProcess.push(exprIndex);
@@ -1357,8 +1357,8 @@ void HighLevelILInstruction::VisitExprs(const std::function<bool(const HighLevel
 }
 
 
-void HighLevelILInstruction::VisitExprs(const std::function<bool(const HighLevelILInstruction& expr)>& preFunc,
-	const std::function<void(const HighLevelILInstruction& expr)>& postFunc) const
+void HighLevelILInstruction::VisitExprs(bn::base::function_ref<bool(const HighLevelILInstruction& expr)> preFunc,
+	bn::base::function_ref<void(const HighLevelILInstruction& expr)> postFunc) const
 {
 	stack<std::pair<HighLevelILInstruction, stack<size_t>>> toProcess;
 	HighLevelILInstruction cur = *this;
@@ -1404,7 +1404,7 @@ ExprId HighLevelILInstruction::CopyTo(HighLevelILFunction* dest, const ILSourceL
 
 
 ExprId HighLevelILInstruction::CopyTo(
-    HighLevelILFunction* dest, const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler, const ILSourceLocation& sourceLocation) const
+    HighLevelILFunction* dest, bn::base::function_ref<ExprId(const HighLevelILInstruction& subExpr)> subExprHandler, const ILSourceLocation& sourceLocation) const
 {
 	vector<ExprId> output, params;
 

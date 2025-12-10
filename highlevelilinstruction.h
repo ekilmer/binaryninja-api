@@ -20,16 +20,19 @@
 
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-#include <vector>
+#include "base/function_ref.h"
+#include "mediumlevelilinstruction.h"
+
 #ifdef BINARYNINJACORE_LIBRARY
 	#include "variable.h"
 	#include "ilsourcelocation.h"
 #else
 	#include "binaryninjaapi.h"
 #endif
-#include "mediumlevelilinstruction.h"
+
+#include <unordered_map>
+#include <vector>
+
 #include <fmt/core.h>
 
 #ifdef BINARYNINJACORE_LIBRARY
@@ -480,13 +483,13 @@ namespace BinaryNinja
 		HighLevelILInstruction(const HighLevelILInstructionBase& instr);
 
 		void CollectSubExprs(_STD_STACK<size_t>& toProcess) const;
-		void VisitExprs(const std::function<bool(const HighLevelILInstruction& expr)>& func) const;
-		void VisitExprs(const std::function<bool(const HighLevelILInstruction& expr)>& preFunc,
-			const std::function<void(const HighLevelILInstruction& expr)>& postFunc) const;
+		void VisitExprs(bn::base::function_ref<bool(const HighLevelILInstruction& expr)> func) const;
+		void VisitExprs(bn::base::function_ref<bool(const HighLevelILInstruction& expr)> preFunc,
+			bn::base::function_ref<void(const HighLevelILInstruction& expr)> postFunc) const;
 
 		ExprId CopyTo(HighLevelILFunction* dest, const ILSourceLocation& sourceLocation = {}) const;
 		ExprId CopyTo(HighLevelILFunction* dest,
-		    const std::function<ExprId(const HighLevelILInstruction& subExpr)>& subExprHandler,
+		    bn::base::function_ref<ExprId(const HighLevelILInstruction& subExpr)> subExprHandler,
 			const ILSourceLocation& sourceLocation = {}) const;
 
 		bool operator<(const HighLevelILInstruction& other) const;

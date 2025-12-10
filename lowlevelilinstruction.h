@@ -20,15 +20,17 @@
 
 #pragma once
 
-#include <functional>
-#include <unordered_map>
-#include <vector>
 #ifdef BINARYNINJACORE_LIBRARY
 	#include "ilsourcelocation.h"
 	#include "type.h"
 #else
 	#include "binaryninjaapi.h"
 #endif
+
+#include "base/function_ref.h"
+
+#include <unordered_map>
+#include <vector>
 
 #ifdef BINARYNINJACORE_LIBRARY
 namespace BinaryNinjaCore
@@ -866,11 +868,11 @@ namespace BinaryNinja
 		    LowLevelILFunction* func, const BNLowLevelILInstruction& instr, size_t expr, size_t instrIdx);
 		LowLevelILInstruction(const LowLevelILInstructionBase& instr);
 
-		void VisitExprs(const std::function<bool(const LowLevelILInstruction& expr)>& func) const;
+		void VisitExprs(bn::base::function_ref<bool(const LowLevelILInstruction& expr)> func) const;
 
 		ExprId CopyTo(LowLevelILFunction* dest, const ILSourceLocation& sourceLocation = {}) const;
 		ExprId CopyTo(LowLevelILFunction* dest,
-			const std::function<ExprId(const LowLevelILInstruction& subExpr)>& subExprHandler,
+			bn::base::function_ref<ExprId(const LowLevelILInstruction& subExpr)> subExprHandler,
 			const ILSourceLocation& sourceLocation = {}) const;
 
 		// Templated accessors for instruction operands, use these for efficient access to a known instruction
