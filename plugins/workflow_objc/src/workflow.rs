@@ -10,12 +10,6 @@ pub enum Confidence {
     SuperInit = 100,
 }
 
-const WORKFLOW_INFO: &str = r#"{
-  "title": "Objective-C",
-  "description": "Enhanced analysis for Objective-C code.",
-  "capabilities": []
-}"#;
-
 fn run<E: std::fmt::Debug>(
     func: impl Fn(&AnalysisContext) -> Result<(), E>,
 ) -> impl Fn(&AnalysisContext) {
@@ -92,7 +86,7 @@ pub fn register_activities() -> Result<(), WorkflowRegistrationError> {
             "core.function.generateMediumLevelIL",
         )?
         .activity_after(&super_init_activity, "core.function.generateMediumLevelIL")?
-        .register_with_config(WORKFLOW_INFO)?;
+        .register()?;
 
     Ok(())
 }
