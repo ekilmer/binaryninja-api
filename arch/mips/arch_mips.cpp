@@ -337,7 +337,7 @@ protected:
 			if (instr.operands[0].reg == REG_ZERO && instr.operands[1].reg == REG_RA)
 				result.AddBranch(FunctionReturn, 0, nullptr, hasBranchDelay);
 			else
-				result.AddBranch(UnresolvedBranch, 0, nullptr, hasBranchDelay);
+				result.delaySlots = 1;
 			break;
 
 		case MIPS_BGEZAL:
