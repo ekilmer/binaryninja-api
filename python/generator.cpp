@@ -381,7 +381,11 @@ int main(int argc, char* argv[])
 			}
 			fprintf(out, "%sEnum = %s\n", name.c_str(), ctypesType);
 
-			fprintf(enums, "\n\nclass %s(enum.IntEnum):\n", name.c_str());
+			if (i.second->GetAttribute("options").has_value())
+				fprintf(enums, "\n\nclass %s(enum.IntFlag):\n", name.c_str());
+			else
+				fprintf(enums, "\n\nclass %s(enum.IntEnum):\n", name.c_str());
+
 			for (auto& j : i.second->GetEnumeration()->GetMembers())
 			{
 				if (i.second->IsSigned())

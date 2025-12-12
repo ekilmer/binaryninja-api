@@ -86,7 +86,10 @@
 #endif
 
 // Define attributes for enums based on compiler support
-#if __has_attribute(enum_extensibility)
+#if defined(BN_TYPE_PARSER)
+	#define __BN_ENUM_ATTRIBUTES
+	#define __BN_OPTIONS_ATTRIBUTES __attr("options")
+#elif __has_attribute(enum_extensibility)
 	#define __BN_ENUM_ATTRIBUTES __attribute__((enum_extensibility(open)))
 	#define __BN_OPTIONS_ATTRIBUTES __attribute__((flag_enum, enum_extensibility(open)))
 #else
