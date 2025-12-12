@@ -677,11 +677,11 @@ class HighLevelILInstruction(BaseILInstruction):
 		var_data = var.to_BNVariable()
 		return core.BNGetHighLevelILSSAVarVersionAtILInstruction(self.function.handle, var_data, self.instr_index)
 
-	def get_int(self, operand_index: int) -> int:
+	def _get_int(self, operand_index: int) -> int:
 		value = self.core_instr.operands[operand_index]
 		return (value & ((1 << 63) - 1)) - (value & (1 << 63))
 
-	def get_float(self, operand_index: int) -> float:
+	def _get_float(self, operand_index: int) -> float:
 		value = self.core_instr.operands[operand_index]
 		if self.core_instr.size == 4:
 			return struct.unpack("f", struct.pack("I", value & 0xffffffff))[0]
@@ -690,39 +690,39 @@ class HighLevelILInstruction(BaseILInstruction):
 		else:
 			return float(value)
 
-	def get_constant_data(self, operand_index1: int, operand_index2: int) -> variable.ConstantData:
+	def _get_constant_data(self, operand_index1: int, operand_index2: int) -> variable.ConstantData:
 		state = variable.RegisterValueType(self.core_instr.operands[operand_index1])
 		value = self.core_instr.operands[operand_index2]
 		return variable.ConstantData(value, 0, state, core.max_confidence, self.core_instr.size, self.function.source_function)
 
-	def get_expr(self, operand_index: int) -> 'HighLevelILInstruction':
+	def _get_expr(self, operand_index: int) -> 'HighLevelILInstruction':
 		return HighLevelILInstruction.create(
 			self.function, ExpressionIndex(self.core_instr.operands[operand_index]),
 			self.as_ast
 		)
 
-	def get_intrinsic(self, operand_index: int) -> 'lowlevelil.ILIntrinsic':
+	def _get_intrinsic(self, operand_index: int) -> 'lowlevelil.ILIntrinsic':
 		if self.function.arch is None:
 			raise ValueError("Attempting to create ILIntrinsic from function with no Architecture")
 		return lowlevelil.ILIntrinsic(
 		    self.function.arch, architecture.IntrinsicIndex(self.core_instr.operands[operand_index])
 		)
 
-	def get_var(self, operand_index: int) -> 'variable.Variable':
+	def _get_var(self, operand_index: int) -> 'variable.Variable':
 		value = self.core_instr.operands[operand_index]
 		return variable.Variable.from_identifier(self.function, value)
 
-	def get_var_ssa(self, operand_index1: int, operand_index2: int) -> 'mediumlevelil.SSAVariable':
+	def _get_var_ssa(self, operand_index1: int, operand_index2: int) -> 'mediumlevelil.SSAVariable':
 		var = variable.Variable.from_identifier(self.function, self.core_instr.operands[operand_index1])
 		version = self.core_instr.operands[operand_index2]
 		return mediumlevelil.SSAVariable(var, version)
 
-	def get_var_ssa_dest_and_src(self, operand_index1: int, operand_index2: int) -> 'mediumlevelil.SSAVariable':
+	def _get_var_ssa_dest_and_src(self, operand_index1: int, operand_index2: int) -> 'mediumlevelil.SSAVariable':
 		var = variable.Variable.from_identifier(self.function, self.core_instr.operands[operand_index1])
 		dest_version = self.core_instr.operands[operand_index2]
 		return mediumlevelil.SSAVariable(var, dest_version)
 
-	def get_int_list(self, operand_index: int) -> List[int]:
+	def _get_int_list(self, operand_index: int) -> List[int]:
 		count = ctypes.c_ulonglong()
 		operand_list = core.BNHighLevelILGetOperandList(self.function.handle, self.expr_index, operand_index, count)
 		assert operand_list is not None, "core.BNHighLevelILGetOperandList returned None"
@@ -734,7 +734,7 @@ class HighLevelILInstruction(BaseILInstruction):
 		finally:
 			core.BNHighLevelILFreeOperandList(operand_list)
 
-	def get_expr_list(self, operand_index1: int, operand_index2: int) -> List['HighLevelILInstruction']:
+	def _get_expr_list(self, operand_index1: int, _: int) -> List['HighLevelILInstruction']:
 		count = ctypes.c_ulonglong()
 		operand_list = core.BNHighLevelILGetOperandList(self.function.handle, self.expr_index, operand_index1, count)
 		assert operand_list is not None, "core.BNHighLevelILGetOperandList returned None"
@@ -746,7 +746,7 @@ class HighLevelILInstruction(BaseILInstruction):
 		finally:
 			core.BNHighLevelILFreeOperandList(operand_list)
 
-	def get_var_ssa_list(self, operand_index1: int, _: int) -> List['mediumlevelil.SSAVariable']:
+	def _get_var_ssa_list(self, operand_index1: int, _: int) -> List['mediumlevelil.SSAVariable']:
 		count = ctypes.c_ulonglong()
 		operand_list = core.BNHighLevelILGetOperandList(self.function.handle, self.expr_index, operand_index1, count)
 		assert operand_list is not None, "core.BNHighLevelILGetOperandList returned None"
@@ -762,16 +762,16 @@ class HighLevelILInstruction(BaseILInstruction):
 		finally:
 			core.BNMediumLevelILFreeOperandList(operand_list)
 
-	def get_member_index(self, operand_index: int) -> Optional[int]:
+	def _get_member_index(self, operand_index: int) -> Optional[int]:
 		value = self.core_instr.operands[operand_index]
 		if (value & (1 << 63)) != 0:
 			value = None
 		return value
 
-	def get_label(self, operand_index: int) -> GotoLabel:
+	def _get_label(self, operand_index: int) -> GotoLabel:
 		return GotoLabel(self.function, self.core_instr.operands[operand_index])
 
-	def get_constraint(self, operand_index: int) -> variable.PossibleValueSet:
+	def _get_constraint(self, operand_index: int) -> variable.PossibleValueSet:
 		value = core.BNGetCachedHighLevelILPossibleValueSet(self.function.handle, self.core_instr.operands[operand_index])
 		result = variable.PossibleValueSet(self.function.arch, value)
 		core.BNFreePossibleValueSet(value)
@@ -986,7 +986,7 @@ class HighLevelILInstruction(BaseILInstruction):
 class HighLevelILUnaryBase(HighLevelILInstruction, UnaryOperation):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -999,11 +999,11 @@ class HighLevelILUnaryBase(HighLevelILInstruction, UnaryOperation):
 class HighLevelILBinaryBase(HighLevelILInstruction, BinaryOperation):
 	@property
 	def left(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def right(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1022,15 +1022,15 @@ class HighLevelILComparisonBase(HighLevelILBinaryBase, Comparison):
 class HighLevelILCarryBase(HighLevelILInstruction, Arithmetic):
 	@property
 	def left(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def right(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def carry(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1050,7 +1050,7 @@ class HighLevelILNop(HighLevelILInstruction):
 class HighLevelILBlock(HighLevelILInstruction):
 	@property
 	def body(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	def __iter__(self) -> Generator['HighLevelILInstruction', None, None]:
 		for expr in self.body:
@@ -1067,15 +1067,15 @@ class HighLevelILBlock(HighLevelILInstruction):
 class HighLevelILIf(HighLevelILInstruction, ControlFlow):
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def true(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def false(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1090,11 +1090,11 @@ class HighLevelILIf(HighLevelILInstruction, ControlFlow):
 class HighLevelILWhile(HighLevelILInstruction, Loop):
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1108,15 +1108,15 @@ class HighLevelILWhile(HighLevelILInstruction, Loop):
 class HighLevelILWhileSsa(HighLevelILInstruction, Loop, SSA):
 	@property
 	def condition_phi(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1131,11 +1131,11 @@ class HighLevelILWhileSsa(HighLevelILInstruction, Loop, SSA):
 class HighLevelILDoWhile(HighLevelILInstruction, Loop):
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1149,15 +1149,15 @@ class HighLevelILDoWhile(HighLevelILInstruction, Loop):
 class HighLevelILDoWhileSsa(HighLevelILInstruction, Loop, SSA):
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def condition_phi(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1172,19 +1172,19 @@ class HighLevelILDoWhileSsa(HighLevelILInstruction, Loop, SSA):
 class HighLevelILFor(HighLevelILInstruction, Loop):
 	@property
 	def init(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def update(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(3)
+		return self._get_expr(3)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1200,23 +1200,23 @@ class HighLevelILFor(HighLevelILInstruction, Loop):
 class HighLevelILForSsa(HighLevelILInstruction, Loop, SSA):
 	@property
 	def init(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def condition_phi(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def update(self) -> HighLevelILInstruction:
-		return self.get_expr(3)
+		return self._get_expr(3)
 
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(4)
+		return self._get_expr(4)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1233,15 +1233,15 @@ class HighLevelILForSsa(HighLevelILInstruction, Loop, SSA):
 class HighLevelILSwitch(HighLevelILInstruction, ControlFlow):
 	@property
 	def condition(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def default(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def cases(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(2, 3)
+		return self._get_expr_list(2, 3)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1256,11 +1256,11 @@ class HighLevelILSwitch(HighLevelILInstruction, ControlFlow):
 class HighLevelILCase(HighLevelILInstruction):
 	@property
 	def values(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def body(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1284,7 +1284,7 @@ class HighLevelILContinue(HighLevelILInstruction, ControlFlow):
 class HighLevelILJump(HighLevelILInstruction, Terminal):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1297,7 +1297,7 @@ class HighLevelILJump(HighLevelILInstruction, Terminal):
 class HighLevelILRet(HighLevelILInstruction, Return):
 	@property
 	def src(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1320,7 +1320,7 @@ class HighLevelILUnreachable(HighLevelILInstruction, Terminal):
 class HighLevelILGoto(HighLevelILInstruction, Terminal):
 	@property
 	def target(self) -> GotoLabel:
-		return self.get_label(0)
+		return self._get_label(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1333,7 +1333,7 @@ class HighLevelILGoto(HighLevelILInstruction, Terminal):
 class HighLevelILLabel(HighLevelILInstruction):
 	@property
 	def target(self) -> GotoLabel:
-		return self.get_label(0)
+		return self._get_label(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1346,7 +1346,7 @@ class HighLevelILLabel(HighLevelILInstruction):
 class HighLevelILVarDeclare(HighLevelILInstruction):
 	@property
 	def var(self) -> 'variable.Variable':
-		return self.get_var(0)
+		return self._get_var(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1359,11 +1359,11 @@ class HighLevelILVarDeclare(HighLevelILInstruction):
 class HighLevelILVarInit(HighLevelILInstruction, SetVar):
 	@property
 	def dest(self) -> 'variable.Variable':
-		return self.get_var(0)
+		return self._get_var(0)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1381,11 +1381,11 @@ class HighLevelILVarInit(HighLevelILInstruction, SetVar):
 class HighLevelILVarInitSsa(HighLevelILInstruction, SetVar, SSA):
 	@property
 	def dest(self) -> 'mediumlevelil.SSAVariable':
-		return self.get_var_ssa(0, 1)
+		return self._get_var_ssa(0, 1)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1403,11 +1403,11 @@ class HighLevelILVarInitSsa(HighLevelILInstruction, SetVar, SSA):
 class HighLevelILAssign(HighLevelILInstruction, SetVar):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1430,11 +1430,11 @@ class HighLevelILAssign(HighLevelILInstruction, SetVar):
 class HighLevelILAssignUnpack(HighLevelILInstruction, SetVar):
 	@property
 	def dest(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1458,19 +1458,19 @@ class HighLevelILAssignUnpack(HighLevelILInstruction, SetVar):
 class HighLevelILAssignMemSsa(HighLevelILInstruction, SSA):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def dest_memory(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(3)
+		return self._get_int(3)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1486,19 +1486,19 @@ class HighLevelILAssignMemSsa(HighLevelILInstruction, SSA):
 class HighLevelILAssignUnpackMemSsa(HighLevelILInstruction, SSA, Memory):
 	@property
 	def dest(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def dest_memory(self) -> int:
-		return self.get_int(2)
+		return self._get_int(2)
 
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(3)
+		return self._get_expr(3)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(4)
+		return self._get_int(4)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1514,7 +1514,7 @@ class HighLevelILAssignUnpackMemSsa(HighLevelILInstruction, SSA, Memory):
 class HighLevelILVar(HighLevelILInstruction, VariableInstruction):
 	@property
 	def var(self) -> 'variable.Variable':
-		return self.get_var(0)
+		return self._get_var(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1527,7 +1527,7 @@ class HighLevelILVar(HighLevelILInstruction, VariableInstruction):
 class HighLevelILVarSsa(HighLevelILInstruction, SSAVariableInstruction):
 	@property
 	def var(self) -> 'mediumlevelil.SSAVariable':
-		return self.get_var_ssa(0, 1)
+		return self._get_var_ssa(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1540,11 +1540,11 @@ class HighLevelILVarSsa(HighLevelILInstruction, SSAVariableInstruction):
 class HighLevelILVarPhi(HighLevelILInstruction, Phi, SetVar):
 	@property
 	def dest(self) -> 'mediumlevelil.SSAVariable':
-		return self.get_var_ssa(0, 1)
+		return self._get_var_ssa(0, 1)
 
 	@property
 	def src(self) -> List['mediumlevelil.SSAVariable']:
-		return self.get_var_ssa_list(2, 3)
+		return self._get_var_ssa_list(2, 3)
 
 	@property
 	def vars_written(self) -> VariablesList:
@@ -1562,11 +1562,11 @@ class HighLevelILVarPhi(HighLevelILInstruction, Phi, SetVar):
 class HighLevelILMemPhi(HighLevelILInstruction, Memory, Phi):
 	@property
 	def dest(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def src(self) -> List[int]:
-		return self.get_int_list(1)
+		return self._get_int_list(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1580,15 +1580,15 @@ class HighLevelILMemPhi(HighLevelILInstruction, Memory, Phi):
 class HighLevelILStructField(HighLevelILInstruction):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def offset(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def member_index(self) -> Optional[int]:
-		return self.get_member_index(2)
+		return self._get_member_index(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1603,11 +1603,11 @@ class HighLevelILStructField(HighLevelILInstruction):
 class HighLevelILArrayIndex(HighLevelILInstruction):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def index(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1621,15 +1621,15 @@ class HighLevelILArrayIndex(HighLevelILInstruction):
 class HighLevelILArrayIndexSsa(HighLevelILInstruction, SSA):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def index(self) -> HighLevelILInstruction:
-		return self.get_expr(2)
+		return self._get_expr(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1644,11 +1644,11 @@ class HighLevelILArrayIndexSsa(HighLevelILInstruction, SSA):
 class HighLevelILSplit(HighLevelILInstruction):
 	@property
 	def high(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def low(self) -> HighLevelILInstruction:
-		return self.get_expr(1)
+		return self._get_expr(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1667,15 +1667,15 @@ class HighLevelILDeref(HighLevelILUnaryBase):
 class HighLevelILDerefField(HighLevelILInstruction):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def offset(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def member_index(self) -> Optional[int]:
-		return self.get_member_index(2)
+		return self._get_member_index(2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1690,11 +1690,11 @@ class HighLevelILDerefField(HighLevelILInstruction):
 class HighLevelILDerefSsa(HighLevelILInstruction, SSA):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1708,19 +1708,19 @@ class HighLevelILDerefSsa(HighLevelILInstruction, SSA):
 class HighLevelILDerefFieldSsa(HighLevelILInstruction, SSA):
 	@property
 	def src(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def offset(self) -> int:
-		return self.get_int(2)
+		return self._get_int(2)
 
 	@property
 	def member_index(self) -> Optional[int]:
-		return self.get_member_index(3)
+		return self._get_member_index(3)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1747,7 +1747,7 @@ class HighLevelILAddressOf(HighLevelILUnaryBase):
 class HighLevelILConst(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1760,7 +1760,7 @@ class HighLevelILConst(HighLevelILInstruction, Constant):
 class HighLevelILConstPtr(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1777,11 +1777,11 @@ class HighLevelILConstPtr(HighLevelILInstruction, Constant):
 class HighLevelILExternPtr(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def offset(self) -> int:
-		return self.get_int(1)
+		return self._get_int(1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1795,7 +1795,7 @@ class HighLevelILExternPtr(HighLevelILInstruction, Constant):
 class HighLevelILFloatConst(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> float:
-		return self.get_float(0)
+		return self._get_float(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1808,7 +1808,7 @@ class HighLevelILFloatConst(HighLevelILInstruction, Constant):
 class HighLevelILImport(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1821,11 +1821,11 @@ class HighLevelILImport(HighLevelILInstruction, Constant):
 class HighLevelILConstData(HighLevelILInstruction, Constant):
 	@property
 	def constant(self) -> variable.ConstantData:
-		return self.get_constant_data(0, 1)
+		return self._get_constant_data(0, 1)
 
 	@property
 	def constant_data(self) -> variable.ConstantData:
-		return self.get_constant_data(0, 1)
+		return self._get_constant_data(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -1988,11 +1988,11 @@ class HighLevelILLowPart(HighLevelILUnaryBase, Arithmetic):
 class HighLevelILCall(HighLevelILInstruction, Localcall):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(1, 2)
+		return self._get_expr_list(1, 2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2006,19 +2006,19 @@ class HighLevelILCall(HighLevelILInstruction, Localcall):
 class HighLevelILCallSsa(HighLevelILInstruction, Localcall, SSA):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(1, 2)
+		return self._get_expr_list(1, 2)
 
 	@property
 	def dest_memory(self) -> int:
-		return self.get_int(3)
+		return self._get_int(3)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(4)
+		return self._get_int(4)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2099,7 +2099,7 @@ class HighLevelILAddOverflow(HighLevelILBinaryBase, Arithmetic):
 class HighLevelILSyscall(HighLevelILInstruction, Syscall):
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2112,15 +2112,15 @@ class HighLevelILSyscall(HighLevelILInstruction, Syscall):
 class HighLevelILSyscallSsa(HighLevelILInstruction, Syscall, SSA):
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(0, 1)
+		return self._get_expr_list(0, 1)
 
 	@property
 	def dest_memory(self) -> int:
-		return self.get_int(2)
+		return self._get_int(2)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(3)
+		return self._get_int(3)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2135,11 +2135,11 @@ class HighLevelILSyscallSsa(HighLevelILInstruction, Syscall, SSA):
 class HighLevelILTailcall(HighLevelILInstruction, Tailcall):
 	@property
 	def dest(self) -> HighLevelILInstruction:
-		return self.get_expr(0)
+		return self._get_expr(0)
 
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(1, 2)
+		return self._get_expr_list(1, 2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2158,7 +2158,7 @@ class HighLevelILBp(HighLevelILInstruction, Terminal):
 class HighLevelILTrap(HighLevelILInstruction, Terminal):
 	@property
 	def vector(self) -> int:
-		return self.get_int(0)
+		return self._get_int(0)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2171,11 +2171,11 @@ class HighLevelILTrap(HighLevelILInstruction, Terminal):
 class HighLevelILIntrinsic(HighLevelILInstruction, Intrinsic):
 	@property
 	def intrinsic(self) -> 'lowlevelil.ILIntrinsic':
-		return self.get_intrinsic(0)
+		return self._get_intrinsic(0)
 
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(1, 2)
+		return self._get_expr_list(1, 2)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2189,19 +2189,19 @@ class HighLevelILIntrinsic(HighLevelILInstruction, Intrinsic):
 class HighLevelILIntrinsicSsa(HighLevelILInstruction, SSA):
 	@property
 	def intrinsic(self) -> 'lowlevelil.ILIntrinsic':
-		return self.get_intrinsic(0)
+		return self._get_intrinsic(0)
 
 	@property
 	def params(self) -> List[HighLevelILInstruction]:
-		return self.get_expr_list(1, 2)
+		return self._get_expr_list(1, 2)
 
 	@property
 	def dest_memory(self) -> int:
-		return self.get_int(3)
+		return self._get_int(3)
 
 	@property
 	def src_memory(self) -> int:
-		return self.get_int(4)
+		return self._get_int(4)
 
 	@property
 	def detailed_operands(self) -> List[Tuple[str, HighLevelILOperandType, str]]:
@@ -2341,41 +2341,41 @@ class HighLevelILFcmpUo(HighLevelILComparisonBase, FloatingPoint):
 class HighLevelILAssert(HighLevelILInstruction):
     @property
     def src(self) -> variable.Variable:
-        return self.get_var(0)
+        return self._get_var(0)
 
     @property
     def constraint(self) -> variable.PossibleValueSet:
-        return self.get_constraint(1)
+        return self._get_constraint(1)
 
 @dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILAssertSsa(HighLevelILInstruction, SSA):
     @property
     def src(self) -> 'mediumlevelil.SSAVariable':
-        return self.get_var_ssa(0, 1)
+        return self._get_var_ssa(0, 1)
 
     @property
     def constraint(self) -> variable.PossibleValueSet:
-        return self.get_constraint(2)
+        return self._get_constraint(2)
 
 @dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILForceVer(HighLevelILInstruction):
     @property
     def dest(self) -> variable.Variable:
-        return self.get_var(0)
+        return self._get_var(0)
 
     @property
     def src(self) -> variable.Variable:
-        return self.get_var(1)
+        return self._get_var(1)
 
 @dataclass(frozen=True, repr=False, eq=False)
 class HighLevelILForceVerSsa(HighLevelILInstruction, SSA):
     @property
     def dest(self) -> 'mediumlevelil.SSAVariable':
-        return self.get_var_ssa(0, 1)
+        return self._get_var_ssa(0, 1)
 
     @property
     def src(self) -> 'mediumlevelil.SSAVariable':
-        return self.get_var_ssa(2, 3)
+        return self._get_var_ssa(2, 3)
 
 
 ILInstruction = {
