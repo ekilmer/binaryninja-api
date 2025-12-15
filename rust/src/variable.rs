@@ -7,14 +7,19 @@ use crate::rc::{CoreArrayProvider, CoreArrayProviderInner, Ref};
 use crate::string::{raw_to_string, BnString};
 use crate::types::Type;
 use binaryninjacore_sys::{
-    BNDataVariable, BNDataVariableAndName, BNFreeDataVariableAndName, BNFreeDataVariables,
-    BNFreeDataVariablesAndName, BNFreeILInstructionList, BNFreeIndirectBranchList,
-    BNFreeMergedVariableList, BNFreePossibleValueSet, BNFreeStackVariableReferenceList,
-    BNFreeUserVariableValues, BNFreeVariableList, BNFreeVariableNameAndTypeList,
-    BNFromVariableIdentifier, BNIndirectBranchInfo, BNLookupTableEntry, BNMergedVariable,
-    BNPossibleValueSet, BNRegisterValue, BNRegisterValueType, BNStackVariableReference,
-    BNToVariableIdentifier, BNTypeWithConfidence, BNUserVariableValue, BNValueRange, BNVariable,
-    BNVariableNameAndType, BNVariableSourceType,
+    BNDataVariable, BNDataVariableAndName, BNFreeDataVariables, BNFreeDataVariablesAndName,
+    BNFreeILInstructionList, BNFreeMergedVariableList, BNFreePossibleValueSet,
+    BNFreeStackVariableReferenceList, BNFreeUserVariableValues, BNFreeVariableList,
+    BNFreeVariableNameAndTypeList, BNFromVariableIdentifier, BNLookupTableEntry, BNMergedVariable,
+    BNPossibleValueSet, BNPossibleValueSetAdd, BNPossibleValueSetAnd,
+    BNPossibleValueSetArithShiftRight, BNPossibleValueSetIntersection,
+    BNPossibleValueSetLogicalShiftRight, BNPossibleValueSetMultiply, BNPossibleValueSetNegate,
+    BNPossibleValueSetNot, BNPossibleValueSetOr, BNPossibleValueSetRotateLeft,
+    BNPossibleValueSetRotateRight, BNPossibleValueSetShiftLeft, BNPossibleValueSetSignedDivide,
+    BNPossibleValueSetSignedMod, BNPossibleValueSetSubtract, BNPossibleValueSetUnion,
+    BNPossibleValueSetUnsignedDivide, BNPossibleValueSetUnsignedMod, BNPossibleValueSetXor,
+    BNRegisterValue, BNRegisterValueType, BNStackVariableReference, BNToVariableIdentifier,
+    BNUserVariableValue, BNValueRange, BNVariable, BNVariableNameAndType, BNVariableSourceType,
 };
 use std::collections::HashSet;
 
@@ -925,5 +930,191 @@ impl PossibleValueSet {
                 RegisterValueType::ConstantDataAggregateValue
             }
         }
+    }
+
+    pub fn add(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetAdd(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn subtract(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetSubtract(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn multiply(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetMultiply(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn signed_divide(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetSignedDivide(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn unsigned_divide(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetUnsignedDivide(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn signed_mod(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetSignedMod(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn unsigned_mod(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetUnsignedMod(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn and(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetAnd(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn or(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetOr(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn xor(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetXor(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn shift_left(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetShiftLeft(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn logical_shift_right(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetLogicalShiftRight(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn arith_shift_right(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetArithShiftRight(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn rotate_left(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetRotateLeft(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn rotate_right(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetRotateRight(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn union(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetUnion(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn intersection(&self, other: &PossibleValueSet, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let raw_other = PossibleValueSet::into_rust_raw(other.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetIntersection(&raw_value, &raw_other, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::free_rust_raw(raw_other);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn negate(&self, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetNegate(&raw_value, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::from_owned_core_raw(result)
+    }
+
+    pub fn not(&self, size: usize) -> PossibleValueSet {
+        let raw_value = PossibleValueSet::into_rust_raw(self.clone());
+        let result;
+        unsafe { result = BNPossibleValueSetNot(&raw_value, size) }
+        PossibleValueSet::free_rust_raw(raw_value);
+        PossibleValueSet::from_owned_core_raw(result)
     }
 }

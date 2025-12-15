@@ -8361,7 +8361,7 @@ namespace BinaryNinja {
 		BulkSymbolModification(BulkSymbolModification&&) = default;
 		BulkSymbolModification& operator=(BulkSymbolModification&&) = default;
 
-	private:	
+	private:
 		Ref<BinaryView> m_view;
 	};
 
@@ -12442,6 +12442,27 @@ namespace BinaryNinja {
 		static PossibleValueSet FromAPIObject(BNPossibleValueSet& value);
 		BNPossibleValueSet ToAPIObject() const;
 		static void FreeAPIObject(BNPossibleValueSet* value);
+
+		PossibleValueSet Add(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Subtract(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Multiply(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet SignedDivide(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet UnsignedDivide(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet SignedMod(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet UnsignedMod(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet And(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Or(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Xor(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet ShiftLeft(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet LogicalShiftRight(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet ArithShiftRight(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet RotateLeft(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet RotateRight(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Union(const PossibleValueSet& other, size_t size) const;
+		PossibleValueSet Intersection(const PossibleValueSet& other, size_t size) const;
+
+		PossibleValueSet Negate(size_t size) const;
+		PossibleValueSet Not(size_t size) const;
 	};
 
 	class FlowGraph;

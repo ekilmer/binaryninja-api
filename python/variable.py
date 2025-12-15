@@ -43,6 +43,15 @@ class LookupTableEntry:
 	def __repr__(self):
 		return f"[{', '.join([f'{i:#x}' for i in self.from_values])}] -> {self.to_value:#x}"
 
+	def _to_core_struct(self) -> core.BNLookupTableEntry:
+		result = core.BNLookupTableEntry()
+		result.fromValues = (ctypes.c_longlong * len(self.from_values))()
+		for i in range(len(self.from_values)):
+			result.fromValues[i] = self.from_values[i]
+		result.fromCount = len(self.from_values)
+		result.toValue = self.to_value
+		return result
+
 
 @dataclass(frozen=True)
 class RegisterValue:
@@ -258,7 +267,11 @@ class PossibleValueSet:
 	that a variable can take. It contains methods to instantiate different
 	value sets such as Constant, Signed/Unsigned Ranges, etc.
 	"""
-	def __init__(self, arch=None, value=None):
+	def __init__(
+		self,
+		arch: Optional['binaryninja.architecture.Architecture'] = None,
+		value: Optional[core.BNPossibleValueSet] = None,
+	):
 		if value is None:
 			self._type = RegisterValueType.UndeterminedValue
 			return
@@ -361,7 +374,7 @@ class PossibleValueSet:
 		if self.type == RegisterValueType.InSetOfValues:
 			return other in self.values
 		if self.type == RegisterValueType.NotInSetOfValues:
-			return not other in self.values
+			return other not in self.values
 		return NotImplemented
 
 	def __eq__(self, other):
@@ -390,6 +403,8 @@ class PossibleValueSet:
 			return self.values == other.values
 		elif self.type == RegisterValueType.UndeterminedValue:
 			return True # UndeterminedValue is always equal to itself
+		elif self.type == RegisterValueType.LookupTableValue:
+			return self.table == other.table and self.mapping == other.mapping
 		return NotImplemented
 
 	def __ne__(self, other):
@@ -407,7 +422,7 @@ class PossibleValueSet:
 		elif self.type == RegisterValueType.ConstantPointerValue:
 			result.value = self.value
 		elif self.type == RegisterValueType.StackFrameOffset:
-			result.offset = self.value
+			result.offset = self.offset
 		elif self.type & RegisterValueType.ConstantDataValue == RegisterValueType.ConstantDataValue:
 			result.value = self.value
 			result.size = self.size
@@ -438,14 +453,10 @@ class PossibleValueSet:
 				result.ranges[i] = value_range
 			result.count = self.count
 		elif self.type == RegisterValueType.LookupTableValue:
-			result.table = []
-			result.mapping = {}
+			result.table = (core.BNLookupTableEntry * self.count)()
+			result.mapping = self.mapping
 			for i in range(self.count):
-				from_list = []
-				for j in range(0, len(self.table[i].from_values)):
-					from_list.append(self.table[i].from_values[j])
-					result.mapping[self.table[i].from_values[j]] = result.table[i].to_value
-				result.table.append(LookupTableEntry(from_list, result.table[i].to_value))
+				result.table[i] = self.table[i]._to_core_struct()
 			result.count = self.count
 		elif (self.type == RegisterValueType.InSetOfValues) or (self.type == RegisterValueType.NotInSetOfValues):
 			values = (ctypes.c_longlong * self.count)()
@@ -590,7 +601,7 @@ class PossibleValueSet:
 		return result
 
 	@staticmethod
-	def in_set_of_values(values: Union[List[int], Set[int]]) -> 'PossibleValueSet':
+	def in_set_of_values(values: List[int]) -> 'PossibleValueSet':
 		"""
 		Create a PossibleValueSet object for a value in a set of values.
 
@@ -604,7 +615,7 @@ class PossibleValueSet:
 		return result
 
 	@staticmethod
-	def not_in_set_of_values(values) -> 'PossibleValueSet':
+	def not_in_set_of_values(values: List[int]) -> 'PossibleValueSet':
 		"""
 		Create a PossibleValueSet object for a value NOT in a set of values.
 
@@ -618,7 +629,7 @@ class PossibleValueSet:
 		return result
 
 	@staticmethod
-	def lookup_table_value(lookup_table, mapping) -> 'PossibleValueSet':
+	def lookup_table_value(lookup_table: List[LookupTableEntry], mapping: Dict[int, int]) -> 'PossibleValueSet':
 		"""
 		Create a PossibleValueSet object for a value which is a member of a
 		lookup table.
@@ -631,7 +642,141 @@ class PossibleValueSet:
 		result._type = RegisterValueType.LookupTableValue
 		result._table = lookup_table
 		result._mapping = mapping
+		result._count = len(lookup_table)
 		return result
+
+	def union(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Compute the union of two PossibleValueSets."""
+		res = core.BNPossibleValueSetUnion(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def intersection(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Compute the intersection of two PossibleValueSets."""
+		res = core.BNPossibleValueSetIntersection(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def add(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Add two PossibleValueSets."""
+		res = core.BNPossibleValueSetAdd(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def subtract(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Subtract two PossibleValueSets."""
+		res = core.BNPossibleValueSetSubtract(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def multiply(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Multiply two PossibleValueSets."""
+		res = core.BNPossibleValueSetMultiply(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def signed_divide(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform signed division of two PossibleValueSets."""
+		res = core.BNPossibleValueSetSignedDivide(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def unsigned_divide(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform unsigned division of two PossibleValueSets."""
+		res = core.BNPossibleValueSetUnsignedDivide(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def signed_mod(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform signed modulo of two PossibleValueSets."""
+		res = core.BNPossibleValueSetSignedMod(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def unsigned_mod(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform unsigned modulo of two PossibleValueSets."""
+		res = core.BNPossibleValueSetUnsignedMod(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def and_(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform bitwise AND of two PossibleValueSets."""
+		res = core.BNPossibleValueSetAnd(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def or_(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform bitwise OR of two PossibleValueSets."""
+		res = core.BNPossibleValueSetOr(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def xor(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform bitwise XOR of two PossibleValueSets."""
+		res = core.BNPossibleValueSetXor(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def shift_left(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform left shift of two PossibleValueSets."""
+		res = core.BNPossibleValueSetShiftLeft(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def logical_shift_right(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform logical right shift of two PossibleValueSets."""
+		res = core.BNPossibleValueSetLogicalShiftRight(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def arith_shift_right(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform arithmetic right shift of two PossibleValueSets."""
+		res = core.BNPossibleValueSetArithShiftRight(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def rotate_left(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform left rotation of two PossibleValueSets."""
+		res = core.BNPossibleValueSetRotateLeft(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def rotate_right(self, other: "PossibleValueSet", size: int) -> "PossibleValueSet":
+		"""Perform right rotation of two PossibleValueSets."""
+		res = core.BNPossibleValueSetRotateRight(ctypes.pointer(self._to_core_struct()), ctypes.pointer(other._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def negate(self, size: int) -> "PossibleValueSet":
+		"""Negate a PossibleValueSet."""
+		res = core.BNPossibleValueSetNegate(ctypes.pointer(self._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
+
+	def not_(self, size: int) -> "PossibleValueSet":
+		"""Perform bitwise NOT of a PossibleValueSet."""
+		res = core.BNPossibleValueSetNot(ctypes.pointer(self._to_core_struct()), size)
+		pvs = PossibleValueSet(value=res)
+		core.BNFreePossibleValueSet(ctypes.pointer(res))
+		return pvs
 
 
 @dataclass(frozen=True)

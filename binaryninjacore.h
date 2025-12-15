@@ -2883,7 +2883,7 @@ extern "C"
 		BNAnalysisState state;
 		size_t count, total;
 	} BNAnalysisProgress;
-	
+
 	BN_ENUM(uint8_t, BNAnalysisMode)
 	{
 		FullAnalysisMode,
@@ -5097,7 +5097,6 @@ extern "C"
 	    BNFunction* func, BNArchitecture* arch, uint64_t addr, BNType* functionType, size_t i);
 	BINARYNINJACOREAPI BNRegisterValue BNGetParameterValueAtLowLevelILInstruction(
 	    BNFunction* func, size_t instr, BNType* functionType, size_t i);
-	BINARYNINJACOREAPI void BNFreePossibleValueSet(BNPossibleValueSet* value);
 	BINARYNINJACOREAPI uint32_t* BNGetRegistersReadByInstruction(
 	    BNFunction* func, BNArchitecture* arch, uint64_t addr, size_t* count);
 	BINARYNINJACOREAPI uint32_t* BNGetRegistersWrittenByInstruction(
@@ -8900,6 +8899,28 @@ extern "C"
 		BNHighLevelILFunction* il, size_t exprIndex, BNType* type, int64_t val, uint64_t offset, BNDerivedString* out);
 	BINARYNINJACOREAPI bool BNStringRecognizerRecognizeImport(BNStringRecognizer* recognizer, BNHighLevelILFunction* il,
 		size_t exprIndex, BNType* type, int64_t val, BNDerivedString* out);
+
+	// PossibleValueSet operations
+	BINARYNINJACOREAPI void BNFreePossibleValueSet(BNPossibleValueSet* object);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetUnion(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetIntersection(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetAdd(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetSubtract(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetMultiply(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetSignedDivide(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetUnsignedDivide(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetSignedMod(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetUnsignedMod(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetAnd(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetOr(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetXor(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetShiftLeft(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetLogicalShiftRight(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetArithShiftRight(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetRotateLeft(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetRotateRight(const BNPossibleValueSet* object, const BNPossibleValueSet* other, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetNegate(const BNPossibleValueSet* object, size_t size);
+	BINARYNINJACOREAPI BNPossibleValueSet BNPossibleValueSetNot(const BNPossibleValueSet* object, size_t size);
 
 #ifdef __cplusplus
 }
