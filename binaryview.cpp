@@ -3095,7 +3095,7 @@ unordered_set<QualifiedName> BinaryView::GetOutgoingRecursiveTypeReferences(cons
 {
 	size_t count;
 	vector<BNQualifiedName> apiTypes;
-	apiTypes.resize(types.size());
+	apiTypes.reserve(types.size());
 	for (auto& type: types)
 	{
 		apiTypes.push_back(type.GetAPIObject());
