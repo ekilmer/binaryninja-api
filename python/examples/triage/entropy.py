@@ -54,6 +54,7 @@ class EntropyWidget(QWidget):
 		self.timer.start()
 
 		self.setCursor(Qt.PointingHandCursor)
+		self.setMouseTracking(True)
 		self.setMinimumHeight(UIContext.getScaledWindowSize(32, 32).height())
 
 	def paintEvent(self, event):
@@ -78,3 +79,12 @@ class EntropyWidget(QWidget):
 		frac = float(event.x()) / self.rect().width()
 		offset = int(frac * self.width * self.block_size)
 		self.view.navigateToFileOffset(offset)
+
+	def mouseMoveEvent(self, event):
+		frac = float(event.x()) / self.rect().width()
+		offset = int(frac * self.width * self.block_size)
+		addr = self.data.get_address_for_data_offset(offset)
+		if addr is not None:
+			self.setToolTip(f"0x{addr:x}")
+		else:
+			self.setToolTip(f"File offset: 0x{offset:x}")

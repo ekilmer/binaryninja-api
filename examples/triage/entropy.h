@@ -44,6 +44,7 @@ class EntropyWidget : public QWidget
   protected:
 	virtual void paintEvent(QPaintEvent* event) override;
 	virtual void mousePressEvent(QMouseEvent* event) override;
+	virtual void mouseMoveEvent(QMouseEvent* event) override;
 
   private Q_SLOTS:
 	void timerExpired();

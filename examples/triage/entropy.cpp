@@ -75,6 +75,7 @@ EntropyWidget::EntropyWidget(QWidget* parent, TriageView* view, BinaryViewRef da
 	timer->start();
 
 	setCursor(Qt::PointingHandCursor);
+	setMouseTracking(true);
 	setMinimumHeight(UIContext::getScaledWindowSize(32, 32).height());
 }
 
@@ -116,4 +117,17 @@ void EntropyWidget::mousePressEvent(QMouseEvent* event)
 	float frac = (float)event->pos().x() / (float)rect().width();
 	uint64_t offset = (uint64_t)(frac * m_width * m_blockSize);
 	m_view->navigateToFileOffset(offset);
+}
+
+
+void EntropyWidget::mouseMoveEvent(QMouseEvent* event)
+{
+	float frac = (float)event->pos().x() / (float)rect().width();
+	uint64_t offset = (uint64_t)(frac * m_width * m_blockSize);
+	uint64_t addr = 0;
+	bool hasAddr = m_data->GetAddressForDataOffset(offset, addr);
+	if (hasAddr)
+		setToolTip(QString("0x%1").arg(addr, 0, 16));
+	else
+		setToolTip(QString("File offset: 0x%1").arg(offset, 0, 16));
 }
