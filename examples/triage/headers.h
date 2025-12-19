@@ -4,6 +4,7 @@
 #include <QtWidgets/QWidget>
 #include <functional>
 #include "uitypes.h"
+#include "copyablelabel.h"
 
 
 class NavigationLabel : public QLabel

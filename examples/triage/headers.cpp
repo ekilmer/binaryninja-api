@@ -14,6 +14,7 @@ NavigationLabel::NavigationLabel(const QString& text, QColor color, const std::f
 	style.setColor(QPalette::WindowText, color);
 	setPalette(style);
 	setFont(getMonospaceFont(this));
+	setCursor(Qt::PointingHandCursor);
 }
 
 
@@ -97,7 +98,7 @@ GenericHeaders::GenericHeaders(BinaryViewRef data)
 		AddField("Platform", QString::fromStdString(data->GetDefaultPlatform()->GetName()));
 	auto entryFunctions = data->GetAllEntryFunctions();
 	if (!entryFunctions.empty() && data->GetEntryPoint() != 0)
-		AddField("Entry Point", QString("0x") + QString::number(data->GetEntryPoint(), 16), CodeHeaderField);
+		AddField("Entry Point", QString("0x") + QString::number(data->GetEntryPoint(), 16), AddressHeaderField);
 	else
 		AddField("Entry Point", "None");
 	if (data->IsValidOffset(data->GetStart()))
@@ -133,7 +134,7 @@ PEHeaders::PEHeaders(BinaryViewRef data)
 			AddField("Platform", QString::fromStdString(data->GetDefaultPlatform()->GetName()));
 		auto entryFunctions = data->GetAllEntryFunctions();
 		if (!entryFunctions.empty() && data->GetEntryPoint() != 0)
-			AddField("Entry Point", QString("0x") + QString::number(data->GetEntryPoint(), 16), CodeHeaderField);
+			AddField("Entry Point", QString("0x") + QString::number(data->GetEntryPoint(), 16), AddressHeaderField);
 		else
 			AddField("Entry Point", "None");
 		return;
@@ -167,7 +168,7 @@ PEHeaders::PEHeaders(BinaryViewRef data)
 	uint64_t entryPoint = currentBase + GetValueOfStructMember(data, optHeaderName, optHeaderStart, "addressOfEntryPoint");
 	auto entryFunctions = data->GetAllEntryFunctions();
 	if (!entryFunctions.empty() && entryPoint != 0)
-		AddField("Entry Point", QString("0x") + QString::number(entryPoint, 16), CodeHeaderField);
+		AddField("Entry Point", QString("0x") + QString::number(entryPoint, 16), AddressHeaderField);
 	else
 		AddField("Entry Point", "None");
 
@@ -370,6 +371,16 @@ HeaderWidget::HeaderWidget(QWidget* parent, const Headers& header) : QWidget(par
 	for (auto& field : header.GetFields())
 	{
 		layout->addWidget(new QLabel(field.title + ": "), row, col * 3);
+
+		// For text fields with multiple values, join them with newlines for copying
+		QString copyText;
+		if (field.type == TextHeaderField && field.values.size() > 1)
+		{
+			copyText = field.values[0];
+			for (size_t i = 1; i < field.values.size(); i++)
+				copyText += "\n" + field.values[i];
+		}
+
 		for (auto& value : field.values)
 		{
 			QWidget* label;
@@ -383,8 +394,12 @@ HeaderWidget::HeaderWidget(QWidget* parent, const Headers& header) : QWidget(par
 			}
 			else
 			{
-				label = new QLabel(value);
-				label->setFont(getMonospaceFont(this));
+				// Use CopyableLabel for text fields with AlphanumericHighlightColor
+				auto copyLabel = new CopyableLabel(value, getThemeColor(AlphanumericHighlightColor));
+				copyLabel->setFont(getMonospaceFont(this));
+				if (field.values.size() > 1)
+					copyLabel->setCopyText(copyText);
+				label = copyLabel;
 			}
 			layout->addWidget(label, row, col * 3 + 1);
 			row++;
