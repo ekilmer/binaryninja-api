@@ -42,6 +42,8 @@ class StringsTreeView : public QTreeView, public FilterTarget
 	UIActionHandler m_actionHandler;
 	GenericStringsModel* m_model;
 
+	void updateColumnWidths();
+
   public:
 	StringsTreeView(StringsWidget* parent, TriageView* view, BinaryViewRef data);
 	void copySelection();
@@ -56,6 +58,7 @@ class StringsTreeView : public QTreeView, public FilterTarget
 
   protected:
 	virtual void keyPressEvent(QKeyEvent* event) override;
+	virtual bool event(QEvent* event) override;
 
   private Q_SLOTS:
 	void stringSelected(const QModelIndex& cur, const QModelIndex& prev);

@@ -361,16 +361,111 @@ QString PEHeaders::GetNameOfEnumerationMember(BinaryViewRef data, const std::str
 }
 
 
-HeaderWidget::HeaderWidget(QWidget* parent, const Headers& header) : QWidget(parent)
+HeaderWidget::HeaderWidget(QWidget* parent, const Headers& header) : QWidget(parent), m_headers(header)
 {
-	QGridLayout* layout = new QGridLayout();
-	layout->setContentsMargins(0, 0, 0, 0);
-	layout->setVerticalSpacing(1);
+	m_layout = new QGridLayout();
+	m_layout->setContentsMargins(0, 0, 0, 0);
+	m_layout->setVerticalSpacing(1);
+	m_layout->setHorizontalSpacing(2);
+	setLayout(m_layout);
+	m_currentColumns = (int)header.GetColumns();
+	m_pendingWidth = -1;
+
+	// Create timer for debouncing resize events
+	m_resizeTimer = new QTimer(this);
+	m_resizeTimer->setSingleShot(true);
+	m_resizeTimer->setInterval(50);  // 50ms delay after resize stops
+	connect(m_resizeTimer, &QTimer::timeout, this, &HeaderWidget::performDelayedResize);
+
+	rebuildLayout();
+}
+
+
+void HeaderWidget::resizeEvent(QResizeEvent* event)
+{
+	QWidget::resizeEvent(event);
+	updateColumns(this->width());
+}
+
+
+void HeaderWidget::updateColumns(int width)
+{
+	m_pendingWidth = width;
+	m_resizeTimer->start();
+}
+
+
+void HeaderWidget::performDelayedResize()
+{
+	if (m_pendingWidth < 0)
+		return;
+
+	int width = m_pendingWidth;
+	m_pendingWidth = -1;
+
+	int desiredColumns;
+
+	// Add hysteresis to prevent thrashing when width oscillates near breakpoints
+	if (m_currentColumns == 1)
+	{
+		// Growing from 1 column: need to exceed threshold to switch
+		if (width >= TriageBreakpoints::NARROW + 40)
+			desiredColumns = (width >= TriageBreakpoints::MEDIUM + 40) ? (int)m_headers.GetColumns() : 2;
+		else
+			desiredColumns = 1;
+	}
+	else if (m_currentColumns == 2)
+	{
+		// From 2 columns: wider hysteresis band
+		if (width < TriageBreakpoints::NARROW - 40)
+			desiredColumns = 1;
+		else if (width >= TriageBreakpoints::MEDIUM + 40)
+			desiredColumns = (int)m_headers.GetColumns();
+		else
+			desiredColumns = 2;
+	}
+	else
+	{
+		// Shrinking from 3 columns: need to fall below threshold to switch
+		if (width < TriageBreakpoints::NARROW - 40)
+			desiredColumns = 1;
+		else if (width < TriageBreakpoints::MEDIUM - 40)
+			desiredColumns = 2;
+		else
+			desiredColumns = (int)m_headers.GetColumns();
+	}
+
+	if (desiredColumns != m_currentColumns)
+	{
+		m_currentColumns = desiredColumns;
+		rebuildLayout();
+	}
+}
+
+
+void HeaderWidget::rebuildLayout()
+{
+	// Disable updates during rebuild to prevent flickering
+	setUpdatesEnabled(false);
+
+	// Clear existing layout
+	QLayoutItem* item;
+	while ((item = m_layout->takeAt(0)) != nullptr)
+	{
+		if (item->widget())
+		{
+			item->widget()->hide();  // Hide before deletion to reduce flicker
+			item->widget()->deleteLater();  // Use deleteLater() to safely delete during events
+		}
+		delete item;
+	}
+
+	// Rebuild with current column count
 	int row = 0;
 	int col = 0;
-	for (auto& field : header.GetFields())
+	for (auto& field : m_headers.GetFields())
 	{
-		layout->addWidget(new QLabel(field.title + ": "), row, col * 3);
+		m_layout->addWidget(new QLabel(field.title + ": "), row, col * 3);
 
 		// For text fields with multiple values, join them with newlines for copying
 		QString copyText;
@@ -401,18 +496,31 @@ HeaderWidget::HeaderWidget(QWidget* parent, const Headers& header) : QWidget(par
 					copyLabel->setCopyText(copyText);
 				label = copyLabel;
 			}
-			layout->addWidget(label, row, col * 3 + 1);
+			m_layout->addWidget(label, row, col * 3 + 1);
 			row++;
 		}
-		if ((header.GetColumns() > 1) && (row >= (int)header.GetRowsPerColumn())
-		    && ((col + 1) < (int)header.GetColumns()))
+		if ((m_currentColumns > 1) && (row >= (int)m_headers.GetRowsPerColumn())
+		    && ((col + 1) < m_currentColumns))
 		{
 			row = 0;
 			col++;
 		}
 	}
-	for (col = 1; col < (int)header.GetColumns(); col++)
-		layout->setColumnMinimumWidth(col * 3 - 1, UIContext::getScaledWindowSize(20, 20).width());
-	layout->setColumnStretch((int)header.GetColumns() * 3 - 1, 1);
-	setLayout(layout);
+
+	// Clear all column stretches and minimum widths first
+	for (col = 0; col < 9; col++)  // Max 3 columns * 3 grid columns each
+	{
+		m_layout->setColumnStretch(col, 0);
+		m_layout->setColumnMinimumWidth(col, 0);
+	}
+
+	// Set spacing columns to minimum width
+	for (col = 1; col < m_currentColumns; col++)
+		m_layout->setColumnMinimumWidth(col * 3 - 1, UIContext::getScaledWindowSize(20, 20).width());
+
+	// Set last column to stretch
+	m_layout->setColumnStretch(m_currentColumns * 3 - 1, 1);
+
+	// Re-enable updates and force a single repaint
+	setUpdatesEnabled(true);
 }

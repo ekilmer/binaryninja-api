@@ -3,6 +3,9 @@
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #include <QtCore/QStringList>
+#include <QtCore/QEvent>
+#include <QtCore/QTimer>
+#include <QtWidgets/QHeaderView>
 #include "strings.h"
 #include "view.h"
 #include "fontsettings.h"
@@ -203,11 +206,38 @@ StringsTreeView::StringsTreeView(StringsWidget* parent, TriageView* view, Binary
 
 	setFont(getMonospaceFont(this));
 
+	// Set column resize modes - use Interactive to avoid O(n) recalculation on every update
+	header()->setSectionResizeMode(QHeaderView::Interactive);
+	header()->setSectionResizeMode(2, QHeaderView::Stretch); // String column stretches to fill
+
+	updateColumnWidths();
+
 	connect(selectionModel(), &QItemSelectionModel::currentChanged, this, &StringsTreeView::stringSelected);
 	connect(this, &QTreeView::doubleClicked, this, &StringsTreeView::stringDoubleClicked);
 
 	m_actionHandler.bindAction("Copy", UIAction([this]() { copySelection(); }, [this]() { return canCopySelection(); }));
 }
+
+
+void StringsTreeView::updateColumnWidths()
+{
+	// Size address and length columns based on their headers, not contents
+	header()->resizeSection(0, header()->sectionSizeHint(0) + 20);
+	header()->resizeSection(1, header()->sectionSizeHint(1) + 20);
+}
+
+
+bool StringsTreeView::event(QEvent* event)
+{
+	// Update column widths when font or style changes (e.g., UI scale change)
+	if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange)
+	{
+		// Defer update until after Qt recalculates font metrics
+		QTimer::singleShot(0, this, &StringsTreeView::updateColumnWidths);
+	}
+	return QTreeView::event(event);
+}
+
 
 void StringsTreeView::copySelection()
 {

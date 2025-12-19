@@ -6,12 +6,16 @@
 #include "byte.h"
 
 
+class HeaderWidget;
+
 class TriageView : public QScrollArea, public View
 {
 	BinaryViewRef m_data;
 	uint64_t m_currentOffset = 0;
 	ByteView* m_byteView = nullptr;
 	QPushButton* m_fullAnalysisButton = nullptr;
+	QSplitter* m_importExportSplitter = nullptr;
+	HeaderWidget* m_headerWidget = nullptr;
 
   public:
 	TriageView(QWidget* parent, BinaryViewRef data);
@@ -28,9 +32,11 @@ class TriageView : public QScrollArea, public View
 
   protected:
 	virtual void focusInEvent(QFocusEvent* event) override;
+	virtual void resizeEvent(QResizeEvent* event) override;
 
   private:
 	void goToAddress();
+	void updateImportExportLayout();
 
   private Q_SLOTS:
 	void startFullAnalysis();

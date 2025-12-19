@@ -47,8 +47,8 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 	{
 		QGroupBox* headerGroup = new QGroupBox("Headers", container);
 		QVBoxLayout* headerLayout = new QVBoxLayout();
-		HeaderWidget* headerWidget = new HeaderWidget(headerGroup, *hdr);
-		headerLayout->addWidget(headerWidget);
+		m_headerWidget = new HeaderWidget(headerGroup, *hdr);
+		headerLayout->addWidget(m_headerWidget);
 		headerGroup->setLayout(headerLayout);
 		layout->addWidget(headerGroup);
 		delete hdr;
@@ -72,13 +72,13 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 
 	if (m_data->IsExecutable())
 	{
-		QSplitter* importExportSplitter = new QSplitter(Qt::Horizontal);
+		m_importExportSplitter = new QSplitter(Qt::Horizontal);
 
 		QGroupBox* importGroup = new QGroupBox("Imports", container);
 		QVBoxLayout* importLayout = new QVBoxLayout();
 		importLayout->addWidget(new ImportsWidget(importGroup, this, m_data));
 		importGroup->setLayout(importLayout);
-		importExportSplitter->addWidget(importGroup);
+		m_importExportSplitter->addWidget(importGroup);
 
 		QSplitter* exportEntrySplitter = new QSplitter(Qt::Vertical);
 
@@ -94,8 +94,8 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 		entryGroup->setLayout(entryLayout);
 		exportEntrySplitter->addWidget(entryGroup);
 
-		importExportSplitter->addWidget(exportEntrySplitter);
-		layout->addWidget(importExportSplitter);
+		m_importExportSplitter->addWidget(exportEntrySplitter);
+		layout->addWidget(m_importExportSplitter);
 
 		if (m_data->GetTypeName() != "PE")
 		{
@@ -287,6 +287,37 @@ void TriageView::focusInEvent(QFocusEvent*)
 {
 	if (m_byteView)
 		m_byteView->setFocus(Qt::OtherFocusReason);
+}
+
+
+void TriageView::resizeEvent(QResizeEvent* event)
+{
+	QScrollArea::resizeEvent(event);
+	updateImportExportLayout();
+}
+
+
+void TriageView::updateImportExportLayout()
+{
+	if (!m_importExportSplitter)
+		return;
+
+	int width = viewport()->width();
+	Qt::Orientation currentOrientation = m_importExportSplitter->orientation();
+	Qt::Orientation desiredOrientation;
+
+	// Add hysteresis: use different thresholds for shrinking vs growing
+	if (currentOrientation == Qt::Horizontal)
+	{
+		desiredOrientation = (width < TriageBreakpoints::NARROW - 20) ? Qt::Vertical : Qt::Horizontal;
+	}
+	else
+	{
+		desiredOrientation = (width >= TriageBreakpoints::NARROW + 20) ? Qt::Horizontal : Qt::Vertical;
+	}
+
+	if (currentOrientation != desiredOrientation)
+		m_importExportSplitter->setOrientation(desiredOrientation);
 }
 
 
