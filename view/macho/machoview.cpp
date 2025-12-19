@@ -3484,7 +3484,7 @@ void MachoView::ParseChainedStarts(MachOHeader& header, section_64 chainedStarts
 				}
 				else if (!bind)
 				{
-					uint64_t entryOffset;
+					uint64_t entryOffset = 0;
 					switch (pointerFormat)
 					{
 					case DYLD_CHAINED_PTR_ARM64E:

@@ -906,7 +906,7 @@ bool GetLowLevelILForArmInstruction(Architecture* arch, uint64_t addr, LowLevelI
 					}
 					if (op1.flags.wb)
 					{
-						ExprId wb;
+						ExprId wb = BN_INVALID_OPERAND;
 						switch (instr.operation)
 						{
 						case ARMV7_LDM:

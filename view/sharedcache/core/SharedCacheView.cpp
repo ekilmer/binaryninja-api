@@ -10,6 +10,8 @@
 using namespace BinaryNinja;
 using namespace BinaryNinja::DSC;
 
+static const char* VIEW_METADATA_KEY = "shared_cache_view";
+
 SharedCacheViewType::SharedCacheViewType() : BinaryViewType(VIEW_NAME, VIEW_NAME) {}
 
 // We register all our one-shot stuff here, such as the object destructor.

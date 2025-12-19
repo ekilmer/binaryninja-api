@@ -7,8 +7,6 @@
 
 #include <binaryninjaapi.h>
 
-static const char* VIEW_METADATA_KEY = "shared_cache_view";
-
 class KernelCacheView : public BinaryNinja::BinaryView
 {
 	bool m_parseOnly;

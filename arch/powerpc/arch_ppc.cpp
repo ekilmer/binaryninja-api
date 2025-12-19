@@ -517,14 +517,14 @@ class PowerpcArchitecture: public Architecture
 
 			case PPC_OP_SIMM:
 				if (op->simm < 0 && op->simm > -0x10000)
-					snprintf(buf, sizeof(buf), "-0x%llx", -op->simm);
+					snprintf(buf, sizeof(buf), "-0x%" PRIx64, -op->simm);
 				else
-					snprintf(buf, sizeof(buf), "0x%llx", op->simm);
+					snprintf(buf, sizeof(buf), "0x%" PRIx64, op->simm);
 				result.emplace_back(IntegerToken, buf, op->simm, 4);
 				break;
 
 			case PPC_OP_LABEL:
-				snprintf(buf, sizeof(buf), "0x%llx", op->label);
+				snprintf(buf, sizeof(buf), "0x%" PRIx64, op->label);
 				result.emplace_back(CodeRelativeAddressToken, buf, op->label, 4);
 				break;
 

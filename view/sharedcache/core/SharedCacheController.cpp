@@ -8,7 +8,8 @@ using namespace BinaryNinja::DSC;
 // Unique ID for a given Binary View.
 typedef uint64_t ViewId;
 
-std::shared_mutex GlobalControllersMutex;
+static std::shared_mutex GlobalControllersMutex;
+static const char* METADATA_KEY = "shared_cache";
 
 std::map<ViewId, DSCRef<SharedCacheController>>& GlobalControllers()
 {

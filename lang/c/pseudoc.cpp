@@ -430,27 +430,27 @@ PseudoCFunction::FieldDisplayType PseudoCFunction::GetFieldDisplayType(
 
 std::optional<PseudoCFunction::TernaryInfo> PseudoCFunction::CanSimplifyToTernary(const BinaryNinja::HighLevelILInstruction &instr) const
 {
-    // Only handle if-statements
-    if (instr.operation != HLIL_IF)
-        return std::nullopt;
+	// Only handle if-statements
+	if (instr.operation != HLIL_IF)
+		return std::nullopt;
 
-    auto conditionExpr = instr.GetConditionExpr<HLIL_IF>();
-    auto trueExpr = instr.GetTrueExpr<HLIL_IF>();
-    auto falseExpr = instr.GetFalseExpr<HLIL_IF>();
+	auto conditionExpr = instr.GetConditionExpr<HLIL_IF>();
+	auto trueExpr = instr.GetTrueExpr<HLIL_IF>();
+	auto falseExpr = instr.GetFalseExpr<HLIL_IF>();
 
 	if (GetHighLevelILFunction()->HasSideEffects(conditionExpr))
 		return std::nullopt;
-    // Both branches must be assignment operations
-    if (trueExpr.operation != HLIL_ASSIGN || falseExpr.operation != HLIL_ASSIGN)
-        return std::nullopt;
+	// Both branches must be assignment operations
+	if (trueExpr.operation != HLIL_ASSIGN || falseExpr.operation != HLIL_ASSIGN)
+		return std::nullopt;
 
-    // Get the destination expressions of the assignments
-    auto trueDestExpr = trueExpr.GetDestExpr<HLIL_ASSIGN>();
-    auto falseDestExpr = falseExpr.GetDestExpr<HLIL_ASSIGN>();
+	// Get the destination expressions of the assignments
+	auto trueDestExpr = trueExpr.GetDestExpr<HLIL_ASSIGN>();
+	auto falseDestExpr = falseExpr.GetDestExpr<HLIL_ASSIGN>();
 
-    // Verify that the destination expressions are variable references
-    if (trueDestExpr.operation != HLIL_VAR || falseDestExpr.operation != HLIL_VAR)
-        return std::nullopt;
+	// Verify that the destination expressions are variable references
+	if (trueDestExpr.operation != HLIL_VAR || falseDestExpr.operation != HLIL_VAR)
+		return std::nullopt;
 
 	auto trueExprDestExpr = trueExpr.GetDestExpr<HLIL_ASSIGN>();
 	auto falseExprDestExpr = falseExpr.GetDestExpr<HLIL_ASSIGN>();
@@ -467,22 +467,22 @@ std::optional<PseudoCFunction::TernaryInfo> PseudoCFunction::CanSimplifyToTernar
 	if (GetHighLevelILFunction()->HasSideEffects(trueExprSourceExpr) || GetHighLevelILFunction()->HasSideEffects(falseExprSourceExpr))
 		return std::nullopt;
 
-    // Avoid folding for "else if" cases
-    for (auto parent = instr; parent.HasParent(); parent = parent.GetParent())
-    {
-        if (parent.operation != HLIL_IF)
-            break;
-        auto parentFalse = parent.GetFalseExpr<HLIL_IF>();
-        if (parentFalse.operation == HLIL_IF)
-            return std::nullopt;
-    }
+	// Avoid folding for "else if" cases
+	for (auto parent = instr; parent.HasParent(); parent = parent.GetParent())
+	{
+		if (parent.operation != HLIL_IF)
+			break;
+		auto parentFalse = parent.GetFalseExpr<HLIL_IF>();
+		if (parentFalse.operation == HLIL_IF)
+			return std::nullopt;
+	}
 
-    TernaryInfo info;
-    info.conditional = conditionExpr;
-    info.assignDest  = trueDestExpr;
-    info.trueAssign  = trueExprSourceExpr;
-    info.falseAssign = falseExprSourceExpr;
-    return info;
+	TernaryInfo info;
+	info.conditional = conditionExpr;
+	info.assignDest  = trueDestExpr;
+	info.trueAssign  = trueExprSourceExpr;
+	info.falseAssign = falseExprSourceExpr;
+	return info;
 }
 
 bool PseudoCFunction::TryEmitSimplifiedTernary(

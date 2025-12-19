@@ -3176,7 +3176,7 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 		case MIPS_LDC2:
 		case MIPS_LDC3:
 		{
-			unsigned cop;
+			unsigned cop = 0;
 			switch (instr.operation)
 			{
 				case MIPS_LDC1: cop = 1; break;

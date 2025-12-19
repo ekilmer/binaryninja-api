@@ -9,7 +9,7 @@
 using namespace BinaryNinja;
 using namespace BinaryNinja::KC;
 
-[[maybe_unused]] KernelCacheViewType* g_kcViewType;
+static KernelCacheViewType* g_kcViewType;
 
 KernelCacheViewType::KernelCacheViewType() : BinaryViewType(KC_VIEW_NAME, KC_VIEW_NAME) {}
 

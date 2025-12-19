@@ -480,7 +480,7 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
             auto externTypeName = nameFromTypeInfoSymbol(siClassTypeInfo.base_type);
             if (!externTypeName.has_value())
                 return std::nullopt;
-            m_logger->LogDebug("Non-backed external subtype for %llx", objectAddr);
+            m_logger->LogDebugF("Non-backed external subtype for {:#x}", objectAddr);
             subTypeName = externTypeName.value();
         }
         else
@@ -492,7 +492,7 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
         auto baseClassName = DemangleNameItanium(m_view, allowMangledClassNames, subTypeName);
         if (!baseClassName.has_value())
         {
-            m_logger->LogWarn("Skipping base class with mangled name %llx", siClassTypeInfo.base_type);
+            m_logger->LogWarnF("Skipping base class with mangled name {:#x}", siClassTypeInfo.base_type);
             return std::nullopt;
         }
         // NOTE: The base class offset is not able to be resolved here.
@@ -516,7 +516,7 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
                 auto externTypeName = nameFromTypeInfoSymbol(baseInfo.base_type);
                 if (!externTypeName.has_value())
                     return std::nullopt;
-                m_logger->LogDebug("Non-backed external subtype for %llx", objectAddr);
+                m_logger->LogDebugF("Non-backed external subtype for {:#x}", objectAddr);
                 subTypeName = externTypeName.value();
             }
             else
@@ -527,7 +527,7 @@ std::optional<ClassInfo> ItaniumRTTIProcessor::ProcessRTTI(uint64_t objectAddr)
             auto baseClassName = DemangleNameItanium(m_view, allowMangledClassNames, subTypeName);
             if (!baseClassName.has_value())
             {
-                m_logger->LogWarn("Skipping base class with mangled name %llx", baseInfo.base_type);
+                m_logger->LogWarnF("Skipping base class with mangled name {:#x}", baseInfo.base_type);
                 continue;
             }
             // Shift off the flag bits.
@@ -591,7 +591,7 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
             else
             {
                 // TODO: Is likely a function check here?
-                m_logger->LogDebug("Discovered function from virtual function table... %llx", vFuncAddr);
+                m_logger->LogDebugF("Discovered function from virtual function table... {:#x}", vFuncAddr);
                 auto vftPlatform = m_view->GetDefaultPlatform()->GetAssociatedPlatformByAddress(vFuncAddr);
                 m_view->AddFunctionForAnalysis(vftPlatform, vFuncAddr, true);
             }
@@ -602,7 +602,7 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
 
     if (virtualFunctions.empty())
     {
-        m_logger->LogDebug("Skipping empty virtual function table... %llx", vftAddr);
+        m_logger->LogDebugF("Skipping empty virtual function table... {:#x}", vftAddr);
         return std::nullopt;
     }
 
@@ -648,7 +648,7 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
             }
             else
             {
-                LogWarn("Skipping adjustments for base VFT with more functions than sub VFT... %llx", vftAddr);
+                LogWarnF("Skipping adjustments for base VFT with more functions than sub VFT... {:#x}", vftAddr);
             }
         }
 
@@ -668,7 +668,7 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
                 bool foundDv = m_view->GetDataVariableAtAddress(vFunc.funcAddr, dv);
                 if (!foundDv)
                 {
-                    m_logger->LogWarn("Skipping vfunc with no type... %llx", vFunc.funcAddr);
+                    m_logger->LogWarnF("Skipping vfunc with no type... {:#x}", vFunc.funcAddr);
                     return std::nullopt;
                 }
                 vFuncType = dv.type.GetValue();
@@ -676,7 +676,7 @@ std::optional<VirtualFunctionTableInfo> ItaniumRTTIProcessor::ProcessVFT(uint64_
                 vFuncSym = m_view->GetSymbolByAddress(vFunc.funcAddr);
                 if (vFuncSym == nullptr)
                 {
-                    m_logger->LogWarn("Skipping vfunc with no symbol... %llx", vFunc.funcAddr);
+                    m_logger->LogWarnF("Skipping vfunc with no symbol... {:#x}", vFunc.funcAddr);
                     return std::nullopt;
                 }
             }
@@ -752,12 +752,12 @@ void ItaniumRTTIProcessor::ProcessRTTI()
             {
                 if (failedAttempts++; failedAttempts > MAX_FAILED_SCAN_ATTEMPTS)
                     break;
-                m_logger->LogWarnForException(e, "Failed to process object at %llx... skipping", currAddr);
+                m_logger->LogWarnForExceptionF(e, "Failed to process object at {:#x}... skipping", currAddr);
             }
         }
 
         if (failedAttempts > MAX_FAILED_SCAN_ATTEMPTS)
-            m_logger->LogWarn("Too many failed scans for section %llx... skipping", section->GetStart());
+            m_logger->LogWarnF("Too many failed scans for section {:#x}... skipping", section->GetStart());
     };
 
     BulkSymbolModification bulkSymbolModification(m_view);
@@ -773,12 +773,12 @@ void ItaniumRTTIProcessor::ProcessRTTI()
             // If a malformed binary makes the binary view set up unbacked sections we should not attempt to read in them.
             if (m_view->ReadBuffer(section->GetStart(), 4).GetLength() == 4)
             {
-                m_logger->LogDebug("Attempting to find RTTI in section %llx", section->GetStart());
+                m_logger->LogDebugF("Attempting to find RTTI in section {:#x}", section->GetStart());
                 scan(section);
             }
             else
             {
-                m_logger->LogDebug("Unbacked start for section %llx... skipping", section->GetStart());
+                m_logger->LogDebugF("Unbacked start for section {:#x}... skipping", section->GetStart());
             }
         }
     }
@@ -829,7 +829,7 @@ void ItaniumRTTIProcessor::ProcessRTTI()
     bgTask->Finish();
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_time - start_time;
-    m_logger->LogDebug("ProcessRTTI took %f seconds", elapsed_time.count());
+    m_logger->LogDebugF("ProcessRTTI took {} seconds", elapsed_time.count());
 }
 
 
@@ -921,5 +921,5 @@ void ItaniumRTTIProcessor::ProcessVFT()
     bgTask->Finish();
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_time - start_time;
-    m_logger->LogDebug("ProcessVFT took %f seconds", elapsed_time.count());
+    m_logger->LogDebugF("ProcessVFT took {} seconds", elapsed_time.count());
 }

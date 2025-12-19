@@ -218,7 +218,7 @@ std::vector<QualifiedNameOrType> ObjCProcessor::ParseEncodedType(const std::stri
 	std::string namedType;
 	int readingStructDepth = 0;
 	std::string structType;
-	char last;
+	char last = 0;
 
 	for (char c : encodedType)
 	{

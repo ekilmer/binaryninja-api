@@ -811,6 +811,7 @@ public:
 		if (operation_name == NULL)
 			return false;
 		strncpy(operation, operation_name, sizeof(operation));
+		operation[sizeof(operation) - 1] = '\0';
 
 		if (instr.operands[0].operandClass == V_DEST)
 		{
@@ -3574,7 +3575,7 @@ public:
 				break;
 			default:
 				result[i].type = UnhandledRelocation;
-				LogWarn("Unsupported relocation type: %llu (%s) @0x%llX", result[i].nativeType,
+				LogWarn("Unsupported relocation type: %" PRIu64 " (%s) @0x%" PRIx64, result[i].nativeType,
 					GetRelocationString((ElfMipsRelocationType)result[i].nativeType), result[i].address);
 			}
 		}

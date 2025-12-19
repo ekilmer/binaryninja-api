@@ -305,7 +305,7 @@ void KernelCache::ProcessRelocations(Ref<BinaryView> view, linkedit_data_command
 
 							if (!bind)
 							{
-								uint64_t entryOffset;
+								uint64_t entryOffset = 0;
 								switch (starts.pointer_format)
 								{
 								case DYLD_CHAINED_PTR_ARM64E:
