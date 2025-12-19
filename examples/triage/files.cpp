@@ -1,6 +1,7 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QMessageBox>
 #include <QtCore/QSettings>
+#include "binaryninjaapi.h"
 #include "files.h"
 
 
@@ -70,8 +71,19 @@ void TriageFilePicker::openSelectedFiles()
 	SettingsRef settings = BinaryNinja::Settings::Instance();
 
 	for (auto& index : m_tree->selectionModel()->selectedIndexes())
+	{
+		if (index.column() != 0)
+			continue;
+
 		if (m_model->fileInfo(index).isFile())
-			files.insert(m_model->fileInfo(index).absoluteFilePath());
+		{
+			QString filepath = m_model->fileInfo(index).absoluteFilePath();
+			if (filepath.toLower().endsWith(".bndb"))
+				BinaryNinja::LogWarn("Skipping .bndb file in triage mode: %s", filepath.toStdString().c_str());
+			else
+				files.insert(filepath);
+		}
+	}
 
 	for (auto& filename : files)
 	{
