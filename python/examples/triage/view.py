@@ -151,7 +151,9 @@ class TriageView(QScrollArea, View):
 			if addr is None:
 				view_frame.navigate("Hex:Raw", offset)
 			else:
-				view_frame.navigate("Linear:" + view_frame.getCurrentDataType(), addr)
+				view_type = "Graph" if Settings().get_bool("ui.view.graph.preferred") else "Linear"
+				data_type = self.data.view_type
+				view_frame.navigate(f"{view_type}:{data_type}", addr)
 		else:
 			if self.data == self.data.file.raw:
 				addr = offset

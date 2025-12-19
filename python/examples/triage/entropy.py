@@ -53,6 +53,7 @@ class EntropyWidget(QWidget):
 		self.timer.setSingleShot(False)
 		self.timer.start()
 
+		self.setCursor(Qt.PointingHandCursor)
 		self.setMinimumHeight(UIContext.getScaledWindowSize(32, 32).height())
 
 	def paintEvent(self, event):

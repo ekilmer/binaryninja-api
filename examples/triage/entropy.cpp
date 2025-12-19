@@ -74,6 +74,7 @@ EntropyWidget::EntropyWidget(QWidget* parent, TriageView* view, BinaryViewRef da
 	timer->setSingleShot(false);
 	timer->start();
 
+	setCursor(Qt::PointingHandCursor);
 	setMinimumHeight(UIContext::getScaledWindowSize(32, 32).height());
 }
 
