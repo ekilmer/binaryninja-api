@@ -29,6 +29,9 @@ class TriageView : public QScrollArea, public View
   protected:
 	virtual void focusInEvent(QFocusEvent* event) override;
 
+  private:
+	void goToAddress();
+
   private Q_SLOTS:
 	void startFullAnalysis();
 };

@@ -152,6 +152,9 @@ TriageView::TriageView(QWidget* parent, BinaryViewRef data) : QScrollArea(parent
 
 	if (m_fullAnalysisButton && (BinaryNinja::Settings::Instance()->Get<std::string>("analysis.mode", data) == "full"))
 		m_fullAnalysisButton->hide();
+
+	// Bind the "Go to Address..." action
+	actionHandler()->bindAction("Go to Address...", UIAction([this]() { goToAddress(); }));
 }
 
 
@@ -215,6 +218,22 @@ void TriageView::startFullAnalysis()
 	}
 	m_data->UpdateAnalysis();
 	m_fullAnalysisButton->hide();
+}
+
+
+void TriageView::goToAddress()
+{
+	uint64_t addr;
+	if (!ViewFrame::getAddressFromInput(this, m_data, addr, getCurrentOffset()))
+		return;
+
+	ViewFrame* frame = ViewFrame::viewFrameForWidget(this);
+	if (!frame)
+		return;
+
+	QString viewType = BinaryNinja::Settings::Instance()->Get<bool>("ui.view.graph.preferred") ? "Graph" : "Linear";
+	QString dataType = QString::fromStdString(m_data->GetTypeName());
+	frame->navigate(viewType + ":" + dataType, addr);
 }
 
 
