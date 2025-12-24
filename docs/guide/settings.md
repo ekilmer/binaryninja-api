@@ -426,7 +426,7 @@ The setting will appear under the Quick Settings section in the Function Setting
 | | |  enum: Split to new window and navigate|`enum`|`NewWindow`| | |
 |ui|Rainbow Braces|Colorize matching pairs of braces.|`boolean`|`True`|[`SettingsUserScope`]|<a id='ui.rainbowBraces'>ui.rainbowBraces</a>|
 |ui|Recent Command Limit|Specify a limit for the recent command palette history.|`number`|`5`|[`SettingsUserScope`]|<a id='ui.recentCommandLimit'>ui.recentCommandLimit</a>|
-|ui|New Tab Recent File Limit|Number of recent files shown on the new tab page. Set to 0 to hide the list (history is still preserved).|`number`|`10`|[`SettingsUserScope`]|<a id='ui.recentFileLimit'>ui.recentFileLimit</a>|
+|ui|Recent File Display Limit|Number of recent files shown in recent file lists. Set to 0 to hide the list (history is still preserved).|`number`|`10`|[`SettingsUserScope`]|<a id='ui.recentFileLimit'>ui.recentFileLimit</a>|
 |ui|Show Indentation Guides|Show indentation markers in linear high-level IL|`boolean`|`True`|[`SettingsUserScope`]|<a id='ui.renderIndentGuides'>ui.renderIndentGuides</a>|
 |ui.experimental|Typelib Explorer|Enables Type Library Explorer tools. Requires a restart and creates a new sidebar icon that can be enabled.|`boolean`|`False`|[`SettingsUserScope`]|<a id='ui.experimental.typelibExplorer'>ui.experimental.typelibExplorer</a>|
 |ui.experimental|Developer Tools|Enables Qt UI development tooling. Requires a restart and creates a new sidebar icon that can be enabled.|`boolean`|`False`|[`SettingsUserScope`]|<a id='ui.experimental.uiDeveloperTools'>ui.experimental.uiDeveloperTools</a>|
