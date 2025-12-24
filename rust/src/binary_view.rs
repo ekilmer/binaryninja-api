@@ -62,7 +62,7 @@ use crate::types::{
 use crate::variable::DataVariable;
 use crate::workflow::Workflow;
 use crate::{Endianness, BN_FULL_CONFIDENCE};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::{c_char, c_void, CString};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -1684,6 +1684,24 @@ pub trait BinaryViewExt: BinaryViewBase {
     /// Since this removes a user tag, it will be added to the current undo buffer.
     fn remove_user_data_tag(&self, addr: u64, tag: &Tag) {
         unsafe { BNRemoveUserDataTag(self.as_ref().handle, addr, tag.handle) }
+    }
+
+    fn address_comments(&self) -> BTreeMap<u64, String> {
+        let mut comment_count = 0;
+        let mut result = BTreeMap::new();
+        let addresses;
+        unsafe {
+            let addresses_raw =
+                BNGetGlobalCommentedAddresses(self.as_ref().handle, &mut comment_count);
+            addresses = std::slice::from_raw_parts(addresses_raw, comment_count);
+        }
+
+        for address in addresses {
+            if let Some(comment) = self.comment_at(*address) {
+                result.insert(*address, comment);
+            }
+        }
+        result
     }
 
     fn comment_at(&self, addr: u64) -> Option<String> {
