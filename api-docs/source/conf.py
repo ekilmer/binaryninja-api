@@ -17,11 +17,13 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 from __future__ import annotations
+from io import StringIO
 import os
+from pathlib import Path
 import sys
 import platform
 import inspect
-import glob
+from typing import List
 
 stats = '''
 
@@ -49,7 +51,12 @@ os.environ["BN_DISABLE_USER_SETTINGS"] = "True"
 os.environ["BN_DISABLE_USER_PLUGINS"] = "True"
 os.environ["BN_DISABLE_REPOSITORY_PLUGINS"] = "True"
 import binaryninja
-import binaryninja.debugger
+
+try:
+	import binaryninja.debugger
+except ImportError:
+	pass
+
 try:
 	import binaryninja.collaboration
 except ImportError:
@@ -85,17 +92,14 @@ def setup(app):
 	app.add_css_file('css/other.css')
 	app.is_parallel_allowed('write')
 
-def cleansource():
-	rstfiles = glob.glob("*.rst")
-	for f in rstfiles:
-		try:
-			os.remove(f)
-		except OSError:
-			print(f"Unable to remove {f}")
-
 def generaterst():
-	pythonrst = open("index.rst", "w")
-	pythonrst.write('''Binary Ninja Python API Reference
+	# Generate and index.rst and .rst files for modules, removing any unneeded/old .rst files.
+	# This should only write to the files if the contents have changed,
+	# because sphinx uses that .rst mtime to determine if the corresponding .html file should be regenerated.
+	# Maybe eventually they'll check file contents to see if the file contents changed but until then this works.
+	used_rst_files: List[Path] = []
+	index_rst = StringIO()
+	index_rst.write('''Binary Ninja Python API Reference
 =====================================
 
 Welcome to the Binary Ninja API documentation. The below methods are available
@@ -130,19 +134,20 @@ Full Class List
 
 	# Generate docs for both binaryninja and binaryninja.debugger module
 	modules = modulelist(binaryninja)
-	modules.extend(modulelist(binaryninja.debugger, basename="debugger"))
+	if hasattr(binaryninja, "debugger"):
+		modules.extend(modulelist(binaryninja.debugger, basename="debugger"))
 	if hasattr(binaryninja, "collaboration"):
 		modules.extend(modulelist(binaryninja.collaboration, basename="collaboration"))
 	modules = sorted(modules, key=lambda pair: pair[0])
 
 	# Separate top-level and nested modules for proper TOC structure
 	nested_modules = {"debugger": [], "collaboration": []}
-	
+
 	for modulename, module in modules:
 		filename = f"{module.__name__}-module.rst"
 		if modulename.count(".") == 0:
 			# Top-level module - always include in main TOC
-			pythonrst.write(f"   {modulename} <{filename}>\n")
+			index_rst.write(f"   {modulename} <{filename}>\n")
 		else:
 			# This is a nested module - collect them for parent modules
 			parent = modulename.split(".")[0]
@@ -153,42 +158,42 @@ Full Class List
 		# Since we put debugger python files in a folder, binaryninja.{modulename} is no longer the
 		# correct name of the module
 		filename = f"{module.__name__}-module.rst"
-		modulefile = open(filename, "w")
+		module_contents = StringIO()
 		underline = "="*len(f"{modulename} module")
-		modulefile.write(f'''{modulename} module
+		module_contents.write(f'''{modulename} module
 {underline}
 
 ''')
 
 		# Add sub-toctree for parent modules that have nested modules
 		if modulename.count(".") == 0 and modulename in nested_modules and nested_modules[modulename]:
-			modulefile.write(".. toctree::\n")
-			modulefile.write("   :maxdepth: 1\n")
-			modulefile.write("   :hidden:\n\n")
+			module_contents.write(".. toctree::\n")
+			module_contents.write("   :maxdepth: 1\n")
+			module_contents.write("   :hidden:\n\n")
 			for nested_name, nested_filename in nested_modules[modulename]:
-				modulefile.write(f"   {nested_name} <{nested_filename}>\n")
-			modulefile.write("\n")
+				module_contents.write(f"   {nested_name} <{nested_filename}>\n")
+			module_contents.write("\n")
 
 		# Include module-level docstring
-		modulefile.write(f'''.. automodule:: {module.__name__}
+		module_contents.write(f'''.. automodule:: {module.__name__}
 
 ''')
 
 		# Generate custom summary table
 		classes = list(classlist(module))
 		if classes:
-			modulefile.write(".. list-table::\n")
-			modulefile.write("   :header-rows: 1\n")
-			modulefile.write("   :widths: 30 70\n\n")
-			modulefile.write("   * - Class\n")
-			modulefile.write("     - Description\n")
-			
+			module_contents.write(".. list-table::\n")
+			module_contents.write("   :header-rows: 1\n")
+			module_contents.write("   :widths: 30 70\n\n")
+			module_contents.write("   * - Class\n")
+			module_contents.write("     - Description\n")
+
 			for (classname, classref) in classes:
 				if inspect.isclass(classref):
 					role = 'py:class'
 				else:
 					role = 'py:func'
-				
+
 				# Get docstring summary (first line)
 				doc = inspect.getdoc(classref)
 				summary = ""
@@ -262,18 +267,18 @@ Full Class List
 									if last_backtick > 0:
 										truncate_at = summary.rfind(' ', 0, last_backtick)
 								summary = summary[:truncate_at] + "..."
-				
-				modulefile.write(f"   * - :{role}:`{inspect.getmodule(classref).__name__}.{classname}`\n")
-				modulefile.write(f"     - {summary}\n")
+
+				module_contents.write(f"   * - :{role}:`{inspect.getmodule(classref).__name__}.{classname}`\n")
+				module_contents.write(f"     - {summary}\n")
 
 
-		modulefile.write(f'''\n\n''')
-   
+		module_contents.write('\n\n')
+
 		# Generate individual class sections with proper headers
 		for (classname, classref) in classes:
 			# Only include classes that actually belong to this module
 			if inspect.getmodule(classref).__name__ == module.__name__:
-				modulefile.write(f'''{classname}
+				module_contents.write(f'''{classname}
 {"-" * len(classname)}
 
 .. autoclass:: {module.__name__}.{classname}
@@ -282,14 +287,31 @@ Full Class List
    :show-inheritance:
 
 ''')
-		modulefile.write(stats)
-		modulefile.close()
+		module_contents.write(stats)
 
-	pythonrst.write(stats)
-	pythonrst.close()
+		new_module_contents = module_contents.getvalue()
+		module_contents.close()
+		module_file = Path(filename)
+		# Only write to the module file if the contents are different
+		if not module_file.is_file() or module_file.read_text() != new_module_contents:
+			module_file.write_text(new_module_contents)
+		used_rst_files.append(module_file)
 
+		module_contents.close()
 
-cleansource()
+	index_rst.write(stats)
+	new_index_contents = index_rst.getvalue()
+	index_rst.close()
+
+	index_file = Path("index.rst")
+	if not index_file.is_file() or index_file.read_text() != new_index_contents:
+		index_file.write_text(new_index_contents)
+	used_rst_files.append(index_file)
+
+	# Remove extra .rst files that weren't used
+	for rst_file in Path('.').glob('*.rst'):
+		if rst_file not in used_rst_files:
+			rst_file.unlink()
 
 generaterst()
 
