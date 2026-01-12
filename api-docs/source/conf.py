@@ -88,6 +88,100 @@ def classlist(module):
 def fnlist(module):
 	return [x for x in inspect.getmembers(module, inspect.isfunction) if x[1].__module__ == module.__name__]
 
+def get_autodoc_info(name, ref):
+	"""Returns (role, directive, needs_members) for a given reference."""
+	match ref:
+		case _ if inspect.isclass(ref) and issubclass(ref, Exception):
+			return ('py:exc', 'autoexception', True)
+		case _ if inspect.isclass(ref):
+			return ('py:class', 'autoclass', True)
+		case _ if inspect.isfunction(ref):
+			return ('py:func', 'autofunction', False)
+		case _:
+			raise TypeError(f"Unhandled type for {name}: {type(ref)}")
+
+def get_docstring_summary(name, ref):
+	"""Returns a truncated summary of the docstring for a given reference."""
+	doc = inspect.getdoc(ref)
+	if not doc or not doc.strip():
+		return ""
+
+	# Split by double newline to get first paragraph only,
+	# avoiding :param, :return, etc. sections
+	first_paragraph = doc.split('\n\n')[0].strip()
+	# Join lines within the first paragraph to handle multi-line sentences
+	first_paragraph = ' '.join(first_paragraph.split('\n')).strip()
+
+	# Only use the description if it's actual documentation (not just prototype/signature)
+	if not first_paragraph or first_paragraph.startswith(name + "("):
+		return ""
+
+	# If first paragraph fits within 100 chars, use it all
+	if len(first_paragraph) <= 100:
+		return first_paragraph
+
+	# Paragraph is too long, use as much as possible with truncation
+	# Split by '. ' (period + space) to avoid splitting on code refs like `bv.symbols`
+	if '. ' in first_paragraph:
+		# Try to include complete sentences, or truncate mid-sentence if needed
+		sentences = first_paragraph.split('. ')
+		summary = sentences[0] + '.'
+		# Try to add more sentences if they fit
+		for i in range(1, len(sentences)):
+			next_sentence = sentences[i]
+			if i < len(sentences) - 1:
+				next_sentence += '.'
+			potential = summary + ' ' + next_sentence
+			if len(potential) <= 100:
+				summary = potential
+			elif len(summary + ' ' + next_sentence[:20]) <= 100:
+				# Can't fit the whole sentence, but try to fit part of it with truncation
+				summary = summary + ' ' + next_sentence
+				break
+			else:
+				break
+	else:
+		# No sentence boundary, just use the paragraph as-is for truncation
+		summary = first_paragraph
+
+	# If summary is still too long, truncate it
+	if len(summary) > 100:
+		truncate_at = 97
+		# Look for space before truncation to avoid breaking words
+		if ' ' in summary[80:97]:
+			space_pos = summary.rfind(' ', 80, 97)
+			if space_pos > 80:
+				truncate_at = space_pos
+		# Check if we're in the middle of a Sphinx directive or backtick
+		if ':py:' in summary[max(0, truncate_at-10):truncate_at+10]:
+			directive_start = summary.rfind(':py:', 0, truncate_at)
+			if directive_start != -1:
+				truncate_at = directive_start
+		# Check for unclosed backticks
+		if summary[:truncate_at].count('`') % 2 != 0:
+			last_backtick = summary.rfind('`', 0, truncate_at)
+			if last_backtick > 0:
+				truncate_at = summary.rfind(' ', 0, last_backtick)
+		summary = summary[:truncate_at] + "..."
+
+	return summary
+
+def write_summary_table(output, header, members):
+	"""Writes a summary table for a list of members."""
+	if not members:
+		return
+	output.write(".. list-table::\n")
+	output.write("   :header-rows: 1\n")
+	output.write("   :widths: 30 70\n\n")
+	output.write(f"   * - {header}\n")
+	output.write("     - Description\n")
+	for name, ref in members:
+		role, _, _ = get_autodoc_info(name, ref)
+		summary = get_docstring_summary(name, ref)
+		output.write(f"   * - :{role}:`{inspect.getmodule(ref).__name__}.{name}`\n")
+		output.write(f"     - {summary}\n")
+	output.write("\n")
+
 def setup(app):
 	app.add_css_file('css/other.css')
 	app.is_parallel_allowed('write')
@@ -179,114 +273,33 @@ Full Class List
 
 ''')
 
-		# Generate custom summary table
-		classes = list(classlist(module))
-		if classes:
-			module_contents.write(".. list-table::\n")
-			module_contents.write("   :header-rows: 1\n")
-			module_contents.write("   :widths: 30 70\n\n")
-			module_contents.write("   * - Class\n")
-			module_contents.write("     - Description\n")
+		# Split members into classes and functions
+		members = list(classlist(module))
+		class_members = [(name, ref) for name, ref in members if inspect.isclass(ref)]
+		func_members = [(name, ref) for name, ref in members if inspect.isfunction(ref)]
 
-			for (classname, classref) in classes:
-				if inspect.isclass(classref):
-					role = 'py:class'
-				else:
-					role = 'py:func'
+		# Generate summary tables
+		write_summary_table(module_contents, "Class", class_members)
+		write_summary_table(module_contents, "Function", func_members)
 
-				# Get docstring summary (first line)
-				doc = inspect.getdoc(classref)
-				summary = ""
-				if doc and doc.strip():
-					# Split by double newline to get first paragraph only,
-					# avoiding :param, :return, etc. sections
-					first_paragraph = doc.split('\n\n')[0].strip()
-					# Join lines within the first paragraph to handle multi-line sentences
-					first_paragraph = ' '.join(first_paragraph.split('\n')).strip()
+		module_contents.write('\n')
 
-					# Only use the description if it's actual documentation (not just prototype/signature)
-					if first_paragraph and not first_paragraph.startswith(classname + "("):
-						# If first paragraph fits within 100 chars, use it all
-						if len(first_paragraph) <= 100:
-							summary = first_paragraph
-						else:
-							# Paragraph is too long, use as much as possible with truncation
-							# Split by '. ' (period + space) to avoid splitting on code refs like `bv.symbols`
-							if '. ' in first_paragraph:
-								# Try to include complete sentences, or truncate mid-sentence if needed
-								sentences = first_paragraph.split('. ')
-								summary = sentences[0] + '.'
-								# Try to add more sentences if they fit
-								for i in range(1, len(sentences)):
-									next_sentence = sentences[i]
-									if i < len(sentences) - 1:
-										next_sentence += '.'
-									potential = summary + ' ' + next_sentence
-									if len(potential) <= 100:
-										summary = potential
-									elif len(summary + ' ' + next_sentence[:20]) <= 100:
-										# Can't fit the whole sentence, but try to fit part of it with truncation
-										summary = summary + ' ' + next_sentence
-										break
-									else:
-										break
-
-								# If summary is still too long, truncate it
-								if len(summary) > 100:
-									truncate_at = 97
-									# Look for space before truncation to avoid breaking words
-									if ' ' in summary[80:97]:
-										space_pos = summary.rfind(' ', 80, 97)
-										if space_pos > 80:
-											truncate_at = space_pos
-									# Check if we're in the middle of a Sphinx directive or backtick
-									if ':py:' in summary[truncate_at-10:truncate_at+10]:
-										directive_start = summary.rfind(':py:', 0, truncate_at)
-										if directive_start != -1:
-											truncate_at = directive_start
-									# Check for unclosed backticks
-									if summary[:truncate_at].count('`') % 2 != 0:
-										last_backtick = summary.rfind('`', 0, truncate_at)
-										if last_backtick > 0:
-											truncate_at = summary.rfind(' ', 0, last_backtick)
-									summary = summary[:truncate_at] + "..."
-							else:
-								# No sentence boundary, just truncate the paragraph
-								summary = first_paragraph
-								truncate_at = 97
-								if ' ' in summary[80:97]:
-									space_pos = summary.rfind(' ', 80, 97)
-									if space_pos > 80:
-										truncate_at = space_pos
-								if ':py:' in summary[truncate_at-10:truncate_at+10]:
-									directive_start = summary.rfind(':py:', 0, truncate_at)
-									if directive_start != -1:
-										truncate_at = directive_start
-								if summary[:truncate_at].count('`') % 2 != 0:
-									last_backtick = summary.rfind('`', 0, truncate_at)
-									if last_backtick > 0:
-										truncate_at = summary.rfind(' ', 0, last_backtick)
-								summary = summary[:truncate_at] + "..."
-
-				module_contents.write(f"   * - :{role}:`{inspect.getmodule(classref).__name__}.{classname}`\n")
-				module_contents.write(f"     - {summary}\n")
-
-
-		module_contents.write('\n\n')
-
-		# Generate individual class sections with proper headers
-		for (classname, classref) in classes:
+		# Generate individual sections with proper headers
+		for (classname, classref) in members:
 			# Only include classes that actually belong to this module
 			if inspect.getmodule(classref).__name__ == module.__name__:
+				_, directive, needs_members = get_autodoc_info(classname, classref)
 				module_contents.write(f'''{classname}
 {"-" * len(classname)}
 
-.. autoclass:: {module.__name__}.{classname}
-   :members:
+.. {directive}:: {module.__name__}.{classname}
+''')
+				if needs_members:
+					module_contents.write('''   :members:
    :undoc-members:
    :show-inheritance:
-
 ''')
+				module_contents.write('\n')
 		module_contents.write(stats)
 
 		new_module_contents = module_contents.getvalue()
