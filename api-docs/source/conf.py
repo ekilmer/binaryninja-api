@@ -90,15 +90,13 @@ def fnlist(module):
 
 def get_autodoc_info(name, ref):
 	"""Returns (role, directive, needs_members) for a given reference."""
-	match ref:
-		case _ if inspect.isclass(ref) and issubclass(ref, Exception):
-			return ('py:exc', 'autoexception', True)
-		case _ if inspect.isclass(ref):
-			return ('py:class', 'autoclass', True)
-		case _ if inspect.isfunction(ref):
-			return ('py:func', 'autofunction', False)
-		case _:
-			raise TypeError(f"Unhandled type for {name}: {type(ref)}")
+	if inspect.isclass(ref) and issubclass(ref, Exception):
+		return ('py:exc', 'autoexception', True)
+	if inspect.isclass(ref):
+		return ('py:class', 'autoclass', True)
+	if inspect.isfunction(ref):
+		return ('py:func', 'autofunction', False)
+	raise TypeError(f"Unhandled type for {name}: {type(ref)}")
 
 def get_docstring_summary(name, ref):
 	"""Returns a truncated summary of the docstring for a given reference."""
