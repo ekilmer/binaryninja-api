@@ -389,7 +389,7 @@ Double-clicking an address in the "start" or "end" column will navigate in the a
 
 ![memory map icon <](../img/memory-map-icon.png "Memory Map Icon")
 
-To access it, use either the icon in the sidebar to open the panel, or use the view drop-down in the main pane, or use the command-palette!
+To access it, use either the icon in the sidebar to open the panel, or use the view drop-down in the main pane, or use the Command Palette!
 
 When a segment is selected (highlighted in blue) related sections will be outlined (white border).
 
@@ -583,11 +583,30 @@ The Feature Map is also displayed on the right of the main pane area. It provide
 
 ### Command Palette
 
-![command palette](../img/command-palette.png "Command Palette"){ width="800" }
+![command palette](../img/command-palette.png "Command Palette"){ width="600" }
 
-One great feature for quickly navigating through a variety of options and actions is the `command palette`. Inspired by similar features in [Sublime](https://sublime-text-unofficial-documentation.readthedocs.io/en/sublime-text-2/extensibility/command_palette.html) and [VS Code](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette), the command-palette is a front end into an application-wide, context-sensitive action system that all actions, plugins, and hotkeys in the system are routed through.
+One great feature for quickly navigating through a variety of options and actions is the Command Palette. Inspired by similar features in [Sublime Text](https://sublime-text-unofficial-documentation.readthedocs.io/en/sublime-text-2/extensibility/command_palette.html) and [VS Code](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette), the Command Palette lets you search for actions and locations. It is context-sensitive, application-wide, and supports actions from plugins.
 
-To trigger it, simply use the `[CMD/CTRL] p` hotkey. Note that the command-palette is context-sensitive and therefore some actions (for example, `Display as - Binary`) may only be available depending on your current view or selection. This is also available to plugins. For example, a plugin may use [`PluginCommand.register`](https://api.binary.ninja/binaryninja.plugin-module.html#binaryninja.plugin.PluginCommand.register) with the optional `is_valid` callback to determine when the action should be available.
+The Command Palette can search many types of actions and places, including:
+
+- Actions (`[CMD/CTRL] p`)
+- Functions and Symbols (in current analysis)
+- Types (in current analysis)
+- Strings (in current analysis)
+- Open Tabs
+- Project Files
+- Recent Files
+- All of the above (`[CMD/CTRL]-SHIFT p`)
+
+![command palette everything](../img/command-palette-everything.png "Command Palette Searching Everything"){ width="600" }
+
+You can enter `=` followed by an expression, and the Command Palette will calculate the result for you. If that result is a location in your current analysis, you can press `ENTER` and navigate to it:
+
+![command palette expression](../img/command-palette-expression.png "Command Palette Calculates Expression"){ width="600" }
+
+Note that the Command Palette is context-sensitive and therefore some actions (for example, `Display as - Binary`) may only be available depending on your current view or selection. Various analysis-related information, such as Functions, will only be shown for the current tab.
+
+Your plugins may register actions to appear in the Command Palette. Use the [`PluginCommand.register`](https://api.binary.ninja/binaryninja.plugin-module.html#binaryninja.plugin.PluginCommand.register) API to add actions. You can make them context-sensitive with the optional `is_valid` callback, which determines when the action should be available.
 
 ### Custom Hotkeys
 
