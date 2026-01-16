@@ -316,6 +316,28 @@ public:
 			SetSystemCallConvention(cc);
 	}
 };
+
+class LinuxNds32Platform : public Platform
+{
+public:
+	LinuxNds32Platform(Architecture* arch, const std::string& name) : Platform(arch, name)
+	{
+		Ref<CallingConvention> cc;
+
+		cc = arch->GetCallingConventionByName("default");
+		if (cc)
+		{
+			RegisterDefaultCallingConvention(cc);
+			RegisterCdeclCallingConvention(cc);
+			RegisterFastcallCallingConvention(cc);
+			RegisterStdcallCallingConvention(cc);
+		}
+
+		cc = arch->GetCallingConventionByName("syscall");
+		if (cc)
+			SetSystemCallConvention(cc);
+	}
+};
 #endif
 
 
@@ -334,6 +356,7 @@ extern "C"
 		AddOptionalPluginDependency("arch_riscv");
 #ifdef ULTIMATE_EDITION
 		AddOptionalPluginDependency("arch_csky");
+		AddOptionalPluginDependency("arch_nds32");
 #endif
 		AddOptionalPluginDependency("view_elf");
 	}
@@ -567,6 +590,18 @@ extern "C"
 			Ref<Platform> platform;
 
 			platform = new LinuxCSkyV2Platform(cskyv2, "linux-csky_le");
+			Platform::Register("linux", platform);
+			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
+			BinaryViewType::RegisterPlatform("ELF", 0, platform);
+			BinaryViewType::RegisterPlatform("ELF", 3, platform);
+		}
+
+		Ref<Architecture> nds32 = Architecture::GetByName("nds32");
+		if (nds32)
+		{
+			Ref<Platform> platform;
+
+			platform = new LinuxNds32Platform(nds32, "linux-nds32");
 			Platform::Register("linux", platform);
 			// Linux binaries sometimes have an OS identifier of zero, even though 3 is the correct one
 			BinaryViewType::RegisterPlatform("ELF", 0, platform);
