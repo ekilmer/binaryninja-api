@@ -237,11 +237,11 @@ class TypeLibrary:
 		"""
 		`query_metadata` retrieves a metadata associated with the given key stored in the type library
 
+		.. note:: As of Binary Ninja 5.3 this API now raises KeyError on failure. \
+			Please use `get_metadata` for a non-raising version of the API.
+
 		:param string key: key to query
 		:rtype: metadata associated with the key
-		..note: As of Binary Ninja 5.3 this API now raises KeyError on failure. Please use `get_metadata`
-		  for a non-raising version of the API.
-
 		:Example:
 
 			>>> lib.store_metadata("ordinals", {"9": "htons"})

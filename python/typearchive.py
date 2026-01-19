@@ -607,8 +607,8 @@ class TypeArchive:
 		"""
 		Look up a metadata entry in the archive
 
-		..note: As of Binary Ninja 5.3 this API now raises KeyError on failure. Please use `get_metadata`
-		  for a non-raising version of the API.
+		.. note:: As of Binary Ninja 5.3 this API now raises KeyError on failure. \
+			Please use `get_metadata` for a non-raising version of the API.
 
 		:param string key: key to query
 		:rtype: Metadata associated with the key, if it exists. Otherwise, None
