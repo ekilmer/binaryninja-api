@@ -3772,14 +3772,14 @@ class MediumLevelILFunction:
 					sub_expr_handler(expr.stack),
 					loc
 				)
-			# if expr.operation == MediumLevelILOperation.MLIL_SEPARATE_PARAM_LIST:
-			# 	expr: MediumLevelILSeparateParamList
-			# 	params = [sub_expr_handler(param) for param in expr.params]
-			# 	return dest.separate_param_list(params, loc)
-			# if expr.operation == MediumLevelILOperation.MLIL_SHARED_PARAM_SLOT:
-			# 	expr: MediumLevelILSharedParamSlot
-			# 	params = [sub_expr_handler(param) for param in expr.params]
-			# 	return dest.shared_param_slot(params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SEPARATE_PARAM_LIST:
+				expr: MediumLevelILSeparateParamList
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.separate_param_list(params, loc)
+			if expr.operation == MediumLevelILOperation.MLIL_SHARED_PARAM_SLOT:
+				expr: MediumLevelILSharedParamSlot
+				params = [sub_expr_handler(param) for param in expr.params]
+				return dest.shared_param_slot(params, loc)
 			if expr.operation == MediumLevelILOperation.MLIL_RET:
 				expr: MediumLevelILRet
 				params = [sub_expr_handler(src) for src in expr.src]
@@ -5129,6 +5129,45 @@ class MediumLevelILFunction:
 				source_location=loc
 			),
 			stack,
+			size=0,
+			source_location=loc
+		)
+
+	def separate_param_list(
+		self, params: List[ExpressionIndex], loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``separate_param_list`` returns an expression which holds a list of parameters in ``params``
+
+		:param List[ExpressionIndex] params: parameter expressions
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``separate_param_list(params...)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(
+			MediumLevelILOperation.MLIL_SEPARATE_PARAM_LIST,
+			len(params),
+			self.add_operand_list(params),
+			size=0,
+			source_location=loc
+		)
+
+	def shared_param_slot(
+		self, params: List[ExpressionIndex], loc: Optional['ILSourceLocation'] = None
+	) -> ExpressionIndex:
+		"""
+		``shared_param_slot`` returns an expression which holds a list of parameters in ``params``
+		that are stored in a shared parameter slot
+
+		:param List[ExpressionIndex] params: parameter expressions
+		:param ILSourceLocation loc: location of returned expression
+		:return: The expression ``shared_param_slot(params...)``
+		:rtype: ExpressionIndex
+		"""
+		return self.expr(
+			MediumLevelILOperation.MLIL_SHARED_PARAM_SLOT,
+			len(params),
+			self.add_operand_list(params),
 			size=0,
 			source_location=loc
 		)
