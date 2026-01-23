@@ -87,11 +87,11 @@ enum Elfx64RelocationType : uint32_t
 	R_X86_64_PC64            = 24,
 	R_X86_64_GOTOFF64        = 25,
 	R_X86_64_GOTPC32         = 26,
-	R_X86_64_UNKNOWN27       = 27,
-	R_X86_64_UNKNOWN28       = 28,
-	R_X86_64_UNKNOWN29       = 29,
-	R_X86_64_UNKNOWN30       = 30,
-	R_X86_64_UNKNOWN31       = 31,
+	R_X86_64_GOT64           = 27,
+	R_X86_64_GOTPCREL64      = 28,
+	R_X86_64_GOTPC64         = 29,
+	R_X86_64_GOTPLT64        = 30,
+	R_X86_64_PLTOFF64        = 31,
 	R_X86_64_SIZE32          = 32,
 	R_X86_64_SIZE64          = 33,
 	R_X86_64_GOTPC32_TLSDESC = 34,
@@ -355,11 +355,11 @@ static const char* GetRelocationString(Elfx64RelocationType relocType)
 		"R_X86_64_PC64",
 		"R_X86_64_GOTOFF64",
 		"R_X86_64_GOTPC32",
-		"R_X86_64_UNKNOWN27",
-		"R_X86_64_UNKNOWN28",
-		"R_X86_64_UNKNOWN29",
-		"R_X86_64_UNKNOWN30",
-		"R_X86_64_UNKNOWN31",
+		"R_X86_64_GOT64",
+		"R_X86_64_GOTPCREL64",
+		"R_X86_64_GOTPC64",
+		"R_X86_64_GOTPLT64",
+		"R_X86_64_PLTOFF64",
 		"R_X86_64_SIZE32",
 		"R_X86_64_SIZE64",
 		"R_X86_64_GOTPC32_TLSDESC",
@@ -4424,6 +4424,16 @@ public:
 				reloc.size = 8;
 				reloc.truncateSize = 8;
 				break;
+			case R_X86_64_GOTOFF64:
+			case R_X86_64_GOT64:
+			case R_X86_64_GOTPLT64:
+			case R_X86_64_PLTOFF64:
+				reloc.pcRelative = false;
+				reloc.baseRelative = false;
+				reloc.hasSign = false;
+				reloc.size = 8;
+				reloc.truncateSize = 8;
+				break;
 			case R_X86_64_PC32:
 			case R_X86_64_PLT32:
 			case R_X86_64_GOTPCREL:
@@ -4437,6 +4447,14 @@ public:
 				reloc.truncateSize = 4;
 				break;
 			case R_X86_64_PC64:
+				reloc.pcRelative = true;
+				reloc.baseRelative = false;
+				reloc.hasSign = false;
+				reloc.size = 8;
+				reloc.truncateSize = 8;
+				break;
+			case R_X86_64_GOTPCREL64:
+			case R_X86_64_GOTPC64:
 				reloc.pcRelative = true;
 				reloc.baseRelative = false;
 				reloc.hasSign = false;
