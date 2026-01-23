@@ -2680,16 +2680,16 @@ string ElfView::ReadStringTable(BinaryReader& reader, const Elf64SectionHeader& 
 	auto itr = m_stringTableCache.find(section.offset);
 	if (itr == m_stringTableCache.end())
 	{
-		if (section.size > GetParentView()->GetLength())
+		reader.Seek(section.offset);
+		std::vector<char> dest;
+		dest.resize(section.size);
+		// We could be using a virtual reader so we can't rely on comparison against the parent view length - we just need to try and read
+		if (!reader.TryRead(dest.data(), section.size))
 		{
 			m_logger->LogError("Unable to read string table with section offset: 0x%" PRIx64 " size: 0x%" PRIx64, section.offset, section.size);
 			return "";
 		}
-
-		std::vector<char>& tableCache = m_stringTableCache[section.offset];
-		tableCache.resize(section.size);
-		reader.Seek(section.offset);
-		reader.Read(tableCache.data(), section.size);
+		m_stringTableCache[section.offset] = std::move(dest);
 		itr = m_stringTableCache.find(section.offset);
 	}
 
