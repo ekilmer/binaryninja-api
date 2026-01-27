@@ -365,10 +365,13 @@ def close_logs():
 
 
 class Logger:
-	def __init__(self, session_id: int, logger_name: str):
+	def __init__(self, session_id: int, logger_name: str, handle=None):
 		self.session_id = session_id
 		self.logger_name = logger_name
-		self.handle = core.BNLogCreateLogger(logger_name, session_id)
+		if handle:
+			self.handle = handle
+		else:
+			self.handle = core.BNLogCreateLogger(logger_name, session_id)
 
 	def log(self, level: LogLevel, message: str) -> None:
 		log(level, message, self.logger_name, self.session_id)

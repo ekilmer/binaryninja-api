@@ -218,6 +218,14 @@ pub trait Architecture: 'static + Sized + AsRef<CoreArchitecture> {
         }
     }
 
+    fn lift_function(
+        &self,
+        function: LowLevelILMutableFunction,
+        context: &mut FunctionLifterContext,
+    ) -> bool {
+        unsafe { BNArchitectureDefaultLiftFunction(function.handle, context.handle) }
+    }
+
     /// Fallback flag value calculation path. This method is invoked when the core is unable to
     /// recover the flag using semantics and resorts to emitting instructions that explicitly set each
     /// observed flag to the value of an expression returned by this function.
@@ -542,6 +550,18 @@ pub trait Architecture: 'static + Sized + AsRef<CoreArchitecture> {
     fn handle(&self) -> Self::Handle;
 }
 
+pub struct FunctionLifterContext {
+    pub(crate) handle: *mut BNFunctionLifterContext,
+}
+
+impl FunctionLifterContext {
+    pub unsafe fn from_raw(handle: *mut BNFunctionLifterContext) -> Self {
+        debug_assert!(!handle.is_null());
+
+        FunctionLifterContext { handle }
+    }
+}
+
 // TODO: WTF?!?!?!?
 pub struct CoreArchitectureList(*mut *mut BNArchitecture, usize);
 
@@ -723,6 +743,14 @@ impl Architecture for CoreArchitecture {
         unsafe {
             BNArchitectureAnalyzeBasicBlocks(self.handle, function.handle, context.handle);
         }
+    }
+
+    fn lift_function(
+        &self,
+        function: LowLevelILMutableFunction,
+        context: &mut FunctionLifterContext,
+    ) -> bool {
+        unsafe { BNArchitectureLiftFunction(self.handle, function.handle, context.handle) }
     }
 
     fn flag_write_llil<'a>(
@@ -1438,6 +1466,23 @@ where
         let mut context: BasicBlockAnalysisContext =
             unsafe { BasicBlockAnalysisContext::from_raw(context) };
         custom_arch.analyze_basic_blocks(&mut function, &mut context);
+    }
+
+    extern "C" fn cb_lift_function<A>(
+        ctxt: *mut c_void,
+        function: *mut BNLowLevelILFunction,
+        context: *mut BNFunctionLifterContext,
+    ) -> bool
+    where
+        A: 'static + Architecture<Handle = CustomArchitectureHandle<A>> + Send + Sync,
+    {
+        let custom_arch = unsafe { &*(ctxt as *mut A) };
+        let function = unsafe {
+            LowLevelILMutableFunction::from_raw_with_arch(function, Some(*custom_arch.as_ref()))
+        };
+        let mut context: FunctionLifterContext =
+            unsafe { FunctionLifterContext::from_raw(context) };
+        custom_arch.lift_function(function, &mut context)
     }
 
     extern "C" fn cb_reg_name<A>(ctxt: *mut c_void, reg: u32) -> *mut c_char
@@ -2359,6 +2404,7 @@ where
         freeInstructionText: Some(cb_free_instruction_text),
         getInstructionLowLevelIL: Some(cb_instruction_llil::<A>),
         analyzeBasicBlocks: Some(cb_analyze_basic_blocks::<A>),
+        liftFunction: Some(cb_lift_function::<A>),
 
         getRegisterName: Some(cb_reg_name::<A>),
         getFlagName: Some(cb_flag_name::<A>),

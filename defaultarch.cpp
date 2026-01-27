@@ -643,3 +643,474 @@ void Architecture::DefaultAnalyzeBasicBlocksCallback(BNFunction* function, BNBas
 	BasicBlockAnalysisContext abbc(context);
 	Architecture::DefaultAnalyzeBasicBlocks(func, abbc);
 }
+
+
+static void ApplyExternPointerForRelocation(
+	int64_t operand, LowLevelILFunction& il, size_t start, size_t end, Ref<Relocation> relocation, Ref<Logger> logger)
+{
+	ExprId id = (ExprId)-1;
+	uint64_t offset = 0;
+	size_t size = 0;
+
+	uint64_t relocStart = relocation->GetAddress();
+	uint64_t relocEnd = relocStart + relocation->GetInfo().size;
+
+	if (operand == BN_AUTOCOERCE_EXTERN_PTR)
+	{
+		// Go through all expressions looking for just one LLIL_CONST expression
+		size_t count = 0;
+		for (size_t i = start; i < end; i++)
+		{
+			auto instr = il.GetInstruction(i);
+
+			// because multiple instructions can be lifted at once, we want to ensure that
+			// each relocation is only checked against IL instructions that potentially
+			// overlap. this is hard/impossible to do robustly (reloc will not always be
+			// at the start of an instruction), but we can at least rule out instructions
+			// that start after the candidate reloc ends (as in MIPS delay slots, which this
+			// fixes)
+			if (instr.address >= relocEnd)
+				continue;
+
+			instr.VisitExprs([&](const LowLevelILInstruction& expr) {
+				switch (expr.operation)
+				{
+				case LLIL_CONST:
+				case LLIL_CONST_PTR:
+					id = expr.exprIndex;
+					offset = expr.operands[0];
+					size = expr.size;
+					count++;
+					break;
+				default:
+					break;
+				}
+				return true;
+			});
+			// If there is more than one LLIL_CONST then we don't know which one to set
+			// as an external pointer.
+			if (count > 1)
+				return;
+		}
+		if (count != 1)
+			return;
+	}
+	else
+	{
+		for (size_t i = start; i < end; i++)
+		{
+			auto instr = il.GetInstruction(i);
+			instr.VisitExprs([&](const LowLevelILInstruction& expr) {
+				if (expr.sourceOperand == operand)
+				{
+					switch (expr.operation)
+					{
+					case LLIL_CONST:
+					case LLIL_CONST_PTR:
+						id = expr.exprIndex;
+						offset = expr.operands[0];
+						size = expr.size;
+						return false;
+					default:
+						break;
+					}
+				}
+				return true;  // Parse any subexpressions
+			});
+			if (id != (ExprId)-1)
+				break;
+		}
+	}
+
+	if (id == (ExprId)-1)
+	{
+		logger->LogWarn("Unable to find const or const_ptr in expresssion @ %08x:%d", il.GetCurrentAddress(), start);
+		return;
+	}
+	offset = offset - relocation->GetTarget();
+	il.ReplaceExpr(id, il.ExternPointer(size, relocation->GetTarget(), offset));
+}
+
+
+bool Architecture::DefaultLiftFunction(LowLevelILFunction* function, FunctionLifterContext& context)
+{
+	std::unique_ptr<FastBasicBlockMap<DataBuffer>> instrData;
+	Ref<BinaryView> data = context.GetView();
+	Ref<Logger> logger = context.GetLogger();
+	Ref<Platform> platform = context.GetPlatform();
+	std::set<ArchAndAddr> noReturnCalls = context.GetNoReturnCalls();
+	std::vector<Ref<BasicBlock>> blocks = context.GetBasicBlocks();
+	std::map<ArchAndAddr, bool> contextualReturns = context.GetContextualReturns();
+	std::map<ArchAndAddr, ArchAndAddr> inlinedRemapping = context.GetInlinedRemapping();
+	std::optional<pair<ArchAndAddr, ArchAndAddr>> indirectSource;
+	std::map<ArchAndAddr, std::set<ArchAndAddr>> userIndirectBranches = context.GetUserIndirectBranches();
+	std::map<ArchAndAddr, std::set<ArchAndAddr>> autoIndirectBranches = context.GetAutoIndirectBranches();
+	for (auto& i: blocks)
+	{
+		function->SetCurrentSourceBlock(i);
+
+		auto relocationHandler = i->GetArchitecture()->GetRelocationHandler(data->GetTypeName());
+		Ref<Relocation> nextRelocation;
+		if (relocationHandler)
+			nextRelocation = data->GetNextRelocation(i->GetStart());
+
+		context.PrepareBlockTranslation(function, i->GetArchitecture(), i->GetStart());
+		BNLowLevelILLabel* label = function->GetLabelForAddress(i->GetArchitecture(), i->GetStart());
+		if (label)
+			function->MarkLabel(*label);
+
+		size_t beginInstrCount = function->GetInstructionCount();
+
+		// Generate IL for each instruction in the block
+		for (uint64_t addr = i->GetStart(); addr < i->GetEnd();) {
+			if (data->AnalysisIsAborted())
+				return false;
+
+			ArchAndAddr cur(i->GetArchitecture(), addr);
+			function->SetCurrentAddress(i->GetArchitecture(), addr);
+			function->ClearIndirectBranches();
+
+			if (auto it = inlinedRemapping.find(cur); it != inlinedRemapping.end())
+			{
+				indirectSource = *it;
+			}
+			else
+			{
+				if (auto brit = userIndirectBranches.find(cur); brit != userIndirectBranches.end())
+				{
+					const auto& s = brit->second;
+					function->SetIndirectBranches(std::vector<ArchAndAddr>(s.begin(), s.end()));
+				}
+				else if (auto brit = autoIndirectBranches.find(cur); brit != autoIndirectBranches.end())
+				{
+					const auto& s = brit->second;
+					function->SetIndirectBranches(std::vector<ArchAndAddr>(s.begin(), s.end()));
+				}
+			}
+
+			size_t len = 0;
+			const uint8_t* opcode;
+
+			if (i->HasInstructionData())
+			{
+				opcode = i->GetInstructionData(addr, &len);
+
+				if (len == 0)
+				{
+					// Instruction data not found, emit undefined IL instruction
+					function->AddInstruction(function->AddExpr(LLIL_UNDEF, 0, 0));
+					logger->LogDebug("Instruction data not found, inserted LLIL_UNDEF at %#" PRIx64, addr);
+					break;
+				}
+			}
+			else
+			{
+				if (!instrData)
+					instrData = std::make_unique<FastBasicBlockMap<DataBuffer>>(blocks);
+
+				DataBuffer& buffer = (*instrData)[i];
+				if (buffer.GetLength() == 0)
+					buffer = data->ReadBuffer(i->GetStart(), i->GetEnd() - i->GetStart());
+
+				if (addr < i->GetStart() || addr >= (i->GetStart() + buffer.GetLength()))
+				{
+					// Instruction data not found, emit undefined IL instruction
+					function->AddInstruction(function->AddExpr(LLIL_UNDEF, 0, 0));
+					logger->LogDebug("Instruction data not found, inserted LLIL_UNDEF at %#" PRIx64, addr);
+					break;
+				}
+
+				len = (i->GetStart() + buffer.GetLength()) - addr;
+				opcode = (const uint8_t*)buffer.GetDataAt(addr - i->GetStart());
+			}
+
+			size_t instrCountBefore = function->GetInstructionCount();
+			bool status = i->GetArchitecture()->GetInstructionLowLevelIL(opcode, addr, len, *function);
+			size_t instrCountAfter = function->GetInstructionCount();
+			while (nextRelocation && nextRelocation->GetAddress() >= addr && nextRelocation->GetAddress() < addr + len)
+			{
+				if (data->IsOffsetExternSemantics(nextRelocation->GetTarget()))
+				{
+					int64_t operand = relocationHandler->GetOperandForExternalRelocation(
+						opcode, addr, len, function, nextRelocation);
+					if (operand != BN_NOCOERCE_EXTERN_PTR)
+					{
+						ApplyExternPointerForRelocation(
+							operand, *function, instrCountBefore, instrCountAfter, nextRelocation, logger);
+					}
+				}
+				nextRelocation = data->GetNextRelocation(nextRelocation->GetAddress() + 1, i->GetEnd());
+			}
+
+			// Conditional Call Support (Part 2)
+			// Replace the emitted GOTO with a noreturn expression
+			if (((instrCountAfter - instrCountBefore) >= 3)
+				&& noReturnCalls.count(ArchAndAddr(i->GetArchitecture(), addr)))
+			{
+				for (size_t instrIndex = instrCountBefore; instrIndex < (instrCountAfter - 1); instrIndex++)
+				{
+					if (function->GetInstruction(instrIndex).operation != LLIL_CALL)
+						continue;
+					LowLevelILInstruction instr = function->GetInstruction(instrIndex + 1);
+					if (instr.operation == LLIL_GOTO)
+						function->ReplaceExpr(instr.exprIndex, function->AddExpr(LLIL_NORET, 0, 0));
+				}
+			}
+
+			uint64_t prevAddr = addr;
+			addr += len;
+
+			context.CheckForInlinedCall(i, instrCountBefore, instrCountAfter, prevAddr, addr, opcode, len, indirectSource);
+
+			// Indirect branch information informs when to translate non-standard returns into jumps
+			if (auto lastInstr = function->GetInstruction(instrCountAfter - 1); (lastInstr.operation == LLIL_RET)
+					&& (function->HasIndirectBranches() || !function->GetFunction()->CanReturn().GetValue()))
+			{
+				auto addressSize = platform->GetAddressSize();
+				lastInstr.Replace(function->SetRegister(addressSize, LLIL_TEMP(0), lastInstr.GetDestExpr().exprIndex));
+				function->AddInstruction(function->Jump(function->Register(addressSize, LLIL_TEMP(0)), lastInstr));
+				//lastInstr.Replace(m_liftedIL->Jump(lastInstr.GetDestExpr().exprIndex, lastInstr));
+			}
+
+			if (!status)
+			{
+				// Invalid instruction, emit undefined IL instruction
+				function->AddInstruction(function->AddExpr(LLIL_UNDEF, 0, 0));
+				logger->LogDebug("Invalid instruction, inserted LLIL_UNDEF at %#" PRIx64, addr);
+				break;
+			}
+		}
+
+		function->ClearIndirectBranches();
+
+		// Support for contextual function returns. This is mainly used for ARM/Thumb with 'blx lr'. It's most common for this to be treated
+		// as a function return, however it can also be a function call. For now this transform is described as follows:
+		// 1) Architecture lifts a call instruction as LLIL_CALL with a branch type of FunctionReturn
+		// 2) By default, contextualFunctionReturns is used to translate this to a LLIL_RET (conservative)
+		// 3) Downstream analysis uses dataflow to validate the return target
+		// 4) If the target is not the ReturnAddressValue, then we avoid the translation to a return and leave the instruction as a call
+		if (LowLevelILInstruction prevInstr = function->GetInstruction(function->GetInstructionCount() - 1); prevInstr.operation == LLIL_CALL)
+		{
+			if (auto itr = contextualReturns.find(ArchAndAddr(i->GetArchitecture(), prevInstr.address)); itr != contextualReturns.end() && itr->second)
+				prevInstr.Replace(function->Return(prevInstr.GetDestExpr().exprIndex, prevInstr));
+		}
+
+		// If basic block does not end in a jump or undefined instruction, add jump to the next block
+		size_t endInstrCount = function->GetInstructionCount();
+		if (endInstrCount == beginInstrCount)
+		{
+			// Basic block must have instructions to be valid
+			function->AddInstruction(function->AddExpr(LLIL_UNDEF, 0, 0));
+			logger->LogDebug(
+				"Basic block must have instructions to be valid, inserted LLIL_UNDEF at %#" PRIx64, i->GetStart());
+		}
+		else if ((i->GetOutgoingEdges().size() == 0) && !i->CanExit() && !i->IsFallThroughToFunction())
+		{
+			// Basic block does not exit
+			function->AddInstruction(function->AddExpr(LLIL_NORET, 0, 0));
+		}
+		else
+		{
+			BNLowLevelILLabel* exitLabel = function->GetLabelForAddress(i->GetArchitecture(), i->GetEnd());
+			if (exitLabel)
+				function->AddInstruction(function->Goto(*exitLabel));
+			else
+			{
+				size_t dest =
+					function->AddExpr(LLIL_CONST_PTR, platform->GetAddressSize(), 0, i->GetEnd());
+				function->AddInstruction(function->AddExpr(LLIL_JUMP, 0, 0, dest));
+			}
+		}
+	}
+
+	if (function->GetInstructionCount() == 0)
+	{
+		// If no instructions, make it undefined
+		function->AddInstruction(function->AddExpr(LLIL_UNDEF, 0, 0));
+		logger->LogDebug("No instructions found, inserted LLIL_UNDEF at %#" PRIx64,
+			function->GetFunction()->GetStart());
+	}
+
+	function->Finalize();
+	return true;
+}
+
+
+void FunctionLifterContext::CheckForInlinedCall(BasicBlock* block, size_t instrCountBefore, size_t instrCountAfter,
+	uint64_t prevAddr, uint64_t addr, const uint8_t* opcode, size_t len,
+	std::optional<pair<ArchAndAddr, ArchAndAddr>> indirectSource)
+{
+	// Check for direct inlined calls
+	// TODO: Handle indirect calls where the address is constant
+	if (instrCountAfter > instrCountBefore)
+	{
+		LowLevelILInstruction lastInstr = m_function->GetInstruction(instrCountAfter - 1);
+		if ((lastInstr.operation == LLIL_CALL || lastInstr.operation == LLIL_JUMP)
+			&& (lastInstr.GetDestExpr().operation == LLIL_CONST || lastInstr.GetDestExpr().operation == LLIL_CONST_PTR))
+		{
+			InstructionInfo info;
+			if (!block->GetArchitecture()->GetInstructionInfo(opcode, prevAddr, len, info))
+				return;
+
+			uint64_t target = lastInstr.GetDestExpr().GetConstant();
+			Ref<Platform> platform =
+				info.archTransitionByTargetAddr ? m_platform->GetAssociatedPlatformByAddress(target) : m_platform;
+			if (!platform)
+				return;
+
+			// Avoid inline recursion
+			if (m_inlinedCalls.count(target) != 0)
+				return;
+
+			Ref<Function> targetFunc = m_view->GetAnalysisFunction(platform, target);
+			if (!targetFunc)
+				return;
+
+			auto inlineDuringAnalysis = targetFunc->GetInlinedDuringAnalysis().GetValue();
+			if (inlineDuringAnalysis == DoNotInlineCall)
+				return;
+
+			// Must not be a conditional call.
+			// TODO: Expand support to allow these.
+			bool hasBranches = false;
+			for (size_t instrIndex = instrCountBefore; instrIndex < instrCountAfter - 1; instrIndex++)
+			{
+				LowLevelILInstruction instr = m_function->GetInstruction(instrIndex);
+				if (instr.operation == LLIL_IF || instr.operation == LLIL_GOTO)
+				{
+					hasBranches = true;
+					break;
+				}
+			}
+			if (hasBranches)
+				return;
+
+			// Get lifted IL for the target function
+			m_inlinedCalls.insert(target);
+			Ref<LowLevelILFunction> targetIL = GetForeignFunctionLiftedIL(targetFunc);
+			m_inlinedCalls.erase(target);
+			if (!targetIL)
+			{
+				// Lifting of inlined function failed, do not inline
+				return;
+			}
+
+			// Replace call with a goto to the inlined code
+			LowLevelILLabel start, end;
+			m_function->MarkLabel(start);
+			m_function->ReplaceExpr(lastInstr.exprIndex, m_function->Goto(start, lastInstr));
+
+			if (lastInstr.operation == LLIL_CALL)
+			{
+				// Set up return address according to the architecture
+				// TODO: Handle architectures that use a nonstandard way of calling functions
+				uint32_t linkReg = m_platform->GetArchitecture()->GetLinkRegister();
+				if (linkReg == BN_INVALID_REGISTER)
+				{
+					// No link register, push return address onto stack
+					// XXX: hey, this is one of the things making bad datavars inside functions, look into this
+					size_t addrSize = m_platform->GetAddressSize();
+					ExprId pushExpr =
+						m_function->Push(addrSize, m_function->ConstPointer(addrSize, addr, lastInstr), 0, lastInstr);
+					m_function->SetExprAttributes(pushExpr, ILAllowDeadStoreElimination);
+					m_function->AddInstruction(pushExpr);
+				}
+				else
+				{
+					// Set link register to return address
+					BNRegisterInfo regInfo = m_platform->GetArchitecture()->GetRegisterInfo(linkReg);
+
+					uint64_t addrToSet = addr;
+					if (block->GetArchitecture()->GetName() == "thumb2")
+						addrToSet |= 1; // XXX: hack moved here from lowlevelilfunction.cpp
+
+					ExprId linkExpr = m_function->SetRegister(
+						regInfo.size, linkReg, m_function->ConstPointer(regInfo.size, addrToSet, lastInstr), 0, lastInstr);
+					m_function->SetExprAttributes(linkExpr, ILAllowDeadStoreElimination);
+					m_function->AddInstruction(linkExpr);
+				}
+			}
+
+			// Copy the inlined code from the target function
+			auto blocks = PrepareToCopyForeignFunction(targetIL);
+			auto unresolvedIndirectBranches = targetFunc->GetUnresolvedIndirectBranches();
+			auto sourceLocation = inlineDuringAnalysis == InlineUsingCallAddress ? ILSourceLocation(lastInstr) : ILSourceLocation();
+			for (auto& block : blocks)
+			{
+				m_function->PrepareToCopyBlock(block);
+				for (size_t instrIndex = block->GetStart(); instrIndex < block->GetEnd(); instrIndex++)
+				{
+					LowLevelILInstruction instr = targetIL->GetInstruction(instrIndex);
+					ArchAndAddr loc(block->GetArchitecture(), instr.address);
+
+					if (lastInstr.operation == LLIL_CALL && instr.operation == LLIL_RET)
+					{
+						// If the instruction is a return, emit the computation of the target
+						// location (it may affect the stack pointer) but go directly to the
+						// return label instead of emitting a return instruction.
+						// TODO: Handle architectures that don't use LLIL_RET and functions
+						// that jump to the return address in nonstandard ways
+						//m_liftedIL->AddInstruction(m_liftedIL->Jump(instr.GetDestExpr<LLIL_RET>().CopyTo(m_liftedIL), instr));
+						m_function->AddInstruction(instr.GetDestExpr<LLIL_RET>().CopyTo(m_function, sourceLocation));
+						m_function->AddInstruction(m_function->Goto(end, sourceLocation));
+					}
+					else if (lastInstr.operation == LLIL_CALL && instr.operation == LLIL_JUMP
+						&& block->GetOutgoingEdges().empty() && (unresolvedIndirectBranches.count(loc) == 0))
+					{
+						// Jump without outgoing edges in the graph, and it is not marked as having
+						// unresolved branches, and this is the end of the function. This implies
+						// that this is a tail call. Copy tail calls as a call followed by a goto to
+						// the end of the inlined section. If the architecture places the return
+						// address on the stack, ensure to pop it off before emitting the call, as
+						// this implicitly places a return address onto the stack. We do not need
+						// to worry about nested inlining here because that is already resolved at
+						// this point.
+						uint32_t linkReg = m_platform->GetArchitecture()->GetLinkRegister();
+						if (linkReg == BN_INVALID_REGISTER)
+						{
+							size_t addrSize = m_platform->GetAddressSize();
+							m_function->AddInstruction(m_function->Pop(addrSize, 0, sourceLocation));
+						}
+						m_function->AddInstruction(
+							m_function->Call(instr.GetDestExpr<LLIL_JUMP>().CopyTo(m_function), sourceLocation));
+						m_function->AddInstruction(m_function->Goto(end, sourceLocation));
+					}
+					else
+					{
+						if (indirectSource.has_value() && indirectSource->second == loc)
+						{
+							ArchAndAddr cur(indirectSource->first);
+							if (auto brit = m_userIndirectBranches.find(cur); brit != m_userIndirectBranches.end())
+							{
+								const auto& s = brit->second;
+								m_function->SetIndirectBranches(std::vector<ArchAndAddr>(s.begin(), s.end()));
+							}
+							else if (auto brit = m_autoIndirectBranches.find(cur); brit != m_autoIndirectBranches.end())
+							{
+								const auto& s = brit->second;
+								m_function->SetIndirectBranches(std::vector<ArchAndAddr>(s.begin(), s.end()));
+							}
+
+							m_function->SetCurrentAddress(loc.arch, loc.address);
+						}
+
+						// Other instructions are copied directly
+						m_function->AddInstruction(instr.CopyTo(m_function, sourceLocation));
+					}
+				}
+			}
+
+			// Mark end of inlined code, execution will resume at the instruction following the call
+			m_function->MarkLabel(end);
+			*m_containsInlinedFunctions = true;
+		}
+	}
+}
+
+
+bool Architecture::DefaultLiftFunctionCallback(BNLowLevelILFunction* function, BNFunctionLifterContext* context)
+{
+	Ref func(new LowLevelILFunction(BNNewLowLevelILFunctionReference(function)));
+	FunctionLifterContext flc(func, context);
+	return DefaultLiftFunction(func, flc);
+}

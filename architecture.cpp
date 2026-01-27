@@ -466,6 +466,169 @@ void BasicBlockAnalysisContext::Finalize()
 }
 
 
+FunctionLifterContext::FunctionLifterContext(LowLevelILFunction* func, BNFunctionLifterContext* context)
+{
+	m_context = context;
+	m_view = func->GetFunction()->GetView();
+	m_function = new LowLevelILFunction(BNNewLowLevelILFunctionReference(func->GetObject()));
+	m_platform = new Platform(BNNewPlatformReference(context->platform));
+	m_logger = new Logger(BNNewLoggerReference(context->logger));
+	m_blocks.reserve(context->basicBlockCount);
+	for (size_t i = 0; i < context->basicBlockCount; i++)
+	{
+		m_blocks.emplace_back(new BasicBlock(context->basicBlocks[i]));
+	}
+
+	for (size_t i = 0; i < context->noReturnCallsCount; i++)
+	{
+		ArchAndAddr addr(new CoreArchitecture(context->noReturnCalls[i].arch), context->noReturnCalls[i].address);
+		m_noReturnCalls.insert(addr);
+	}
+
+	for (size_t i = 0; i < context->contextualFunctionReturnCount; i++)
+	{
+		ArchAndAddr addr(new CoreArchitecture(context->contextualFunctionReturnLocations[i].arch),
+			context->contextualFunctionReturnLocations[i].address);
+		m_contextualReturns[addr] = context->contextualFunctionReturnValues[i];
+	}
+
+	for (size_t i = 0; i < context->inlinedRemappingEntryCount; i++)
+	{
+		ArchAndAddr key(
+			new CoreArchitecture(context->inlinedRemappingKeys[i].arch), context->inlinedRemappingKeys[i].address);
+		ArchAndAddr value(
+			new CoreArchitecture(context->inlinedRemappingValues[i].arch), context->inlinedRemappingValues[i].address);
+		m_inlinedRemapping[key] = value;
+	}
+
+	for (size_t i = 0; i < context->indirectBranchesCount; i++)
+	{
+		ArchAndAddr src(
+			new CoreArchitecture(context->indirectBranches[i].sourceArch), context->indirectBranches[i].sourceAddr);
+		ArchAndAddr dest(
+			new CoreArchitecture(context->indirectBranches[i].destArch), context->indirectBranches[i].destAddr);
+		if (context->indirectBranches[i].autoDefined)
+			m_autoIndirectBranches[src].insert(dest);
+		else
+			m_userIndirectBranches[src].insert(dest);
+	}
+
+	for (size_t i = 0; i < context->inlinedCallsCount; i++)
+	{
+		m_inlinedCalls.insert(context->inlinedCalls[i]);
+	}
+
+	m_containsInlinedFunctions = context->containsInlinedFunctions;
+}
+
+
+Ref<BinaryView>& FunctionLifterContext::GetView()
+{
+	return m_view;
+}
+
+
+Ref<Platform>& FunctionLifterContext::GetPlatform()
+{
+	return m_platform;
+}
+
+
+std::map<ArchAndAddr, ArchAndAddr>& FunctionLifterContext::GetInlinedRemapping()
+{
+	return m_inlinedRemapping;
+}
+
+
+std::map<ArchAndAddr, std::set<ArchAndAddr>>& FunctionLifterContext::GetUserIndirectBranches()
+{
+	return m_userIndirectBranches;
+}
+
+
+std::map<ArchAndAddr, std::set<ArchAndAddr>>& FunctionLifterContext::GetAutoIndirectBranches()
+{
+	return m_autoIndirectBranches;
+}
+
+
+Ref<Logger>& FunctionLifterContext::GetLogger()
+{
+	return m_logger;
+}
+
+
+vector<Ref<BasicBlock>>& FunctionLifterContext::GetBasicBlocks()
+{
+	return m_blocks;
+}
+
+
+std::set<ArchAndAddr>& FunctionLifterContext::GetNoReturnCalls()
+{
+	return m_noReturnCalls;
+}
+
+
+std::map<ArchAndAddr, bool>& FunctionLifterContext::GetContextualReturns()
+{
+	return m_contextualReturns;
+}
+
+
+std::set<uint64_t>& FunctionLifterContext::GetInlinedCalls()
+{
+	return m_inlinedCalls;
+}
+
+
+void FunctionLifterContext::SetContainsInlinedFunctions(bool value)
+{
+	*m_containsInlinedFunctions = value;
+}
+
+
+void FunctionLifterContext::PrepareBlockTranslation(LowLevelILFunction* function, Architecture* arch, uint64_t addr)
+{
+	BNPrepareBlockTranslation(function->GetObject(), arch->GetObject(), addr);
+}
+
+
+std::vector<Ref<BasicBlock>> FunctionLifterContext::PrepareToCopyForeignFunction(LowLevelILFunction* function)
+{
+	size_t blockCount = 0;
+	BNBasicBlock** bnBlocks =
+		BNPrepareToCopyForeignFunction(m_function->GetObject(), function->GetObject(), &blockCount);
+	std::vector<Ref<BasicBlock>> blocks;
+	blocks.reserve(blockCount);
+	for (size_t i = 0; i < blockCount; i++)
+		blocks.emplace_back(new BasicBlock(BNNewBasicBlockReference(bnBlocks[i])));
+
+	BNFreeBasicBlockList(bnBlocks, blockCount);
+	return blocks;
+}
+
+
+Ref<LowLevelILFunction> FunctionLifterContext::GetForeignFunctionLiftedIL(Ref<Function> func)
+{
+	size_t inlinedCallsCount = m_inlinedCalls.size();
+	uint64_t* inlinedCalls = nullptr;
+	if (inlinedCallsCount)
+		inlinedCalls = new uint64_t[inlinedCallsCount];
+
+	BNLowLevelILFunction* il =
+		BNGetForeignFunctionLiftedIL(func->GetObject(), m_logger->GetObject(), inlinedCallsCount, inlinedCalls);
+
+	if (inlinedCalls)
+		delete[] inlinedCalls;
+
+	if (!il)
+		return nullptr;
+
+	return new LowLevelILFunction(il);
+}
+
+
 Architecture::Architecture(BNArchitecture* arch)
 {
 	m_object = arch;
@@ -597,6 +760,15 @@ void Architecture::AnalyzeBasicBlocksCallback(void *ctxt, BNFunction* function,
 	Ref<Function> func(new Function(BNNewFunctionReference(function)));
 
 	arch->AnalyzeBasicBlocks(func, abbc);
+}
+
+
+bool Architecture::LiftFunctionCallback(void* ctxt, BNLowLevelILFunction* function, BNFunctionLifterContext* context)
+{
+	CallbackRef<Architecture> arch(ctxt);
+	Ref func(new LowLevelILFunction(BNNewLowLevelILFunctionReference(function)));
+	FunctionLifterContext flc(func, context);
+	return arch->LiftFunction(func, flc);
 }
 
 
@@ -1091,6 +1263,7 @@ void Architecture::Register(Architecture* arch)
 	callbacks.freeInstructionText = FreeInstructionTextCallback;
 	callbacks.getInstructionLowLevelIL = GetInstructionLowLevelILCallback;
 	callbacks.analyzeBasicBlocks = AnalyzeBasicBlocksCallback;
+	callbacks.liftFunction = LiftFunctionCallback;
 	callbacks.getRegisterName = GetRegisterNameCallback;
 	callbacks.getFlagName = GetFlagNameCallback;
 	callbacks.getFlagWriteTypeName = GetFlagWriteTypeNameCallback;
@@ -1222,6 +1395,12 @@ bool Architecture::GetInstructionLowLevelIL(const uint8_t*, uint64_t, size_t&, L
 void Architecture::AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context)
 {
 	DefaultAnalyzeBasicBlocks(function, context);
+}
+
+
+bool Architecture::LiftFunction(LowLevelILFunction* function, FunctionLifterContext& context)
+{
+	return DefaultLiftFunction(function, context);
 }
 
 
@@ -1789,6 +1968,12 @@ bool CoreArchitecture::GetInstructionLowLevelIL(const uint8_t* data, uint64_t ad
 void CoreArchitecture::AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context)
 {
 	BNArchitectureAnalyzeBasicBlocks(m_object, function->GetObject(), context.m_context);
+}
+
+
+bool CoreArchitecture::LiftFunction(LowLevelILFunction* function, FunctionLifterContext& context)
+{
+	return BNArchitectureLiftFunction(m_object, function->GetObject(), context.m_context);
 }
 
 

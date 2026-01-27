@@ -37,14 +37,14 @@
 // Current ABI version for linking to the core. This is incremented any time
 // there are changes to the API that affect linking, including new functions,
 // new types, or modifications to existing functions or types.
-#define BN_CURRENT_CORE_ABI_VERSION 152
+#define BN_CURRENT_CORE_ABI_VERSION 153
 
 // Minimum ABI version that is supported for loading of plugins. Plugins that
 // are linked to an ABI version less than this will not be able to load and
 // will require rebuilding. The minimum version is increased when there are
 // incompatible changes that break binary compatibility, such as changes to
 // existing types or functions.
-#define BN_MINIMUM_CORE_ABI_VERSION 152
+#define BN_MINIMUM_CORE_ABI_VERSION 153
 
 #ifdef __GNUC__
 	#ifdef BINARYNINJACORE_LIBRARY
@@ -2051,6 +2051,34 @@ extern "C"
 		BNArchitectureAndAddress* inlinedUnresolvedIndirectBranches;
 	} BNBasicBlockAnalysisContext;
 
+	typedef struct BNFunctionLifterContext {
+		// IN
+		BNPlatform* platform;
+		BNLogger* logger;
+		size_t basicBlockCount;
+		BNBasicBlock** basicBlocks;
+
+		size_t inlinedRemappingEntryCount;
+		BNArchitectureAndAddress* inlinedRemappingKeys;
+		BNArchitectureAndAddress* inlinedRemappingValues;
+
+		size_t indirectBranchesCount;
+		BNIndirectBranchInfo* indirectBranches;
+
+		size_t noReturnCallsCount;
+		BNArchitectureAndAddress* noReturnCalls;
+
+		size_t contextualFunctionReturnCount;
+		BNArchitectureAndAddress* contextualFunctionReturnLocations;
+		bool* contextualFunctionReturnValues;
+
+		size_t inlinedCallsCount;
+		uint64_t* inlinedCalls;
+
+		// OUT
+		bool* containsInlinedFunctions;
+	} BNFunctionLifterContext;
+
 	typedef struct BNCustomArchitecture
 	{
 		void* context;
@@ -2070,6 +2098,7 @@ extern "C"
 		bool (*getInstructionLowLevelIL)(
 		    void* ctxt, const uint8_t* data, uint64_t addr, size_t* len, BNLowLevelILFunction* il);
 		void (*analyzeBasicBlocks)(void* ctxt, BNFunction* function, BNBasicBlockAnalysisContext* context);
+		bool (*liftFunction)(void *ctext, BNLowLevelILFunction* function, BNFunctionLifterContext* context);
 		char* (*getRegisterName)(void* ctxt, uint32_t reg);
 		char* (*getFlagName)(void* ctxt, uint32_t flag);
 		char* (*getFlagWriteTypeName)(void* ctxt, uint32_t flags);
@@ -4561,6 +4590,7 @@ extern "C"
 	BINARYNINJACOREAPI BNRelocation** BNGetRelocationsAt(BNBinaryView* view, uint64_t addr, size_t* count);
 	BINARYNINJACOREAPI void BNFreeRelocationList(BNRelocation** relocations, size_t count);
 	BINARYNINJACOREAPI void BNFreeRelocationRanges(BNRange* ranges);
+	BINARYNINJACOREAPI BNRelocation* BNGetNextRelocation(BNBinaryView* view, uint64_t addr, uint64_t maxAddr);
 
 	BINARYNINJACOREAPI void BNRegisterDataNotification(BNBinaryView* view, BNBinaryDataNotification* notify);
 	BINARYNINJACOREAPI void BNUnregisterDataNotification(BNBinaryView* view, BNBinaryDataNotification* notify);
@@ -4905,6 +4935,10 @@ extern "C"
 	BINARYNINJACOREAPI void BNArchitectureDefaultAnalyzeBasicBlocks(BNFunction* function, BNBasicBlockAnalysisContext* context);
 	BINARYNINJACOREAPI void BNArchitectureAnalyzeBasicBlocks(BNArchitecture* arch, BNFunction* function,
 		BNBasicBlockAnalysisContext* context);
+	BINARYNINJACOREAPI bool BNArchitectureSetDefaultLiftFunctionCallback(void *callback);
+	BINARYNINJACOREAPI bool BNArchitectureDefaultLiftFunction(BNLowLevelILFunction* function, BNFunctionLifterContext* context);
+	BINARYNINJACOREAPI bool BNArchitectureLiftFunction(BNArchitecture* arch, BNLowLevelILFunction* function,
+		BNFunctionLifterContext* context);
 	BINARYNINJACOREAPI void BNFreeInstructionTextLines(BNInstructionTextLine* lines, size_t count);
 	BINARYNINJACOREAPI char* BNGetArchitectureRegisterName(BNArchitecture* arch, uint32_t reg);
 	BINARYNINJACOREAPI char* BNGetArchitectureFlagName(BNArchitecture* arch, uint32_t flag);
@@ -5080,6 +5114,9 @@ extern "C"
 	BINARYNINJACOREAPI void BNRemoveUserTypeFieldReference(BNFunction* func, BNArchitecture* fromArch,
 	    uint64_t fromAddr, BNQualifiedName* name, uint64_t offset, size_t size);
 
+	BINARYNINJACOREAPI BNLowLevelILFunction* BNGetForeignFunctionLiftedIL(
+		const BNFunction* func, const BNLogger* logger, const size_t inlinedCallsCount, const uint64_t* inlinedCalls);
+
 	BINARYNINJACOREAPI BNBasicBlock* BNNewBasicBlockReference(BNBasicBlock* block);
 	BINARYNINJACOREAPI void BNFreeBasicBlock(BNBasicBlock* block);
 	BINARYNINJACOREAPI BNBasicBlock** BNGetFunctionBasicBlockList(BNFunction* func, size_t* count);
@@ -5226,6 +5263,7 @@ extern "C"
 	BINARYNINJACOREAPI void BNFreePendingBasicBlockEdgeList(BNPendingBasicBlockEdge* edges);
 	BINARYNINJACOREAPI void BNClearBasicBlockPendingOutgoingEdges(BNBasicBlock* block);
 	BINARYNINJACOREAPI void BNBasicBlockSetUndeterminedOutgoingEdges(BNBasicBlock* block, bool value);
+	BINARYNINJACOREAPI const bool BNBasicBlockHasInstructionData(BNBasicBlock* block);
 	BINARYNINJACOREAPI const uint8_t* BNBasicBlockGetInstructionData(BNBasicBlock* block, uint64_t addr, size_t* len);
 	BINARYNINJACOREAPI void BNBasicBlockAddInstructionData(BNBasicBlock* block, const void* data, size_t len);
 	BINARYNINJACOREAPI void BNBasicBlockSetFallThroughToFunction(BNBasicBlock* block, bool value);
@@ -6343,11 +6381,13 @@ extern "C"
 	BINARYNINJACOREAPI void BNLowLevelILMarkLabel(BNLowLevelILFunction* func, BNLowLevelILLabel* label);
 	BINARYNINJACOREAPI void BNFinalizeLowLevelILFunction(BNLowLevelILFunction* func);
 	BINARYNINJACOREAPI void BNGenerateLowLevelILSSAForm(BNLowLevelILFunction* func);
+	BINARYNINJACOREAPI bool BNLowLevelILFunctionHasIndirectBranches(BNLowLevelILFunction* func);
 
 	BINARYNINJACOREAPI void BNPrepareToCopyLowLevelILFunction(BNLowLevelILFunction* func, BNLowLevelILFunction* src);
 	BINARYNINJACOREAPI void BNPrepareToCopyLowLevelILBasicBlock(BNLowLevelILFunction* func, BNBasicBlock* block);
 	BINARYNINJACOREAPI BNLowLevelILLabel* BNGetLabelForLowLevelILSourceInstruction(
 	    BNLowLevelILFunction* func, size_t instr);
+	BINARYNINJACOREAPI BNBasicBlock** BNPrepareToCopyForeignFunction(BNLowLevelILFunction* dst, BNLowLevelILFunction* src, size_t* count);
 
 	BINARYNINJACOREAPI size_t BNLowLevelILAddLabelMap(
 	    BNLowLevelILFunction* func, uint64_t* values, BNLowLevelILLabel** labels, size_t count);
@@ -6374,6 +6414,7 @@ extern "C"
 	    BNLowLevelILFunction* func, BNArchitecture* arch, uint64_t addr);
 	BINARYNINJACOREAPI BNLowLevelILLabel* BNGetLowLevelILLabelForAddress(
 	    BNLowLevelILFunction* func, BNArchitecture* arch, uint64_t addr);
+	BINARYNINJACOREAPI void BNPrepareBlockTranslation(BNLowLevelILFunction* func, BNArchitecture* arch, uint64_t addr);
 
 	BINARYNINJACOREAPI bool BNGetLowLevelILExprText(
 	    BNLowLevelILFunction* func, BNArchitecture* arch, size_t i, BNDisassemblySettings* settings,

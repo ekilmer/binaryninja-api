@@ -5829,6 +5829,16 @@ optional<pair<string, BNStringType>> BinaryView::StringifyUnicodeData(Architectu
 }
 
 
+Ref<Relocation> BinaryView::GetNextRelocation(uint64_t addr, uint64_t maxAddr)
+{
+	BNRelocation* reloc = BNGetNextRelocation(m_object, addr, maxAddr);
+	if (!reloc)
+		return nullptr;
+
+	return new Relocation(reloc);
+}
+
+
 Relocation::Relocation(BNRelocation* reloc)
 {
 	m_object = reloc;

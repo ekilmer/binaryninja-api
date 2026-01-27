@@ -6164,6 +6164,7 @@ namespace BinaryNinja {
 		std::vector<std::pair<uint64_t, uint64_t>> GetRelocationRangesInRange(uint64_t addr, size_t size) const;
 		bool RangeContainsRelocation(uint64_t addr, size_t size) const;
 		std::vector<Ref<Relocation>> GetRelocationsAt(uint64_t addr) const;
+		Ref<Relocation> GetNextRelocation(uint64_t addr, uint64_t maxAddr = 0);
 
 		/*! Provides a mechanism for receiving callbacks for various analysis events.
 
@@ -9387,6 +9388,44 @@ namespace BinaryNinja {
 		void Finalize();
 	};
 
+	class FunctionLifterContext
+	{
+		Ref<LowLevelILFunction> m_function;
+		Ref<BinaryView> m_view;
+		Ref<Platform> m_platform;
+		Ref<Logger> m_logger;
+		std::vector<Ref<BasicBlock>> m_blocks;
+		std::set<ArchAndAddr> m_noReturnCalls;
+		std::map<ArchAndAddr, bool> m_contextualReturns;
+		std::map<ArchAndAddr, ArchAndAddr> m_inlinedRemapping;
+		std::map<ArchAndAddr, std::set<ArchAndAddr>> m_userIndirectBranches;
+		std::map<ArchAndAddr, std::set<ArchAndAddr>> m_autoIndirectBranches;
+		std::set<uint64_t> m_inlinedCalls;
+		bool* m_containsInlinedFunctions;
+
+	public:
+		BNFunctionLifterContext* m_context;
+		FunctionLifterContext(LowLevelILFunction* func, BNFunctionLifterContext* context);
+		Ref<BinaryView>& GetView();
+		Ref<Platform>& GetPlatform();
+		Ref<Logger>& GetLogger();
+		std::vector<Ref<BasicBlock>>& GetBasicBlocks();
+		std::set<ArchAndAddr>& GetNoReturnCalls();
+		std::map<ArchAndAddr, bool>& GetContextualReturns();
+		std::map<ArchAndAddr, ArchAndAddr>& GetInlinedRemapping();
+		std::map<ArchAndAddr, std::set<ArchAndAddr>>& GetUserIndirectBranches();
+		std::map<ArchAndAddr, std::set<ArchAndAddr>>& GetAutoIndirectBranches();
+		std::set<uint64_t>& GetInlinedCalls();
+		void SetContainsInlinedFunctions(bool value);
+
+		void CheckForInlinedCall(BasicBlock* block, size_t instrCountBefore, size_t instrCountAfter, uint64_t prevAddr,
+			uint64_t addr, const uint8_t* opcode, size_t len,
+			std::optional<std::pair<ArchAndAddr, ArchAndAddr>> indirectSource);
+		void PrepareBlockTranslation(LowLevelILFunction* function, Architecture* arch, uint64_t addr);
+		std::vector<Ref<BasicBlock>> PrepareToCopyForeignFunction(LowLevelILFunction* function);
+		Ref<LowLevelILFunction> GetForeignFunctionLiftedIL(Ref<Function> func);
+	};
+
 	/*! The Architecture class is the base class for all CPU architectures. This provides disassembly, assembly,
 	    patching, and IL translation lifting for a given architecture.
 
@@ -9415,6 +9454,7 @@ namespace BinaryNinja {
 		static bool GetInstructionLowLevelILCallback(
 		    void* ctxt, const uint8_t* data, uint64_t addr, size_t* len, BNLowLevelILFunction* il);
 		static void AnalyzeBasicBlocksCallback(void *ctxt, BNFunction* function, BNBasicBlockAnalysisContext* context);
+		static bool LiftFunctionCallback(void* ctxt, BNLowLevelILFunction* function, BNFunctionLifterContext* context);
 		static char* GetRegisterNameCallback(void* ctxt, uint32_t reg);
 		static char* GetFlagNameCallback(void* ctxt, uint32_t flag);
 		static char* GetFlagWriteTypeNameCallback(void* ctxt, uint32_t flags);
@@ -9495,6 +9535,16 @@ namespace BinaryNinja {
 			\param context Context for the analysis
 		*/
 		static void DefaultAnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context);
+
+		static bool DefaultLiftFunctionCallback(BNLowLevelILFunction* function, BNFunctionLifterContext* context);
+
+		/*! Default implementation of LiftFunction
+
+		    \param function Function to analyze
+		    \param context Context for the analysis
+		    \return Whether lifting was successful
+		*/
+		static bool DefaultLiftFunction(LowLevelILFunction* function, FunctionLifterContext& context);
 
 		/*! Get an Architecture by name
 
@@ -9599,6 +9649,14 @@ namespace BinaryNinja {
 			\param context Context for the analysis
 		*/
 		virtual void AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context);
+
+		/*! Lift function instructions to IL
+
+		    \param function Function to analyze
+		    \param context Context for the analysis
+		    \return Whether lifting was successful
+		*/
+		virtual bool LiftFunction(LowLevelILFunction* function, FunctionLifterContext& context);
 
 		/*! Gets a register name from a register index.
 
@@ -9994,6 +10052,7 @@ namespace BinaryNinja {
 		virtual bool GetInstructionLowLevelIL(
 		    const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override;
 		virtual void AnalyzeBasicBlocks(Function* function, BasicBlockAnalysisContext& context) override;
+		virtual bool LiftFunction(LowLevelILFunction* function, FunctionLifterContext& context) override;
 		virtual std::string GetRegisterName(uint32_t reg) override;
 		virtual std::string GetFlagName(uint32_t flag) override;
 		virtual std::string GetFlagWriteTypeName(uint32_t flags) override;
@@ -12152,6 +12211,12 @@ namespace BinaryNinja {
 		*/
 		void SetCanExit(bool value);
 
+		/*! Determine whether this basic block has instruction data
+
+			\return Whether this basic block has instruction data
+		*/
+		bool HasInstructionData() const;
+
 		/*! List of dominators for this basic block
 
 			\param post Whether to get post dominators (default: false)
@@ -12325,6 +12390,39 @@ namespace BinaryNinja {
 			\return Basic Block
 		*/
 		Ref<BasicBlock> GetSourceBlock() const;
+	};
+
+	/*!
+	    \ingroup basicblocks
+	*/
+	template <class T>
+	class FastBasicBlockMap
+	{
+		T* m_storage;
+		size_t m_blockCount;
+
+	public:
+		FastBasicBlockMap(const std::vector<Ref<BasicBlock>>& blocks)
+		{
+			m_blockCount = blocks.size();
+			m_storage = new T[m_blockCount + 1];
+		}
+
+		~FastBasicBlockMap() { delete[] m_storage; }
+
+		T& operator[](BasicBlock* block)
+		{
+			if (block)
+				return m_storage[block->GetIndex()];
+			return m_storage[m_blockCount];
+		}
+
+		const T& operator[](BasicBlock* block) const
+		{
+			if (block)
+				return m_storage[block->GetIndex()];
+			return m_storage[m_blockCount];
+		}
 	};
 
 	/*!
@@ -12889,7 +12987,7 @@ namespace BinaryNinja {
 
 		Ref<Function> GetCalleeForAnalysis(Ref<Platform> platform, uint64_t addr, bool exact);
 
-		std::vector<ArchAndAddr> GetUnresolvedIndirectBranches();
+		std::set<ArchAndAddr> GetUnresolvedIndirectBranches();
 		bool HasUnresolvedIndirectBranches();
 
 		/*! \brief Apply an automatic type adjustment to the call at `addr` in `arch`.
@@ -13698,6 +13796,7 @@ namespace BinaryNinja {
 		*/
 		uint64_t GetCurrentAddress() const;
 		void SetCurrentAddress(Architecture* arch, uint64_t addr);
+		void SetCurrentSourceBlock(BasicBlock* source);
 		size_t GetInstructionStart(Architecture* arch, uint64_t addr);
 		std::set<size_t> GetInstructionsAt(Architecture* arch, uint64_t addr);
 
@@ -13705,6 +13804,7 @@ namespace BinaryNinja {
 
 		void ClearIndirectBranches();
 		void SetIndirectBranches(const std::vector<ArchAndAddr>& branches);
+		bool HasIndirectBranches() const;
 
 		/*! Get a list of registers used in the LLIL function
 

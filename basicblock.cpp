@@ -454,6 +454,12 @@ void BasicBlock::SetUndeterminedOutgoingEdges(bool value)
 }
 
 
+bool BasicBlock::HasInstructionData() const
+{
+	return BNBasicBlockHasInstructionData(m_object);
+}
+
+
 const uint8_t* BasicBlock::GetInstructionData(uint64_t addr, size_t* len) const
 {
 	return BNBasicBlockGetInstructionData(m_object, addr, len);

@@ -41,6 +41,7 @@ from . import function
 from . import binaryview
 from . import variable
 from . import basicblock
+from . import log
 
 RegisterIndex = NewType('RegisterIndex', int)
 RegisterStackIndex = NewType('RegisterStackIndex', int)
@@ -412,6 +413,117 @@ class BasicBlockAnalysisContext:
         core.BNAnalyzeBasicBlocksContextFinalize(self._handle)
 
 
+@dataclass
+class FunctionLifterContext:
+	"""Used by ``lift_function`` and contains contextual information for function-level lifting
+
+	.. note:: This class is meant to be used by Architecture plugins only
+	"""
+
+	_handle: core.BNFunctionLifterContext
+	_function: "function.Function"
+	_platform: "platform.Platform"
+	_logger: "log.Logger"
+	_blocks: List["basicblock.BasicBlock"]
+	_contextual_returns: Dict["function.ArchAndAddr", bool]
+	_inline_remapping: Dict["function.ArchAndAddr", "function.ArchAndAddr"]
+	_user_indirect_branches: Dict["function.ArchAndAddr", Set["function.ArchAndAddr"]]
+	_auto_indirect_branches: Dict["function.ArchAndAddr", Set["function.ArchAndAddr"]]
+	_inlined_calls: Set[int]
+
+	@staticmethod
+	def from_core_struct(func: core.BNLowLevelILFunction,
+		bn_fl_context: core.BNFunctionLifterContext) -> "FunctionLifterContext":
+		"""Create a FunctionLifterContext from a core.BNFunctionLifterContext structure."""
+
+		session_id = core.BNLoggerGetSessionId(bn_fl_context.logger)
+		name = core.BNLoggerGetName(bn_fl_context.logger)
+		logger = log.Logger(session_id, name, handle=core.BNNewLoggerReference(bn_fl_context.logger))
+
+		plat = platform.CorePlatform._from_cache(core.BNNewPlatformReference(bn_fl_context.platform))
+		blocks = []
+		for i in range(0, bn_fl_context.basicBlockCount):
+			blocks.append(
+				basicblock.BasicBlock(
+					core.BNNewBasicBlockReference(bn_fl_context.basicBlocks[i])
+				)
+			)
+
+		contextual_returns = {}
+		for i in range(0, bn_fl_context.contextualFunctionReturnCount):
+			loc = function.ArchAndAddr(
+				CoreArchitecture._from_cache(bn_fl_context.contextualFunctionReturnLocations[i].arch),
+				bn_fl_context.contextualFunctionReturnLocations[i].address,
+			)
+
+			contextual_returns[loc] = bn_fl_context._contextualFunctionReturnValues[i]
+
+		inline_remapping = {}
+		for i in range(0, bn_fl_context.inlinedRemappingEntryCount):
+			key = function.ArchAndAddr(
+				CoreArchitecture._from_cache(bn_fl_context.inlinedRemappingKeys[i].arch),
+				bn_fl_context.inlinedRemappingKeys[i].address,
+			)
+			dest = function.ArchAndAddr(
+				CoreArchitecture._from_cache(bn_fl_context.inlinedRemappingEntries[i].destination.arch),
+				bn_fl_context.inlinedRemappingEntries[i].destination.address,
+			)
+			inline_remapping[src] = dest
+
+		user_indirect_branches = {}
+		auto_indirect_branches = {}
+		for i in range(0, bn_fl_context.indirectBranchesCount):
+			src = function.ArchAndAddr(
+				CoreArchitecture._from_cache(bn_fl_context.indirectBranches[i].sourceArch),
+				bn_fl_context.indirectBranches[i].sourceAddr,
+			)
+
+			dest = function.ArchAndAddr(
+				CoreArchitecture._from_cache(bn_fl_context.indirectBranches[i].destArch),
+				bn_fl_context.indirectBranches[i].dests[j].destAddr,
+			)
+
+			if bn_fl_context.indirectBranches[i].dests[j].isAutoDefined:
+				if src not in auto_indirect_branches:
+					auto_indirect_branches[src] = set()
+				auto_indirect_branches[src].add(dest)
+			else:
+				if src not in user_indirect_branches:
+					user_indirect_branches[src] = set()
+				user_indirect_branches[src].add(dest)
+
+
+		inlined_calls = set()
+		for i in range(0, bn_fl_context.inlinedCallsCount):
+			inlined_calls.add(bn_fl_context.inlinedCalls[i])
+
+		return FunctionLifterContext(
+			_handle=bn_fl_context,
+			_function=lowlevelil.LowLevelILFunction(
+				plat.arch, core.BNNewLowLevelILFunctionReference(func)
+			),
+			_platform=plat,
+			_logger=logger,
+			_blocks=blocks,
+			_contextual_returns=contextual_returns,
+			_inline_remapping=inline_remapping,
+			_user_indirect_branches=user_indirect_branches,
+			_auto_indirect_branches=auto_indirect_branches,
+			_inlined_calls=inlined_calls,
+		)
+
+	def prepare_block_translation(self, function, arch, address):
+		"""Prepare block for translation"""
+
+		core.BNPrepareBlockTranslation(function.handle, arch.handle, address)
+
+	@property
+	def blocks(self) -> List["basicblock.BasicBlock"]:
+		"""Get the list of basic blocks in this context."""
+
+		return self._blocks
+
+
 @dataclass(frozen=True)
 class RegisterInfo:
 	full_width_reg: RegisterName
@@ -611,6 +723,7 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 		    self._get_instruction_low_level_il
 		)
 		self._cb.analyzeBasicBlocks = self._cb.analyzeBasicBlocks.__class__(self._analyze_basic_blocks)
+		self._cb.liftFunction = self._cb.liftFunction.__class__(self._lift_function)
 		self._cb.getRegisterName = self._cb.getRegisterName.__class__(self._get_register_name)
 		self._cb.getFlagName = self._cb.getFlagName.__class__(self._get_flag_name)
 		self._cb.getFlagWriteTypeName = self._cb.getFlagWriteTypeName.__class__(self._get_flag_write_type_name)
@@ -1083,6 +1196,15 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			self.analyze_basic_blocks(function.Function(handle=core.BNNewFunctionReference(func)), context)
 		except:
 			log_error_for_exception("Unhandled Python exception in Architecture._analyze_basic_blocks")
+
+	def _lift_function(self, ctx, func, ptr_bn_fl_context):
+		try:
+			bn_fl_context = ptr_bn_fl_context.contents
+			context = FunctionLifterContext.from_core_struct(func, bn_fl_context)
+			return self.lift_function(lowlevelil.LowLevelILFunction(arch=self, handle=core.BNNewLowLevelILFunctionReference(func)), context)
+		except:
+			log_error_for_exception("Unhandled Python exception in Architecture._lift_function")
+			return False
 
 	def _get_register_name(self, ctxt, reg):
 		try:
@@ -1813,6 +1935,23 @@ class Architecture(metaclass=_ArchitectureMetaClass):
 			core.BNArchitectureDefaultAnalyzeBasicBlocks(func.handle, context._handle)
 		except:
 			log_error_for_exception("Unhandled Python exception in Architecture.analyze_basic_blocks")
+
+	def lift_function(self, func: "lowlevelil.LowLevelILFunction", context: FunctionLifterContext) -> bool:
+		"""
+		``lift_function`` performs lifting of the function and commits the results to the function analysis
+
+		.. note:: Architecture subclasses should only implement this method if function-level analysis is required
+
+		:param LowLevelILFunction func: the function to analyze
+		:param FunctionLifterContext context: the lifting context
+		:return: True on success, False otherwise
+		"""
+
+		try:
+			return core.BNArchitectureDefaultLiftFunction(func.handle, context._handle)
+		except:
+			log_error_for_exception("Unhandled Python exception in Architecture.lift_function")
+			return False
 
 	def get_low_level_il_from_bytes(self, data: bytes, addr: int) -> 'lowlevelil.LowLevelILInstruction':
 		"""
